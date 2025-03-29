@@ -1,7 +1,7 @@
-
 // Constants and types for traffic simulation
 export interface Car {
   id: number;
+  name: string; // Add name property
   position: number; // position in the loop (0 to laneLength)
   speed: number; // speed in mph
   desiredSpeed: number; // desired speed in mph
@@ -97,6 +97,7 @@ export function initializeSimulation(params: SimulationParams): {
     
     cars.push({
       id: i,
+      name: `Car ${i + 1}`, // Add a name to each car
       position: 0, // Will be set properly later
       speed,
       desiredSpeed,
@@ -125,6 +126,19 @@ export function initializeSimulation(params: SimulationParams): {
   }
   
   return { cars, laneLength, density };
+}
+
+// Calculate distance to car ahead
+export function calculateDistanceToCarAhead(carIndex: number, cars: Car[], laneLength: number): number {
+  const currentCar = cars[carIndex];
+  const aheadCarIndex = (carIndex - 1 + cars.length) % cars.length;
+  const aheadCar = cars[aheadCarIndex];
+  
+  // Calculate distance (with wrap-around)
+  let distance = aheadCar.position - currentCar.position;
+  if (distance < 0) distance += laneLength;
+  
+  return Math.round(distance);
 }
 
 // Update simulation for one time step

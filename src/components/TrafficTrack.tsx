@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Car } from "@/utils/trafficSimulation";
+import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
 import CarComponent from "./CarComponent";
 
 interface TrafficTrackProps {
@@ -39,12 +39,13 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength }) => {
       />
       
       {/* Cars */}
-      {cars.map((car) => (
+      {cars.map((car, index) => (
         <CarComponent 
           key={car.id} 
           car={car} 
           laneLength={laneLength} 
-          trackRadius={trackRadius} 
+          trackRadius={trackRadius}
+          distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
         />
       ))}
       

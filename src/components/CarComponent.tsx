@@ -8,9 +8,15 @@ interface CarComponentProps {
   car: Car;
   laneLength: number;
   trackRadius: number;
+  distanceToCarAhead: number;
 }
 
-const CarComponent: React.FC<CarComponentProps> = ({ car, laneLength, trackRadius }) => {
+const CarComponent: React.FC<CarComponentProps> = ({ 
+  car, 
+  laneLength, 
+  trackRadius,
+  distanceToCarAhead
+}) => {
   // Calculate the angle based on the car's position in the loop
   const angle = (car.position / laneLength) * 360;
   
@@ -34,10 +40,16 @@ const CarComponent: React.FC<CarComponentProps> = ({ car, laneLength, trackRadiu
           }}
         />
         <div 
-          className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 bg-white/90 rounded-full px-1.5 py-0.5 text-xs font-semibold shadow-sm"
+          className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 bg-white/90 rounded-full px-1.5 py-0.5 text-xs font-semibold shadow-sm flex flex-col items-center"
           style={{ color: car.color }}
         >
-          {Math.round(car.speed)}
+          <span>{car.name}</span>
+          <span>{Math.round(car.speed)} mph</span>
+        </div>
+        <div 
+          className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-white/90 rounded-md px-1.5 py-0.5 text-xs shadow-sm"
+        >
+          {distanceToCarAhead} ft
         </div>
       </div>
     </div>
