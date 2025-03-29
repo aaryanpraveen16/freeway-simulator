@@ -171,6 +171,9 @@ export function updateSimulation(
     // Update car's virtual length
     car.virtualLength = calculateVirtualLength(car.speed, params);
     
+    // Determine max distance the car can move in this time step
+    const maxMoveDistance = Math.max(gap - params.lengthCar, 0);
+    
     if (gap < safeDist) {
       // Too close - need to decelerate
       const decel = Math.min(
@@ -192,8 +195,14 @@ export function updateSimulation(
           params.dt;
     }
     
+    // Calculate how far the car would move with current speed
+    const potentialMove = car.speed * (5280 / 3600) * params.dt;
+    
+    // Ensure car doesn't move more than the available gap
+    const actualMove = Math.min(potentialMove, maxMoveDistance);
+    
     // Update position
-    car.position = (car.position + car.speed * (5280 / 3600) * params.dt) % laneLength;
+    car.position = (car.position + actualMove) % laneLength;
   }
   
   return updatedCars;
