@@ -14,6 +14,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SimulationParams } from "@/utils/trafficSimulation";
 import { Play, Pause, RotateCcw } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ControlPanelProps {
   isRunning: boolean;
@@ -40,6 +47,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       onUpdateParams({ meanSpeed: value });
     }
   };
+  
+  const handleBrakeCarChange = (value: string) => {
+    onUpdateParams({ brakeCarIndex: parseInt(value) });
+  };
+  
+  // Generate car options based on numCars
+  const carOptions = Array.from({ length: params.numCars }, (_, i) => ({
+    value: i.toString(),
+    label: `Car ${i + 1}`
+  }));
   
   return (
     <Card className="w-full">
@@ -95,6 +112,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               step={0.1}
             />
           </div>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="brake-car">Car to Slow Down</Label>
+          <Select 
+            value={params.brakeCarIndex.toString()} 
+            onValueChange={handleBrakeCarChange}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select which car to slow down" />
+            </SelectTrigger>
+            <SelectContent>
+              {carOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            This car will slow down after {params.brakeTime} seconds of simulation time
+          </p>
         </div>
       </CardContent>
       <CardFooter className="flex justify-between">

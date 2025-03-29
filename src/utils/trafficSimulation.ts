@@ -18,6 +18,7 @@ export interface SimulationParams {
   tDist: number; // time headway in seconds
   initialGap: number; // initial gap between cars in feet
   brakeTime: number; // time at which leader car starts braking
+  brakeCarIndex: number; // index of the car to brake (default: 0 for first car)
   minSpeed: number; // minimum speed in mph
   maxSpeed: number; // maximum speed in mph
   meanSpeed: number; // mean desired speed in mph
@@ -34,6 +35,7 @@ export const defaultParams: SimulationParams = {
   tDist: 1.5, // seconds
   initialGap: 50, // feet
   brakeTime: 10, // seconds
+  brakeCarIndex: 0, // default to first car
   minSpeed: 10, // mph
   maxSpeed: 80, // mph
   meanSpeed: 65, // mph
@@ -151,27 +153,23 @@ export function updateSimulation(
   const updatedCars = [...cars];
   const numCars = cars.length;
   
-  // Update leader car (index 0)
-  const leaderCar = updatedCars[0];
-  
-  // Apply braking if past brake time
-  if (currentTime > params.brakeTime) {
-    // Decelerate the leader
-    leaderCar.speed = Math.max(
-      leaderCar.speed - params.aMax * (5280 / 3600) * params.dt * 0.5,
-      params.minSpeed
-    );
-  } else {
-    // Accelerate towards desired speed
-    leaderCar.speed += (leaderCar.desiredSpeed - leaderCar.speed) * params.k * params.dt;
-  }
-  
-  // Update leader position
-  leaderCar.position = (leaderCar.position + leaderCar.speed * (5280 / 3600) * params.dt) % laneLength;
-  
-  // Update each following car
-  for (let i = 1; i < numCars; i++) {
+  // Process each car in the simulation
+  for (let i = 0; i < numCars; i++) {
     const car = updatedCars[i];
+    
+    // Apply braking to the selected car if past brake time
+    if (i === params.brakeCarIndex && currentTime > params.brakeTime) {
+      // Decelerate the selected car
+      car.speed = Math.max(
+        car.speed - params.aMax * (5280 / 3600) * params.dt * 0.5,
+        params.minSpeed
+      );
+    } else {
+      // For other cars, or before brake time, accelerate towards desired speed
+      car.speed += (car.desiredSpeed - car.speed) * params.k * params.dt;
+    }
+    
+    // Find car ahead (with wrap-around)
     const aheadCarIndex = (i - 1 + numCars) % numCars;
     const aheadCar = updatedCars[aheadCarIndex];
     
@@ -200,13 +198,6 @@ export function updateSimulation(
         car.speed - decel * (3600 / 5280) * params.dt,
         0
       );
-    } else {
-      // Gradually adjust speed toward desired speed and car ahead
-      car.speed =
-        car.speed +
-        params.k *
-          (0.5 * (aheadCar.speed + car.desiredSpeed) - car.speed) *
-          params.dt;
     }
     
     // Calculate how far the car would move with current speed
