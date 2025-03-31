@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TrafficTrack from "@/components/TrafficTrack";
 import ControlPanel from "@/components/ControlPanel";
 import StatsDisplay from "@/components/StatsDisplay";
+import CarStatsCard from "@/components/CarStatsCard";
 import SimulationInfo from "@/components/SimulationInfo";
 import { 
   initializeSimulation, 
@@ -110,6 +112,8 @@ const Index = () => {
             <div className="bg-white rounded-xl shadow-sm p-6">
               <TrafficTrack cars={cars} laneLength={laneLength} />
             </div>
+            
+            <CarStatsCard cars={cars} laneLength={laneLength} />
             
             <div className="bg-white rounded-xl shadow-sm p-6">
               <SimulationInfo />

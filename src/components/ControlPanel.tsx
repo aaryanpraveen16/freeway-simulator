@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SimulationParams } from "@/utils/trafficSimulation";
-import { Play, Pause, RotateCcw } from "lucide-react";
+import { Play, Pause, RotateCcw, Car } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -29,6 +29,14 @@ interface ControlPanelProps {
   params: SimulationParams;
   onUpdateParams: (newParams: Partial<SimulationParams>) => void;
 }
+
+// Predefined traffic settings
+const trafficPresets = [
+  { name: "Light Traffic", cars: 10, icon: <Car size={16} /> },
+  { name: "Busy Traffic", cars: 30, icon: <Car size={16} /> },
+  { name: "Heavy Traffic", cars: 60, icon: <Car size={16} /> },
+  { name: "Fully Packed", cars: 100, icon: <Car size={16} /> },
+];
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
   isRunning,
@@ -52,6 +60,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onUpdateParams({ brakeCarIndex: parseInt(value) });
   };
   
+  const applyTrafficPreset = (numCars: number) => {
+    onUpdateParams({ numCars });
+    onReset();
+  };
+  
   // Generate car options based on numCars
   const carOptions = Array.from({ length: params.numCars }, (_, i) => ({
     value: i.toString(),
@@ -67,6 +80,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Predefined traffic presets */}
+        <div className="space-y-2">
+          <Label>Predefined Traffic Densities</Label>
+          <div className="flex flex-wrap gap-2">
+            {trafficPresets.map((preset) => (
+              <Button
+                key={preset.name}
+                variant="outline"
+                className="flex items-center gap-1"
+                onClick={() => applyTrafficPreset(preset.cars)}
+              >
+                {preset.icon}
+                <span>{preset.name}</span>
+                <span className="text-xs text-muted-foreground">({preset.cars})</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+        
         <div className="space-y-2">
           <div className="flex justify-between">
             <Label htmlFor="num-cars">Number of Cars: {params.numCars}</Label>
@@ -74,7 +106,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <Slider
             id="num-cars"
             min={1}
-            max={20}
+            max={100}
             step={1}
             value={[params.numCars]}
             onValueChange={handleNumCarsChange}

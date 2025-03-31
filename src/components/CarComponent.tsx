@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Car } from "@/utils/trafficSimulation";
 import { cn } from "@/lib/utils";
@@ -50,20 +49,7 @@ const CarComponent: React.FC<CarComponentProps> = ({
             {carNumber}
           </div>
         </div>
-        <div 
-          className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 bg-white/90 rounded-full px-1.5 py-0.5 text-xs font-semibold shadow-sm flex flex-col items-center"
-          style={{ color: car.color }}
-        >
-          <span>{car.name}</span>
-          <span>{Math.round(car.speed)} mph</span>
-        </div>
-        {/* Distance display commented out as requested
-        <div 
-          className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-white/90 rounded-md px-1.5 py-0.5 text-xs shadow-sm"
-        >
-          {distanceToCarAhead} ft
-        </div>
-        */}
+        
       </div>
     </div>
   );
