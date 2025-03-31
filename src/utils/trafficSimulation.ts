@@ -1,4 +1,3 @@
-
 // Constants and types for traffic simulation
 export interface Car {
   id: number;
@@ -170,6 +169,7 @@ export function initializeSimulation(params: SimulationParams): {
 // Calculate distance to car ahead
 export function calculateDistanceToCarAhead(carIndex: number, cars: Car[], laneLength: number): number {
   const currentCar = cars[carIndex];
+  // Fix: Calculate the index of the car ahead (not behind)
   const aheadCarIndex = (carIndex - 1 + cars.length) % cars.length;
   const aheadCar = cars[aheadCarIndex];
   
