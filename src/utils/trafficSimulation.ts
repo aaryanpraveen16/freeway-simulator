@@ -1,3 +1,4 @@
+
 // Constants and types for traffic simulation
 export interface Car {
   id: number;
@@ -116,15 +117,51 @@ export function initializeSimulation(params: SimulationParams): {
   // Calculate traffic density (cars per mile)
   const density = params.numCars / (laneLength / 5280);
   
-  // Position cars along the lane with proper spacing
-  // Place the last car at position 0
-  cars[params.numCars - 1].position = 0;
+  // UPDATED: Randomly position cars along the lane
+  // Create an array of possible positions
+  const usedPositions: number[] = [];
   
-  // Place each preceding car
-  for (let i = params.numCars - 2; i >= 0; i--) {
-    const nextCarIndex = (i + 1) % params.numCars;
-    const gap = cars[nextCarIndex].virtualLength + params.initialGap;
-    cars[i].position = (cars[nextCarIndex].position + gap) % laneLength;
+  // For each car, find a random position that doesn't overlap with other cars
+  for (let i = 0; i < params.numCars; i++) {
+    let validPosition = false;
+    let position = 0;
+    
+    // Try to find a valid position
+    let attempts = 0;
+    const maxAttempts = 100; // Prevent infinite loops
+    
+    while (!validPosition && attempts < maxAttempts) {
+      // Generate a random position around the track
+      position = Math.random() * laneLength;
+      validPosition = true;
+      
+      // Check if this position is too close to any other car
+      for (const usedPos of usedPositions) {
+        const distance = Math.abs(position - usedPos);
+        const wrappedDistance = Math.min(distance, laneLength - distance);
+        
+        // If too close to another car, try again
+        if (wrappedDistance < params.lengthCar + params.initialGap / 2) {
+          validPosition = false;
+          break;
+        }
+      }
+      
+      attempts++;
+    }
+    
+    // If we couldn't find a completely valid position, just use the last attempt
+    usedPositions.push(position);
+    cars[i].position = position;
+  }
+  
+  // Sort cars by position for better initial state visualization
+  cars.sort((a, b) => a.position - b.position);
+  
+  // Reassign IDs to maintain the order
+  for (let i = 0; i < cars.length; i++) {
+    cars[i].id = i;
+    cars[i].name = `Car ${i + 1}`;
   }
   
   return { cars, laneLength, density };
