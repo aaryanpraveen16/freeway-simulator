@@ -39,7 +39,7 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Speed:</span>
+                    <span className="text-muted-foreground">Avg. Desired Speed:</span>
                     <span className="font-medium ml-1">{Math.round(car.speed)} mph</span>
                   </div>
                   <div>

@@ -33,9 +33,9 @@ export const defaultParams: SimulationParams = {
   aMax: 10, // ft/s^2
   k: 0.3, // unitless
   lengthCar: 15, // feet
-  tDist: 1.5, // seconds
+  tDist: 3, // seconds
   initialGap: 50, // feet
-  brakeTime: 10, // seconds
+  brakeTime: 5, // seconds
   brakeCarIndex: 0, // default to first car
   minSpeed: 10, // mph
   maxSpeed: 80, // mph
@@ -170,7 +170,7 @@ export function initializeSimulation(params: SimulationParams): {
 // Calculate distance to car ahead
 export function calculateDistanceToCarAhead(carIndex: number, cars: Car[], laneLength: number): number {
   const currentCar = cars[carIndex];
-  const aheadCarIndex = (carIndex - 1 + cars.length) % cars.length;
+  const aheadCarIndex = (carIndex + 1 + cars.length) % cars.length;
   const aheadCar = cars[aheadCarIndex];
   
   // Calculate distance (with wrap-around)
@@ -211,7 +211,7 @@ export function updateSimulation(
     }
     
     // Find car ahead (with wrap-around)
-    const aheadCarIndex = (i - 1 + numCars) % numCars;
+    const aheadCarIndex = (i + 1 + numCars) % numCars;
     const aheadCar = updatedCars[aheadCarIndex];
     
     // Calculate gap to car ahead (with wrap-around)
