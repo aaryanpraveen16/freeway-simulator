@@ -190,20 +190,24 @@ export function updateSimulation(
   const updatedCars = [...cars];
   const numCars = cars.length;
   
+  // First, calculate all car movements without updating positions
+  const movements: { newPosition: number; newSpeed: number }[] = [];
+  
   // Process each car in the simulation
   for (let i = 0; i < numCars; i++) {
     const car = updatedCars[i];
+    let carSpeed = car.speed;
     
     // Apply braking to the selected car if past brake time
     if (i === params.brakeCarIndex && currentTime > params.brakeTime) {
       // Decelerate the selected car
-      car.speed = Math.max(
-        car.speed - params.aMax * (5280 / 3600) * params.dt * 0.5,
+      carSpeed = Math.max(
+        carSpeed - params.aMax * (5280 / 3600) * params.dt * 0.5,
         params.minSpeed
       );
     } else {
       // For other cars, or before brake time, accelerate towards desired speed
-      car.speed += (car.desiredSpeed - car.speed) * params.k * params.dt;
+      carSpeed += (car.desiredSpeed - carSpeed) * params.k * params.dt;
     }
     
     // Find car ahead (with wrap-around)
@@ -215,36 +219,53 @@ export function updateSimulation(
     if (gap < 0) gap += laneLength;
     
     // Calculate safe distance
-    const safeDist = calculateSafeDistance(car.speed, params.tDist);
+    const safeDist = calculateSafeDistance(carSpeed, params.tDist);
     
     // Update car's virtual length
-    car.virtualLength = calculateVirtualLength(car.speed, params);
+    car.virtualLength = calculateVirtualLength(carSpeed, params);
     
-    // Determine max distance the car can move in this time step
-    const maxMoveDistance = Math.max(gap - params.lengthCar, 0);
-    
-    if (gap < safeDist) {
-      // Too close - need to decelerate
+    // If too close to car ahead, decelerate to maintain safe distance
+    if (gap < safeDist + params.lengthCar) {
+      // Calculate required deceleration to maintain safe distance
       const decel = Math.min(
-        (car.speed ** 2 - aheadCar.speed ** 2) / (2 * Math.max(safeDist - gap, 1)),
+        (carSpeed ** 2 - aheadCar.speed ** 2) / (2 * Math.max(safeDist - gap + params.lengthCar, 1)),
         params.aMax
       );
       
       // Update speed (convert from ft/s² to mph/s)
-      car.speed = Math.max(
-        car.speed - decel * (3600 / 5280) * params.dt,
+      carSpeed = Math.max(
+        carSpeed - decel * (3600 / 5280) * params.dt,
         0
       );
+      
+      // Ensure car doesn't go faster than car ahead if too close
+      if (gap < params.lengthCar * 1.5) {
+        carSpeed = Math.min(carSpeed, aheadCar.speed * 0.9); // Stay slower than car ahead
+      }
     }
     
     // Calculate how far the car would move with current speed
-    const potentialMove = car.speed * (5280 / 3600) * params.dt;
+    const mphToFtPerSec = 5280 / 3600;
+    const potentialMove = carSpeed * mphToFtPerSec * params.dt;
     
-    // Ensure car doesn't move more than the available gap
+    // Ensure car doesn't overtake car ahead
+    let maxMoveDistance = gap - params.lengthCar;
+    maxMoveDistance = Math.max(maxMoveDistance, 0); // Cannot be negative
+    
+    // The actual distance to move is the minimum of potential and maximum allowed
     const actualMove = Math.min(potentialMove, maxMoveDistance);
     
-    // Update position
-    car.position = (car.position + actualMove) % laneLength;
+    // Calculate new position (will be applied in the next step)
+    const newPosition = (car.position + actualMove) % laneLength;
+    
+    // Store the new position and speed
+    movements.push({ newPosition, newSpeed: carSpeed });
+  }
+  
+  // Now update all car positions and speeds
+  for (let i = 0; i < numCars; i++) {
+    updatedCars[i].position = movements[i].newPosition;
+    updatedCars[i].speed = movements[i].newSpeed;
   }
   
   return updatedCars;
