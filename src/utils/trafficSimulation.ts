@@ -1,4 +1,3 @@
-
 // Constants and types for traffic simulation
 export interface Car {
   id: number;
