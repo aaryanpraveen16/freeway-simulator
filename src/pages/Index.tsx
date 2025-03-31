@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TrafficTrack from "@/components/TrafficTrack";
 import ControlPanel from "@/components/ControlPanel";
@@ -29,12 +28,7 @@ const Index = () => {
     setCars(cars);
     setLaneLength(laneLength);
     setElapsedTime(0);
-    
-    toast({
-      title: "Simulation initialized",
-      description: `${params.numCars} cars placed on a ${Math.round(laneLength)} ft track`,
-    });
-  }, [params, toast]);
+  }, [params]);
 
   // Update simulation parameters
   const handleUpdateParams = useCallback((newParams: Partial<SimulationParams>) => {
@@ -85,21 +79,9 @@ const Index = () => {
     if (isRunning) {
       lastTimestampRef.current = null;
       animationFrameRef.current = requestAnimationFrame(animationLoop);
-      
-      toast({
-        title: "Simulation started",
-        description: "Traffic flow is now being calculated in real-time",
-      });
     } else if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
-      
-      if (elapsedTime > 0) {
-        toast({
-          title: "Simulation paused",
-          description: "The traffic flow calculation has been paused",
-        });
-      }
     }
 
     // Cleanup animation frame on unmount
@@ -108,7 +90,7 @@ const Index = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isRunning, animationLoop, elapsedTime, toast]);
+  }, [isRunning, animationLoop, elapsedTime]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
