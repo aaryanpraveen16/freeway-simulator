@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +17,11 @@ interface PackInfo {
 const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<number, number> } => {
   const packs: PackInfo[] = [];
   const carPackMap: Record<number, number> = {};
+  
+  // Handle empty cars array
+  if (!cars.length) {
+    return { packs, carPackMap };
+  }
   
   // Sort cars by position to find adjacent cars
   const sortedCars = [...cars].sort((a, b) => a.position - b.position);
