@@ -72,12 +72,31 @@ export const identifyPacks = (cars: Car[]): number => {
   
   let packCount = 1; // Start with at least one pack
   let currentPackSpeed = sortedCars[0].speed;
+  const safeDistanceThreshold = 100; // Safe distance threshold in feet
+  const gapThresholdBuffer = 50; // Buffer for gap threshold in feet
+  const totalGapThreshold = safeDistanceThreshold + gapThresholdBuffer;
   
   for (let i = 1; i < sortedCars.length; i++) {
     const car = sortedCars[i];
+    const prevCar = sortedCars[i - 1];
     
-    // If speeds differ by more than 10 mph, consider it a new pack
-    if (Math.abs(car.speed - currentPackSpeed) > 10) {
+    // Calculate gap between current car and previous car
+    let gap = car.position - prevCar.position;
+    
+    // Adjust for track wraparound
+    if (gap < 0) {
+      // Assuming laneLength is known, but since it's not available here
+      // we'll use a large value as a heuristic
+      const estimatedLaneLength = 5000;
+      gap += estimatedLaneLength;
+    }
+    
+    // Check both speed difference AND gap criteria
+    const speedDifference = Math.abs(car.speed - currentPackSpeed);
+    const isNewPackBySpeed = speedDifference > 10;
+    const isNewPackByGap = gap > totalGapThreshold;
+    
+    if (isNewPackBySpeed || isNewPackByGap) {
       packCount++;
       currentPackSpeed = car.speed;
     }

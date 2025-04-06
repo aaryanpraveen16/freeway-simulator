@@ -31,13 +31,30 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
   let currentPackSpeed = sortedCars[0].speed;
   let packId = 0;
   
-  // Group cars into packs based on similar speeds
+  const safeDistanceThreshold = 100; // Safe distance threshold in feet
+  const gapThresholdBuffer = 50; // Buffer for gap threshold in feet
+  const totalGapThreshold = safeDistanceThreshold + gapThresholdBuffer;
+  
+  // Group cars into packs based on similar speeds and gap thresholds
   for (let i = 1; i < sortedCars.length; i++) {
     const car = sortedCars[i];
     const prevCar = sortedCars[i - 1];
     
-    // If speeds are within 10 mph of each other, consider them part of the same pack
-    if (Math.abs(car.speed - currentPackSpeed) <= 10) {
+    // Calculate gap between current car and previous car
+    let gap = car.position - prevCar.position;
+    
+    // Adjust for track wraparound
+    if (gap < 0) {
+      gap += sortedCars[sortedCars.length - 1].position + 1000;
+    }
+    
+    // Check both speed difference AND gap criteria
+    const speedDifference = Math.abs(car.speed - currentPackSpeed);
+    const isNewPackBySpeed = speedDifference > 10;
+    const isNewPackByGap = gap > totalGapThreshold;
+    
+    // If speeds are within 10 mph of each other AND gap is small enough, consider them part of the same pack
+    if (!isNewPackBySpeed && !isNewPackByGap) {
       currentPack.push(car.id);
     } else {
       // Create a new pack with the cars collected so far
