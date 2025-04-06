@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,8 +36,8 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
     const car = sortedCars[i];
     const prevCar = sortedCars[i - 1];
     
-    // If speeds are within 3 mph of each other, consider them part of the same pack
-    if (Math.abs(car.speed - currentPackSpeed) <= 3) {
+    // If speeds are within 5 mph of each other, consider them part of the same pack
+    if (Math.abs(car.speed - currentPackSpeed) <= 5) {
       currentPack.push(car.id);
     } else {
       // Create a new pack with the cars collected so far
