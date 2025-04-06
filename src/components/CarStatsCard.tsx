@@ -36,8 +36,8 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
     const car = sortedCars[i];
     const prevCar = sortedCars[i - 1];
     
-    // If speeds are within 5 mph of each other, consider them part of the same pack
-    if (Math.abs(car.speed - currentPackSpeed) <= 5) {
+    // If speeds are within 10 mph of each other, consider them part of the same pack
+    if (Math.abs(car.speed - currentPackSpeed) <= 10) {
       currentPack.push(car.id);
     } else {
       // Create a new pack with the cars collected so far

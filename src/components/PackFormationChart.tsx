@@ -76,8 +76,8 @@ export const identifyPacks = (cars: Car[]): number => {
   for (let i = 1; i < sortedCars.length; i++) {
     const car = sortedCars[i];
     
-    // If speeds differ by more than 5 mph, consider it a new pack
-    if (Math.abs(car.speed - currentPackSpeed) > 5) {
+    // If speeds differ by more than 10 mph, consider it a new pack
+    if (Math.abs(car.speed - currentPackSpeed) > 10) {
       packCount++;
       currentPackSpeed = car.speed;
     }
