@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TrafficTrack from "@/components/TrafficTrack";
 import ControlPanel from "@/components/ControlPanel";
 import StatsDisplay from "@/components/StatsDisplay";
 import CarStatsCard from "@/components/CarStatsCard";
 import SimulationInfo from "@/components/SimulationInfo";
+import PackFormationChart, { identifyPacks } from "@/components/PackFormationChart";
 import { 
   initializeSimulation, 
   updateSimulation, 
@@ -14,35 +14,40 @@ import {
 } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
 
+interface PackHistoryItem {
+  time: number;
+  packCount: number;
+}
+
 const Index = () => {
   const [params, setParams] = useState<SimulationParams>(defaultParams);
   const [cars, setCars] = useState<Car[]>([]);
   const [laneLength, setLaneLength] = useState<number>(0);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [packHistory, setPackHistory] = useState<PackHistoryItem[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
+  const lastPackRecordTimeRef = useRef<number>(0);
   const { toast } = useToast();
 
-  // Initialize simulation
   const initSimulation = useCallback(() => {
     const { cars, laneLength } = initializeSimulation(params);
     setCars(cars);
     setLaneLength(laneLength);
     setElapsedTime(0);
+    setPackHistory([]);
+    lastPackRecordTimeRef.current = 0;
   }, [params]);
 
-  // Update simulation parameters
   const handleUpdateParams = useCallback((newParams: Partial<SimulationParams>) => {
     setParams((prev) => ({ ...prev, ...newParams }));
   }, []);
 
-  // Toggle simulation running state
   const toggleSimulation = useCallback(() => {
     setIsRunning((prev) => !prev);
   }, []);
 
-  // Reset simulation
   const handleReset = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -53,7 +58,22 @@ const Index = () => {
     initSimulation();
   }, [initSimulation]);
 
-  // Animation loop
+  const recordPackData = useCallback((newCars: Car[], time: number) => {
+    if (time - lastPackRecordTimeRef.current >= 0.5) {
+      const packCount = identifyPacks(newCars);
+      
+      setPackHistory(prev => {
+        const newHistory = [...prev, { time: parseFloat(time.toFixed(1)), packCount }];
+        if (newHistory.length > 50) {
+          return newHistory.slice(-50);
+        }
+        return newHistory;
+      });
+      
+      lastPackRecordTimeRef.current = time;
+    }
+  }, []);
+
   const animationLoop = useCallback((timestamp: number) => {
     if (!lastTimestampRef.current) {
       lastTimestampRef.current = timestamp;
@@ -64,19 +84,22 @@ const Index = () => {
     const deltaTime = (timestamp - lastTimestampRef.current) / 1000; // in seconds
     lastTimestampRef.current = timestamp;
 
-    setElapsedTime((prevTime) => prevTime + deltaTime);
-    setCars((prevCars) => updateSimulation(prevCars, laneLength, params, elapsedTime));
+    const newElapsedTime = elapsedTime + deltaTime;
+    setElapsedTime(newElapsedTime);
+    
+    const updatedCars = updateSimulation(cars, laneLength, params, elapsedTime);
+    setCars(updatedCars);
+    
+    recordPackData(updatedCars, newElapsedTime);
 
     animationFrameRef.current = requestAnimationFrame(animationLoop);
-  }, [laneLength, params, elapsedTime]);
+  }, [laneLength, params, elapsedTime, cars, recordPackData]);
 
-  // Effect to initialize simulation on mount
   useEffect(() => {
     initSimulation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Effect to handle starting/stopping the animation loop
   useEffect(() => {
     if (isRunning) {
       lastTimestampRef.current = null;
@@ -86,7 +109,6 @@ const Index = () => {
       animationFrameRef.current = null;
     }
 
-    // Cleanup animation frame on unmount
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -114,6 +136,8 @@ const Index = () => {
             </div>
             
             <CarStatsCard cars={cars} laneLength={laneLength} />
+            
+            <PackFormationChart packHistory={packHistory} />
             
             <div className="bg-white rounded-xl shadow-sm p-6">
               <SimulationInfo />
