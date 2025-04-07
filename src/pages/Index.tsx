@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TrafficTrack from "@/components/TrafficTrack";
 import ControlPanel from "@/components/ControlPanel";
@@ -154,11 +155,6 @@ const Index = () => {
             
             <CarStatsCard cars={cars} laneLength={laneLength} />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <PackFormationChart packHistory={packHistory} />
-              <AveragePackLengthChart packLengthHistory={packLengthHistory} />
-            </div>
-            
             <div className="bg-white rounded-xl shadow-sm p-6">
               <SimulationInfo />
             </div>
@@ -179,6 +175,12 @@ const Index = () => {
               onUpdateParams={handleUpdateParams}
             />
           </div>
+        </div>
+        
+        {/* New separate row for charts */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <PackFormationChart packHistory={packHistory} />
+          <AveragePackLengthChart packLengthHistory={packLengthHistory} />
         </div>
       </div>
     </div>

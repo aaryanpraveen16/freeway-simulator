@@ -47,7 +47,7 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({ packLen
               <YAxis
                 label={{ value: "Average Pack Length (feet)", angle: -90, position: "insideLeft" }}
               />
-              <Tooltip formatter={(value) => [`${value.toFixed(1)} feet`, "Average Pack Length"]} />
+              <Tooltip formatter={(value: number) => [`${value.toFixed(1)} feet`, "Average Pack Length"]} />
               <Legend />
               <Line
                 type="monotone"
