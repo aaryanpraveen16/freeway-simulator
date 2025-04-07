@@ -6,18 +6,19 @@ import { Car as CarIcon } from "lucide-react";
 interface CarComponentProps {
   car: Car;
   laneLength: number;
-  trackRadius: number;
+  trackLength: number;
   distanceToCarAhead: number;
 }
 
 const CarComponent: React.FC<CarComponentProps> = ({ 
   car, 
   laneLength, 
-  trackRadius,
+  trackLength,
   distanceToCarAhead
 }) => {
-  // Calculate the angle based on the car's position in the loop
-  const angle = (car.position / laneLength) * 360;
+  // Calculate the position on the straight road with looping
+  const positionPercentage = (car.position % laneLength) / laneLength * 100;
+  const leftPosition = (positionPercentage / 100) * trackLength;
   
   // Extract car number from the name (e.g., "Car 3" -> "3")
   const carNumber = car.name.split(' ')[1];
@@ -26,9 +27,8 @@ const CarComponent: React.FC<CarComponentProps> = ({
     <div
       className="absolute transform -translate-x-1/2 -translate-y-1/2"
       style={{
-        left: "50%",
-        top: "50%",
-        transform: `rotate(${angle}deg) translateX(${trackRadius}px) rotate(-${angle}deg)`,
+        left: `${leftPosition}px`,
+        top: "75px", // Center of the track
       }}
     >
       <div className="relative">
@@ -49,7 +49,6 @@ const CarComponent: React.FC<CarComponentProps> = ({
             {carNumber}
           </div>
         </div>
-        
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -145,6 +144,12 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
               );
               
               const packId = carPackMap[car.id];
+              
+              // Calculate trip progress percentage
+              const tripProgress = Math.min(
+                (car.distanceTraveled / car.distTripPlanned) * 100,
+                100
+              );
 
               return (
                 <div
@@ -184,6 +189,27 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                       <span className="font-medium ml-1">
                         {distanceToCarAhead} ft
                       </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Trip Progress:</span>
+                      <span className="font-medium ml-1">
+                        {Math.round(tripProgress)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div 
+                        className="h-2.5 rounded-full" 
+                        style={{ 
+                          width: `${tripProgress}%`,
+                          backgroundColor: car.color
+                        }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>{Math.round(car.distanceTraveled)} ft</span>
+                      <span>{Math.round(car.distTripPlanned)} ft</span>
                     </div>
                   </div>
                 </div>

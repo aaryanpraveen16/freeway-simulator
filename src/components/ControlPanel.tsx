@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -58,6 +57,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   
   const handleBrakeCarChange = (value: string) => {
     onUpdateParams({ brakeCarIndex: parseInt(value) });
+  };
+  
+  const handleMeanTripDistanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value > 0) {
+      onUpdateParams({ meanDistTripPlanned: value });
+    }
+  };
+  
+  const handleTripDistanceStdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value > 0) {
+      onUpdateParams({ sigmaDistTripPlanned: value });
+    }
   };
   
   const applyTrafficPreset = (numCars: number) => {
@@ -166,6 +179,44 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <p className="text-xs text-muted-foreground">
             This car will slow down after {params.brakeTime} seconds of simulation time
           </p>
+        </div>
+        
+        <div className="space-y-4">
+          <Label className="text-base">Trip Planning Parameters</Label>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="mean-trip-distance">Mean Trip Distance (ft)</Label>
+              <Input
+                id="mean-trip-distance"
+                type="number"
+                value={params.meanDistTripPlanned}
+                onChange={handleMeanTripDistanceChange}
+                min={1000}
+                max={50000}
+                step={1000}
+              />
+              <p className="text-xs text-muted-foreground">
+                Average distance cars will travel before exiting
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="trip-distance-std">Trip Distance Std Dev</Label>
+              <Input
+                id="trip-distance-std"
+                type="number"
+                value={params.sigmaDistTripPlanned}
+                onChange={handleTripDistanceStdChange}
+                min={0.1}
+                max={2}
+                step={0.1}
+              />
+              <p className="text-xs text-muted-foreground">
+                Variation in trip distances (log-normal distribution)
+              </p>
+            </div>
+          </div>
         </div>
       </CardContent>
       <CardFooter className="flex justify-between">

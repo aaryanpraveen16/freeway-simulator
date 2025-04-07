@@ -19,6 +19,14 @@ interface PackHistoryItem {
   packCount: number;
 }
 
+interface SimulationEvent {
+  type: 'exit' | 'enter';
+  carId: number;
+  carName: string;
+  position: number;
+  speed: number;
+}
+
 const Index = () => {
   const [params, setParams] = useState<SimulationParams>(defaultParams);
   const [cars, setCars] = useState<Car[]>([]);
@@ -74,6 +82,24 @@ const Index = () => {
     }
   }, []);
 
+  const handleSimulationEvents = useCallback((events: SimulationEvent[]) => {
+    events.forEach(event => {
+      if (event.type === 'exit') {
+        toast({
+          title: "Car Exited",
+          description: `${event.carName} has completed its trip and exited the freeway.`,
+          variant: "default",
+        });
+      } else if (event.type === 'enter') {
+        toast({
+          title: "Car Entered",
+          description: `${event.carName} has entered the freeway at position ${Math.round(event.position)} ft.`,
+          variant: "default",
+        });
+      }
+    });
+  }, [toast]);
+
   const animationLoop = useCallback((timestamp: number) => {
     if (!lastTimestampRef.current) {
       lastTimestampRef.current = timestamp;
@@ -87,13 +113,18 @@ const Index = () => {
     const newElapsedTime = elapsedTime + deltaTime;
     setElapsedTime(newElapsedTime);
     
-    const updatedCars = updateSimulation(cars, laneLength, params, elapsedTime);
+    const { cars: updatedCars, events } = updateSimulation(cars, laneLength, params, elapsedTime);
     setCars(updatedCars);
+    
+    // Handle car exit and enter events
+    if (events.length > 0) {
+      handleSimulationEvents(events);
+    }
     
     recordPackData(updatedCars, newElapsedTime);
 
     animationFrameRef.current = requestAnimationFrame(animationLoop);
-  }, [laneLength, params, elapsedTime, cars, recordPackData]);
+  }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents]);
 
   useEffect(() => {
     initSimulation();

@@ -7,6 +7,8 @@ export interface Car {
   desiredSpeed: number; // desired speed in mph
   color: string; // color for visualization
   virtualLength: number; // physical length + safe distance
+  distTripPlanned: number; // planned trip distance in feet
+  distanceTraveled: number; // distance traveled so far in feet
 }
 
 export interface SimulationParams {
@@ -23,6 +25,8 @@ export interface SimulationParams {
   maxSpeed: number; // maximum speed in mph
   meanSpeed: number; // mean desired speed in mph
   stdSpeed: number; // standard deviation of desired speeds
+  meanDistTripPlanned: number; // mean planned trip distance in feet
+  sigmaDistTripPlanned: number; // standard deviation of planned trip distances
 }
 
 // Default simulation parameters
@@ -40,6 +44,8 @@ export const defaultParams: SimulationParams = {
   maxSpeed: 80, // mph
   meanSpeed: 65, // mph
   stdSpeed: 5, // mph
+  meanDistTripPlanned: 10000, // 10,000 feet (about 1.9 miles)
+  sigmaDistTripPlanned: 0.5, // standard deviation for log-normal distribution
 };
 
 // Generate random number from normal distribution
@@ -52,6 +58,20 @@ export function normalRandom(mean: number, std: number, min?: number, max?: numb
   if (min !== undefined && value < min) return min;
   if (max !== undefined && value > max) return max;
   return value;
+}
+
+// Generate random number from log-normal distribution
+export function logNormalRandom(mean: number, sigma: number): number {
+  // Convert mean and sigma to mu and sigma for log-normal distribution
+  const mu = Math.log(mean) - 0.5 * Math.pow(sigma, 2);
+  
+  // Generate normal random variable
+  const u1 = Math.random();
+  const u2 = Math.random();
+  const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+  
+  // Transform to log-normal
+  return Math.exp(mu + sigma * z0);
 }
 
 // Calculate safe following distance based on speed
@@ -97,6 +117,12 @@ export function initializeSimulation(params: SimulationParams): {
     // Calculate virtual length based on initial speed
     const virtualLength = calculateVirtualLength(speed, params);
     
+    // Generate planned trip distance using log-normal distribution
+    const distTripPlanned = logNormalRandom(
+      params.meanDistTripPlanned,
+      params.sigmaDistTripPlanned
+    );
+    
     cars.push({
       id: i,
       name: `Car ${i + 1}`, // Add a name to each car
@@ -105,6 +131,8 @@ export function initializeSimulation(params: SimulationParams): {
       desiredSpeed,
       color: carColors[i % carColors.length],
       virtualLength,
+      distTripPlanned,
+      distanceTraveled: 0,
     });
   }
   
@@ -169,12 +197,14 @@ export function initializeSimulation(params: SimulationParams): {
 // Calculate distance to car ahead
 export function calculateDistanceToCarAhead(carIndex: number, cars: Car[], laneLength: number): number {
   const currentCar = cars[carIndex];
-  const aheadCarIndex = (carIndex + 1 + cars.length) % cars.length;
+  const aheadCarIndex = (carIndex + 1) % cars.length;
   const aheadCar = cars[aheadCarIndex];
   
-  // Calculate distance (with wrap-around)
+  // Calculate distance with wrap-around
   let distance = aheadCar.position - currentCar.position;
-  if (distance < 0) distance += laneLength;
+  if (distance < 0) {
+    distance += laneLength;
+  }
   
   return Math.round(distance);
 }
@@ -185,39 +215,68 @@ export function updateSimulation(
   laneLength: number,
   params: SimulationParams,
   currentTime: number
-): Car[] {
+): { 
+  cars: Car[]; 
+  events: { 
+    type: 'exit' | 'enter'; 
+    carId: number; 
+    carName: string; 
+    position: number;
+    speed: number;
+  }[] 
+} {
   const updatedCars = [...cars];
   const numCars = cars.length;
+  
+  // Define car colors for new cars
+  const carColors = [
+    "hsl(var(--car-red))",
+    "hsl(var(--car-blue))",
+    "hsl(var(--car-green))",
+    "hsl(var(--car-yellow))",
+    "hsl(var(--car-purple))",
+    "hsl(var(--car-orange))",
+  ];
 
   // First, calculate all car movements without updating positions
-  const movements: { newPosition: number; newSpeed: number }[] = [];
+  const movements: { newPosition: number; newSpeed: number; distanceTraveled: number }[] = [];
+  const carsToRemove: { index: number; car: Car }[] = [];
+  const events: { type: 'exit' | 'enter'; carId: number; carName: string; position: number; speed: number }[] = [];
 
+  // Sort cars by position to ensure we process them in order
+  const sortedIndices = [...Array(numCars).keys()].sort((a, b) => {
+    return updatedCars[a].position - updatedCars[b].position;
+  });
+
+  // Process cars in order of position to prevent overlapping
   for (let i = 0; i < numCars; i++) {
-    const car = updatedCars[i];
+    const carIndex = sortedIndices[i];
+    const car = updatedCars[carIndex];
     let carSpeed = car.speed;
 
-    // Compute gap for every car regardless of braking logic.
-    const aheadCarIndex = (i + 1) % numCars;
+    // Find the car ahead (with wrap-around)
+    const aheadCarIndex = sortedIndices[(i + 1) % numCars];
     const aheadCar = updatedCars[aheadCarIndex];
+    
+    // Calculate gap to car ahead (with wrap-around)
     let gap = aheadCar.position - car.position;
-    if (gap < 0) gap += laneLength;
+    if (gap < 0) {
+      gap += laneLength;
+    }
 
-    // Apply braking only for the selected car.
-    if (i === params.brakeCarIndex && currentTime > params.brakeTime) {
-      // Decelerate the selected car using dedicated braking logic.
+    // Apply braking only for the selected car
+    if (carIndex === params.brakeCarIndex && currentTime > params.brakeTime) {
       carSpeed = Math.max(
         carSpeed - params.aMax * (5280 / 3600) * params.dt * 0.5,
         params.minSpeed
       );
     } else {
-      // For other cars or before brake time, accelerate toward desired speed.
       carSpeed += (car.desiredSpeed - carSpeed) * params.k * params.dt;
 
-      // Now, for non-braking cars, apply safe-distance logic.
+      // Apply safe-distance logic
       const safeDist = calculateSafeDistance(carSpeed, params.tDist);
       car.virtualLength = calculateVirtualLength(carSpeed, params);
 
-      // If too close, decelerate to maintain safe distance.
       if (gap < safeDist + params.lengthCar) {
         const decel = Math.min(
           (carSpeed ** 2 - aheadCar.speed ** 2) / (2 * Math.max(safeDist - gap + params.lengthCar, 1)),
@@ -233,29 +292,107 @@ export function updateSimulation(
       }
     }
 
-    // Calculate how far the car would move with current speed
+    // Calculate movement
     const mphToFtPerSec = 5280 / 3600;
     const potentialMove = carSpeed * mphToFtPerSec * params.dt;
-
-    // Ensure car doesn't overtake car ahead
-    let maxMoveDistance = gap - params.lengthCar;
-    maxMoveDistance = Math.max(maxMoveDistance, 0); // Cannot be negative
-
-    // The actual distance to move is the minimum of potential and maximum allowed
-    const actualMove = Math.min(potentialMove, maxMoveDistance);
-
-    // Calculate new position (will be applied in the next step)
-    const newPosition = (car.position + actualMove) % laneLength;
-
-    // Store the new position and speed
-    movements.push({ newPosition, newSpeed: carSpeed });
+    
+    // Calculate new position with wrap-around
+    const newPosition = (car.position + potentialMove) % laneLength;
+    
+    // Update distance traveled (this accumulates even with wrap-around)
+    const newDistanceTraveled = car.distanceTraveled + potentialMove;
+    
+    // Store the new position, speed, and distance traveled
+    movements[carIndex] = { 
+      newPosition, 
+      newSpeed: carSpeed,
+      distanceTraveled: newDistanceTraveled
+    };
   }
 
   // Now update all car positions and speeds
   for (let i = 0; i < numCars; i++) {
     updatedCars[i].position = movements[i].newPosition;
     updatedCars[i].speed = movements[i].newSpeed;
+    updatedCars[i].distanceTraveled = movements[i].distanceTraveled;
+    
+    // Check if car has completed its planned trip AFTER updating distanceTraveled
+    if (updatedCars[i].distanceTraveled >= updatedCars[i].distTripPlanned) {
+      carsToRemove.push({ index: i, car: updatedCars[i] });
+    }
+  }
+  
+  // Remove cars that have completed their trips
+  // We need to remove from the end to avoid index shifting issues
+  for (let i = carsToRemove.length - 1; i >= 0; i--) {
+    const { index: indexToRemove, car } = carsToRemove[i];
+    updatedCars.splice(indexToRemove, 1);
+    
+    // Add exit event
+    events.push({
+      type: 'exit',
+      carId: car.id,
+      carName: car.name,
+      position: car.position,
+      speed: car.speed
+    });
+  }
+  
+  // Add new cars to maintain traffic density
+  // For each car that exited, add a new car at the beginning of the road
+  for (let i = 0; i < carsToRemove.length; i++) {
+    // For a straight road, new cars enter at the beginning (position 0)
+    const newPosition = 0;
+    
+    // Generate desired speed for the new car
+    const desiredSpeed = normalRandom(
+      params.meanSpeed,
+      params.stdSpeed,
+      params.minSpeed,
+      params.maxSpeed
+    );
+    
+    // Initial speed is the desired speed
+    const speed = desiredSpeed;
+    
+    // Calculate virtual length based on initial speed
+    const virtualLength = calculateVirtualLength(speed, params);
+    
+    // Generate planned trip distance using log-normal distribution
+    const distTripPlanned = logNormalRandom(
+      params.meanDistTripPlanned,
+      params.sigmaDistTripPlanned
+    );
+    
+    // Generate a new car ID (use the maximum existing ID + 1)
+    const newId = updatedCars.length > 0 
+      ? Math.max(...updatedCars.map(car => car.id)) + 1 
+      : 0;
+    
+    // Add the new car
+    const newCar = {
+      id: newId,
+      name: `Car ${newId + 1}`,
+      position: newPosition,
+      speed,
+      desiredSpeed,
+      color: carColors[newId % carColors.length],
+      virtualLength,
+      distTripPlanned,
+      distanceTraveled: 0,
+    };
+    
+    updatedCars.push(newCar);
+    
+    // Add enter event
+    events.push({
+      type: 'enter',
+      carId: newId,
+      carName: newCar.name,
+      position: newPosition,
+      speed: speed
+    });
   }
 
-  return updatedCars;
+  return { cars: updatedCars, events };
 }

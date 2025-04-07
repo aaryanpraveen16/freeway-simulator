@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
 import CarComponent from "./CarComponent";
@@ -9,32 +8,42 @@ interface TrafficTrackProps {
 }
 
 const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength }) => {
-  const trackRadius = 180; // radius in pixels
   const trackWidth = 30; // width of the track in pixels
+  const trackHeight = 100; // height of the track in pixels
+  const trackLength = 800; // length of the track in pixels
   
   return (
-    <div className="relative mx-auto" style={{ width: 2 * trackRadius + 100, height: 2 * trackRadius + 100 }}>
+    <div className="relative mx-auto" style={{ width: trackLength, height: trackHeight + 50 }}>
       {/* Track */}
       <div 
-        className="absolute rounded-full border-8 border-gray-300 bg-gray-100"
+        className="absolute border-8 border-gray-300 bg-gray-100"
         style={{
-          width: 2 * trackRadius + trackWidth,
-          height: 2 * trackRadius + trackWidth,
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
+          width: trackLength,
+          height: trackHeight,
+          left: "0",
+          top: "25px",
         }}
       />
       
       {/* Road markings */}
       <div 
-        className="absolute rounded-full border-dashed border-2 border-gray-400"
+        className="absolute border-dashed border-2 border-gray-400"
         style={{
-          width: 2 * trackRadius,
-          height: 2 * trackRadius,
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
+          width: trackLength,
+          height: trackHeight,
+          left: "0",
+          top: "25px",
+        }}
+      />
+      
+      {/* Center line */}
+      <div 
+        className="absolute border-dashed border-2 border-gray-400"
+        style={{
+          width: trackLength,
+          height: 0,
+          left: "0",
+          top: "75px",
         }}
       />
       
@@ -44,20 +53,17 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength }) => {
           key={car.id} 
           car={car} 
           laneLength={laneLength} 
-          trackRadius={trackRadius}
+          trackLength={trackLength}
           distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
         />
       ))}
       
-      {/* Center */}
+      {/* Info display */}
       <div 
-        className="absolute bg-white rounded-full shadow-sm flex items-center justify-center"
+        className="absolute bg-white shadow-sm flex items-center justify-center p-2 rounded"
         style={{
-          width: trackRadius,
-          height: trackRadius,
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
+          left: "10px",
+          top: "10px",
         }}
       >
         <span className="text-sm font-medium text-gray-500">
