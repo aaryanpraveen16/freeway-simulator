@@ -5,6 +5,7 @@ import StatsDisplay from "@/components/StatsDisplay";
 import CarStatsCard from "@/components/CarStatsCard";
 import SimulationInfo from "@/components/SimulationInfo";
 import PackFormationChart, { identifyPacks } from "@/components/PackFormationChart";
+import AveragePackLengthChart, { calculateAveragePackLength } from "@/components/AveragePackLengthChart";
 import { 
   initializeSimulation, 
   updateSimulation, 
@@ -19,6 +20,11 @@ interface PackHistoryItem {
   packCount: number;
 }
 
+interface PackLengthHistoryItem {
+  time: number;
+  averageLength: number;
+}
+
 const Index = () => {
   const [params, setParams] = useState<SimulationParams>(defaultParams);
   const [cars, setCars] = useState<Car[]>([]);
@@ -26,6 +32,7 @@ const Index = () => {
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [packHistory, setPackHistory] = useState<PackHistoryItem[]>([]);
+  const [packLengthHistory, setPackLengthHistory] = useState<PackLengthHistoryItem[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
   const lastPackRecordTimeRef = useRef<number>(0);
@@ -37,6 +44,7 @@ const Index = () => {
     setLaneLength(laneLength);
     setElapsedTime(0);
     setPackHistory([]);
+    setPackLengthHistory([]);
     lastPackRecordTimeRef.current = 0;
   }, [params]);
 
@@ -58,12 +66,21 @@ const Index = () => {
     initSimulation();
   }, [initSimulation]);
 
-  const recordPackData = useCallback((newCars: Car[], time: number) => {
+  const recordPackData = useCallback((newCars: Car[], time: number, currentLaneLength: number) => {
     if (time - lastPackRecordTimeRef.current >= 0.5) {
       const packCount = identifyPacks(newCars);
+      const averagePackLength = calculateAveragePackLength(newCars, currentLaneLength);
       
       setPackHistory(prev => {
         const newHistory = [...prev, { time: parseFloat(time.toFixed(1)), packCount }];
+        if (newHistory.length > 50) {
+          return newHistory.slice(-50);
+        }
+        return newHistory;
+      });
+      
+      setPackLengthHistory(prev => {
+        const newHistory = [...prev, { time: parseFloat(time.toFixed(1)), averageLength: averagePackLength }];
         if (newHistory.length > 50) {
           return newHistory.slice(-50);
         }
@@ -90,7 +107,7 @@ const Index = () => {
     const updatedCars = updateSimulation(cars, laneLength, params, elapsedTime);
     setCars(updatedCars);
     
-    recordPackData(updatedCars, newElapsedTime);
+    recordPackData(updatedCars, newElapsedTime, laneLength);
 
     animationFrameRef.current = requestAnimationFrame(animationLoop);
   }, [laneLength, params, elapsedTime, cars, recordPackData]);
@@ -137,7 +154,10 @@ const Index = () => {
             
             <CarStatsCard cars={cars} laneLength={laneLength} />
             
-            <PackFormationChart packHistory={packHistory} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <PackFormationChart packHistory={packHistory} />
+              <AveragePackLengthChart packLengthHistory={packLengthHistory} />
+            </div>
             
             <div className="bg-white rounded-xl shadow-sm p-6">
               <SimulationInfo />
