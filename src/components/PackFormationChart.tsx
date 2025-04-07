@@ -1,9 +1,12 @@
 
-import React from "react";
+import React, { useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { ChartContainer } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
+import { useToast } from "@/hooks/use-toast";
 
 interface PackFormationChartProps {
   packHistory: {
@@ -13,13 +16,72 @@ interface PackFormationChartProps {
 }
 
 const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  const handleExportImage = () => {
+    if (!chartRef.current) return;
+    
+    try {
+      // Convert the chart to an SVG
+      const svgElement = chartRef.current.querySelector("svg");
+      if (!svgElement) {
+        throw new Error("SVG element not found");
+      }
+      
+      // Clone the SVG to avoid modifying the original
+      const clonedSvg = svgElement.cloneNode(true) as SVGElement;
+      
+      // Set background for the SVG
+      clonedSvg.setAttribute("background", "white");
+      
+      // Serialize SVG to a string
+      const svgData = new XMLSerializer().serializeToString(clonedSvg);
+      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+      
+      // Create download link
+      const downloadLink = document.createElement("a");
+      downloadLink.href = URL.createObjectURL(svgBlob);
+      downloadLink.download = "pack-formation-chart.svg";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      // Show success message
+      toast({
+        title: "Chart exported",
+        description: "Pack formation chart has been exported successfully",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Error exporting chart:", error);
+      toast({
+        title: "Export failed",
+        description: "Could not export the chart. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Pack Formation Over Time</CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-lg">Pack Formation Over Time</CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1" 
+            onClick={handleExportImage}
+          >
+            <Download size={16} />
+            Export
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
+        <div className="h-[300px]" ref={chartRef}>
           <ChartContainer
             config={{
               packCount: {

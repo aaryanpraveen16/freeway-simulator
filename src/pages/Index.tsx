@@ -177,8 +177,8 @@ const Index = () => {
           </div>
         </div>
         
-        {/* New separate row for charts */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Charts in vertical layout */}
+        <div className="mt-8 space-y-8">
           <PackFormationChart packHistory={packHistory} />
           <AveragePackLengthChart packLengthHistory={packLengthHistory} />
         </div>
