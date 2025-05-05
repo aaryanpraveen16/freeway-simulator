@@ -6,16 +6,17 @@ import { ChartContainer } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
+import { identifyPacks } from "./PackFormationChart";
 import { useToast } from "@/hooks/use-toast";
 
-interface PackFormationChartProps {
-  packHistory: {
+interface AveragePackLengthChartProps {
+  packLengthHistory: {
     time: number;
-    packCount: number;
+    averageLength: number;
   }[];
 }
 
-const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) => {
+const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({ packLengthHistory }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -42,7 +43,7 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) 
       // Create download link
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(svgBlob);
-      downloadLink.download = "pack-formation-chart.svg";
+      downloadLink.download = "average-pack-length-chart.svg";
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
@@ -50,7 +51,7 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) 
       // Show success message
       toast({
         title: "Chart exported",
-        description: "Pack formation chart has been exported successfully",
+        description: "Average pack length chart has been exported successfully",
         duration: 3000,
       });
     } catch (error) {
@@ -68,7 +69,7 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) 
     <Card>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-lg">Pack Formation Over Time</CardTitle>
+          <CardTitle className="text-lg">Average Pack Length Over Time</CardTitle>
           <Button 
             variant="outline" 
             size="sm" 
@@ -84,14 +85,14 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) 
         <div className="h-[300px]" ref={chartRef}>
           <ChartContainer
             config={{
-              packCount: {
-                label: "Pack Count",
-                color: "hsl(var(--primary))"
+              averageLength: {
+                label: "Average Length",
+                color: "hsl(var(--chart-yellow))"
               }
             }}
           >
             <LineChart
-              data={packHistory}
+              data={packLengthHistory}
               margin={{
                 top: 5,
                 right: 30,
@@ -106,15 +107,15 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) 
                 label={{ value: "Time (seconds)", position: "insideBottomRight", offset: -10 }}
               />
               <YAxis
-                label={{ value: "Number of Packs", angle: -90, position: "insideLeft" }}
+                label={{ value: "Average Pack Length (feet)", angle: -90, position: "insideLeft" }}
               />
-              <Tooltip formatter={(value) => [`${value}`, "Number of Packs"]} />
+              <Tooltip formatter={(value: number) => [`${value.toFixed(1)} feet`, "Average Pack Length"]} />
               <Legend />
               <Line
                 type="monotone"
-                dataKey="packCount"
-                name="Pack Count"
-                stroke="hsl(var(--primary))"
+                dataKey="averageLength"
+                name="Average Length"
+                stroke="hsl(var(--chart-yellow))"
                 activeDot={{ r: 8 }}
               />
             </LineChart>
@@ -125,15 +126,18 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) 
   );
 };
 
-// Helper function to identify packs, to be used across components
-export const identifyPacks = (cars: Car[]): number => {
-  if (!cars.length) return 0;
+// Helper function to calculate average pack length
+export const calculateAveragePackLength = (cars: Car[], laneLength: number): number => {
+  if (cars.length === 0) return 0;
   
   // Sort cars by position
   const sortedCars = [...cars].sort((a, b) => a.position - b.position);
   
-  let packCount = 1; // Start with at least one pack
+  let packCount = 1;
+  let currentPackStart = 0;
+  let packLengths: number[] = [];
   let currentPackSpeed = sortedCars[0].speed;
+  
   const safeDistanceThreshold = 100; // Safe distance threshold in feet
   const gapThresholdBuffer = 50; // Buffer for gap threshold in feet
   const totalGapThreshold = safeDistanceThreshold + gapThresholdBuffer;
@@ -147,10 +151,7 @@ export const identifyPacks = (cars: Car[]): number => {
     
     // Adjust for track wraparound
     if (gap < 0) {
-      // Assuming laneLength is known, but since it's not available here
-      // we'll use a large value as a heuristic
-      const estimatedLaneLength = 5000;
-      gap += estimatedLaneLength;
+      gap += laneLength;
     }
     
     // Check both speed difference AND gap criteria
@@ -159,12 +160,34 @@ export const identifyPacks = (cars: Car[]): number => {
     const isNewPackByGap = gap > totalGapThreshold;
     
     if (isNewPackBySpeed || isNewPackByGap) {
+      // Calculate length of current pack
+      let packLength = prevCar.position - sortedCars[currentPackStart].position;
+      
+      // Adjust for track wraparound for the pack length
+      if (packLength < 0) {
+        packLength += laneLength;
+      }
+      
+      packLengths.push(packLength);
       packCount++;
+      currentPackStart = i;
       currentPackSpeed = car.speed;
     }
   }
   
-  return packCount;
+  // Don't forget the last pack
+  let lastPackLength = sortedCars[sortedCars.length - 1].position - sortedCars[currentPackStart].position;
+  
+  // Adjust for track wraparound
+  if (lastPackLength < 0) {
+    lastPackLength += laneLength;
+  }
+  
+  packLengths.push(lastPackLength);
+  
+  // Calculate average
+  const totalPackLength = packLengths.reduce((sum, length) => sum + length, 0);
+  return packLengths.length ? totalPackLength / packLengths.length : 0;
 };
 
-export default PackFormationChart;
+export default AveragePackLengthChart;
