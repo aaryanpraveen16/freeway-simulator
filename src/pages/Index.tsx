@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TrafficTrack from "@/components/TrafficTrack";
 import ControlPanel from "@/components/ControlPanel";
@@ -22,12 +21,14 @@ interface PackHistoryItem {
 }
 
 interface SimulationEvent {
-  type: 'exit' | 'enter';
+  type: 'exit' | 'enter' | 'laneChange';
   carId: number;
   carName: string;
   position: number;
   speed: number;
+  lane?: number;
 }
+
 interface PackLengthHistoryItem {
   time: number;
   averageLength: number;
@@ -113,6 +114,12 @@ const Index = () => {
           description: `${event.carName} has entered the freeway at position ${Math.round(event.position)} ft.`,
           variant: "default",
         });
+      } else if (event.type === 'laneChange') {
+        toast({
+          title: "Lane Change",
+          description: `${event.carName} has changed to lane ${event.lane! + 1}.`,
+          variant: "default",
+        });
       }
     });
   }, [toast]);
@@ -181,7 +188,7 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <TrafficTrack cars={cars} laneLength={laneLength} />
+              <TrafficTrack cars={cars} laneLength={laneLength} numLanes={params.numLanes} />
             </div>
             
             <CarStatsCard cars={cars} laneLength={laneLength} />

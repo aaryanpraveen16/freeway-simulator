@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
 import CarComponent from "./CarComponent";
@@ -6,47 +5,55 @@ import CarComponent from "./CarComponent";
 interface StraightLineTrackProps {
   cars: Car[];
   laneLength: number;
+  numLanes: number;
 }
 
-const StraightLineTrack: React.FC<StraightLineTrackProps> = ({ cars, laneLength }) => {
-  const trackWidth = 30; // width of the track in pixels
+const StraightLineTrack: React.FC<StraightLineTrackProps> = ({ cars, laneLength, numLanes }) => {
+  const trackWidth = 30; // width of each lane in pixels
   const trackHeight = 100; // height of the track in pixels
   const trackLength = 800; // length of the track in pixels
+  const totalTrackHeight = trackWidth * numLanes; // total height for all lanes
   
   return (
-    <div className="relative mx-auto" style={{ width: trackLength, height: trackHeight + 50 }}>
-      {/* Track */}
-      <div 
-        className="absolute border-8 border-gray-300 bg-gray-100"
-        style={{
-          width: trackLength,
-          height: trackHeight,
-          left: "0",
-          top: "25px",
-        }}
-      />
-      
-      {/* Road markings */}
-      <div 
-        className="absolute border-dashed border-2 border-gray-400"
-        style={{
-          width: trackLength,
-          height: trackHeight,
-          left: "0",
-          top: "25px",
-        }}
-      />
-      
-      {/* Center line */}
-      <div 
-        className="absolute border-dashed border-2 border-gray-400"
-        style={{
-          width: trackLength,
-          height: 0,
-          left: "0",
-          top: "75px",
-        }}
-      />
+    <div className="relative mx-auto" style={{ width: trackLength, height: totalTrackHeight + 50 }}>
+      {/* Track container */}
+      <div className="absolute" style={{ width: trackLength, height: totalTrackHeight, top: "25px" }}>
+        {/* Create lanes */}
+        {Array.from({ length: numLanes }, (_, i) => (
+          <div key={i} className="absolute" style={{ width: trackLength, height: trackWidth, top: i * trackWidth }}>
+            {/* Lane background */}
+            <div 
+              className="absolute border-8 border-gray-300 bg-gray-100"
+              style={{
+                width: trackLength,
+                height: trackWidth,
+                left: "0",
+              }}
+            />
+            
+            {/* Lane markings */}
+            <div 
+              className="absolute border-dashed border-2 border-gray-400"
+              style={{
+                width: trackLength,
+                height: trackWidth,
+                left: "0",
+              }}
+            />
+            
+            {/* Center line */}
+            <div 
+              className="absolute border-dashed border-2 border-gray-400"
+              style={{
+                width: trackLength,
+                height: 0,
+                left: "0",
+                top: trackWidth / 2,
+              }}
+            />
+          </div>
+        ))}
+      </div>
       
       {/* Cars */}
       {cars.map((car, index) => (
@@ -57,6 +64,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({ cars, laneLength 
           trackLength={trackLength}
           trackType="straight"
           distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
+          laneOffset={car.lane * trackWidth}
         />
       ))}
       
@@ -69,7 +77,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({ cars, laneLength 
         }}
       >
         <span className="text-sm font-medium text-gray-500">
-          {cars.length} Cars
+          {cars.length} Cars • {numLanes} Lanes
         </span>
       </div>
     </div>

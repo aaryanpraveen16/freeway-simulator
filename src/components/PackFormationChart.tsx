@@ -83,6 +83,7 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) 
       <CardContent>
         <div className="h-[300px]" ref={chartRef}>
           <ChartContainer
+            className="h-full"
             config={{
               packCount: {
                 label: "Pack Count",

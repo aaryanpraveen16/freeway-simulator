@@ -84,6 +84,7 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({ packLen
       <CardContent>
         <div className="h-[300px]" ref={chartRef}>
           <ChartContainer
+            className="h-full"
             config={{
               averageLength: {
                 label: "Average Length",

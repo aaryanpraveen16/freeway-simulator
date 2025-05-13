@@ -196,6 +196,30 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                         {Math.round(tripProgress)}%
                       </span>
                     </div>
+                    <div>
+                      <span className="text-muted-foreground">Current Lane:</span>
+                      <span className="font-medium ml-1">
+                        Lane {car.lane + 1}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Driver Type:</span>
+                      <span className="font-medium ml-1 capitalize">
+                        {car.driverType}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Lane Change:</span>
+                      <span className="font-medium ml-1">
+                        {Math.round(car.laneChangeProbability * 100)}% likely
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Lane Stickiness:</span>
+                      <span className="font-medium ml-1">
+                        {Math.round(car.laneStickiness * 100)}%
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-2">
                     <div className="w-full bg-gray-200 rounded-full h-2.5">

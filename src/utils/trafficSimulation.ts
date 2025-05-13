@@ -3,16 +3,22 @@ export interface Car {
   id: number;
   name: string; // Add name property
   position: number; // position in the loop (0 to laneLength)
+  lane: number; // current lane (0 to numLanes-1)
   speed: number; // speed in mph
   desiredSpeed: number; // desired speed in mph
   color: string; // color for visualization
   virtualLength: number; // physical length + safe distance
   distTripPlanned: number; // planned trip distance in feet
   distanceTraveled: number; // distance traveled so far in feet
+  lastLaneChange: number; // time of last lane change
+  driverType: 'aggressive' | 'normal' | 'passive';
+  laneChangeProbability: number;
+  laneStickiness: number;
 }
 
 export interface SimulationParams {
   numCars: number;
+  numLanes: number; // number of lanes
   dt: number; // time step in seconds
   aMax: number; // max deceleration
   k: number; // speed adjustment sensitivity
@@ -27,11 +33,25 @@ export interface SimulationParams {
   stdSpeed: number; // standard deviation of desired speeds
   meanDistTripPlanned: number; // mean planned trip distance in feet
   sigmaDistTripPlanned: number; // standard deviation of planned trip distances
+  speedLimit:number;
+  // MOBIL parameters
+  politenessFactor: number; // p in MOBIL model (0-1)
+  accelerationThreshold: number; // a_thr in MOBIL model
+  laneChangeCooldown: number; // minimum time between lane changes
+  rightLaneBias: number; // bias towards right lane (0-1)
+  // Driver behavior parameters
+  aggressiveDriverRatio: number;
+  passiveDriverRatio: number;
+  minLaneChangeProbability: number;
+  maxLaneChangeProbability: number;
+  minLaneStickiness: number;
+  maxLaneStickiness: number;
 }
 
 // Default simulation parameters
 export const defaultParams: SimulationParams = {
   numCars: 10,
+  numLanes: 1, // start with 1 lane
   dt: 0.1, // 100ms time step
   aMax: 10, // ft/s^2
   k: 0.3, // unitless
@@ -46,6 +66,19 @@ export const defaultParams: SimulationParams = {
   stdSpeed: 5, // mph
   meanDistTripPlanned: 10000, // 10,000 feet (about 1.9 miles)
   sigmaDistTripPlanned: 0.5, // standard deviation for log-normal distribution
+  speedLimit: 70,
+  // MOBIL parameters
+  politenessFactor: 0.5, // balanced between selfish and polite
+  accelerationThreshold: 0.2, // m/s^2
+  laneChangeCooldown: 2, // seconds
+  rightLaneBias: 0.2, // slight bias towards right lane
+  // Driver behavior parameters
+  aggressiveDriverRatio: 0.2, // 20% aggressive drivers
+  passiveDriverRatio: 0.3, // 30% passive drivers
+  minLaneChangeProbability: 0.2,
+  maxLaneChangeProbability: 0.8,
+  minLaneStickiness: 0.1,
+  maxLaneStickiness: 0.9,
 };
 
 // Generate random number from normal distribution
@@ -102,7 +135,7 @@ export function initializeSimulation(params: SimulationParams): {
     "hsl(var(--car-orange))",
   ];
   
-  // Generate cars with random desired speeds
+  // Generate cars with random desired speeds and driver types
   for (let i = 0; i < params.numCars; i++) {
     const desiredSpeed = normalRandom(
       params.meanSpeed,
@@ -110,6 +143,35 @@ export function initializeSimulation(params: SimulationParams): {
       params.minSpeed,
       params.maxSpeed
     );
+    
+    // Determine driver type based on ratios
+    const random = Math.random();
+    let driverType: 'aggressive' | 'normal' | 'passive';
+    if (random < params.aggressiveDriverRatio) {
+      driverType = 'aggressive';
+    } else if (random < params.aggressiveDriverRatio + params.passiveDriverRatio) {
+      driverType = 'passive';
+    } else {
+      driverType = 'normal';
+    }
+    
+    // Set lane change probability and stickiness based on driver type
+    let laneChangeProbability: number;
+    let laneStickiness: number;
+    
+    switch (driverType) {
+      case 'aggressive':
+        laneChangeProbability = params.maxLaneChangeProbability;
+        laneStickiness = params.minLaneStickiness;
+        break;
+      case 'passive':
+        laneChangeProbability = params.minLaneChangeProbability;
+        laneStickiness = params.maxLaneStickiness;
+        break;
+      default: // normal
+        laneChangeProbability = (params.minLaneChangeProbability + params.maxLaneChangeProbability) / 2;
+        laneStickiness = (params.minLaneStickiness + params.maxLaneStickiness) / 2;
+    }
     
     // Initial speed is the desired speed
     const speed = desiredSpeed;
@@ -125,14 +187,19 @@ export function initializeSimulation(params: SimulationParams): {
     
     cars.push({
       id: i,
-      name: `Car ${i + 1}`, // Add a name to each car
-      position: 0, // Will be set properly later
+      name: `Car ${i + 1}`,
+      position: 0,
+      lane: 0,
       speed,
       desiredSpeed,
       color: carColors[i % carColors.length],
       virtualLength,
       distTripPlanned,
       distanceTraveled: 0,
+      lastLaneChange: 0,
+      driverType,
+      laneChangeProbability,
+      laneStickiness,
     });
   }
   
@@ -218,11 +285,12 @@ export function updateSimulation(
 ): { 
   cars: Car[]; 
   events: { 
-    type: 'exit' | 'enter'; 
+    type: 'exit' | 'enter' | 'laneChange'; 
     carId: number; 
     carName: string; 
     position: number;
     speed: number;
+    lane?: number;
   }[] 
 } {
   const updatedCars = [...cars];
@@ -239,9 +307,9 @@ export function updateSimulation(
   ];
 
   // First, calculate all car movements without updating positions
-  const movements: { newPosition: number; newSpeed: number; distanceTraveled: number }[] = [];
+  const movements: { newPosition: number; newSpeed: number; distanceTraveled: number; newLane?: number }[] = [];
   const carsToRemove: { index: number; car: Car }[] = [];
-  const events: { type: 'exit' | 'enter'; carId: number; carName: string; position: number; speed: number }[] = [];
+  const events: { type: 'exit' | 'enter' | 'laneChange'; carId: number; carName: string; position: number; speed: number; lane?: number }[] = [];
 
   // Sort cars by position to ensure we process them in order
   const sortedIndices = [...Array(numCars).keys()].sort((a, b) => {
@@ -254,41 +322,68 @@ export function updateSimulation(
     const car = updatedCars[carIndex];
     let carSpeed = car.speed;
 
-    // Find the car ahead (with wrap-around)
-    const aheadCarIndex = sortedIndices[(i + 1) % numCars];
-    const aheadCar = updatedCars[aheadCarIndex];
+    // Find the car ahead in the same lane
+    const sameLaneCars = updatedCars.filter(c => c.lane === car.lane);
+    const sortedSameLaneCars = sameLaneCars.sort((a, b) => {
+      const distA = (a.position - car.position + laneLength) % laneLength;
+      const distB = (b.position - car.position + laneLength) % laneLength;
+      return distA - distB;
+    });
+    const aheadCar = sortedSameLaneCars.find(c => 
+      (c.position - car.position + laneLength) % laneLength > 0
+    );
     
     // Calculate gap to car ahead (with wrap-around)
-    let gap = aheadCar.position - car.position;
-    if (gap < 0) {
-      gap += laneLength;
+    let gap = aheadCar ? (aheadCar.position - car.position + laneLength) % laneLength : laneLength;
+
+    // Check for lane changing opportunities
+    const adjacentLanes = findAdjacentCars(car, updatedCars, laneLength, params);
+    const { shouldChange, targetLane } = shouldChangeLane(
+      car,
+      aheadCar,
+      adjacentLanes,
+      params,
+      laneLength,
+      currentTime
+    );
+
+    // Apply lane change if beneficial
+    if (shouldChange && targetLane !== null) {
+      movements[carIndex] = {
+        ...movements[carIndex],
+        newLane: targetLane
+      };
+      
+      // Add lane change event
+      events.push({
+        type: 'laneChange',
+        carId: car.id,
+        carName: car.name,
+        position: car.position,
+        speed: car.speed,
+        lane: targetLane
+      });
     }
 
-    // Apply braking only for the selected car
-    if (carIndex === params.brakeCarIndex && currentTime > params.brakeTime) {
-      carSpeed = Math.max(
-        carSpeed - params.aMax * (5280 / 3600) * params.dt * 0.5,
-        params.minSpeed
+    // Apply speed adjustments
+    carSpeed += (car.desiredSpeed - carSpeed) * params.k * params.dt;
+    carSpeed = Math.min(carSpeed, params.speedLimit);
+
+    // Apply safe-distance logic
+    const safeDist = calculateSafeDistance(carSpeed, params.tDist);
+    car.virtualLength = calculateVirtualLength(carSpeed, params);
+
+    if (gap < safeDist + params.lengthCar) {
+      const decel = Math.min(
+        (carSpeed ** 2 - (aheadCar?.speed || params.maxSpeed) ** 2) / (2 * Math.max(safeDist - gap + params.lengthCar, 1)),
+        params.aMax
       );
-    } else {
-      carSpeed += (car.desiredSpeed - carSpeed) * params.k * params.dt;
-
-      // Apply safe-distance logic
-      const safeDist = calculateSafeDistance(carSpeed, params.tDist);
-      car.virtualLength = calculateVirtualLength(carSpeed, params);
-
-      if (gap < safeDist + params.lengthCar) {
-        const decel = Math.min(
-          (carSpeed ** 2 - aheadCar.speed ** 2) / (2 * Math.max(safeDist - gap + params.lengthCar, 1)),
-          params.aMax
-        );
-        carSpeed = Math.max(
-          carSpeed - decel * (3600 / 5280) * params.dt,
-          0
-        );
-        if (gap < params.lengthCar * 1.5) {
-          carSpeed = Math.min(carSpeed, aheadCar.speed * 0.9);
-        }
+      carSpeed = Math.max(
+        carSpeed - decel * (3600 / 5280) * params.dt,
+        0
+      );
+      if (gap < params.lengthCar * 1.5) {
+        carSpeed = Math.min(carSpeed, (aheadCar?.speed || 0) * 0.9);
       }
     }
 
@@ -306,24 +401,30 @@ export function updateSimulation(
     movements[carIndex] = { 
       newPosition, 
       newSpeed: carSpeed,
-      distanceTraveled: newDistanceTraveled
+      distanceTraveled: newDistanceTraveled,
+      newLane: movements[carIndex]?.newLane
     };
   }
 
-  // Now update all car positions and speeds
+  // Now update all car positions, speeds, and lanes
   for (let i = 0; i < numCars; i++) {
     updatedCars[i].position = movements[i].newPosition;
     updatedCars[i].speed = movements[i].newSpeed;
     updatedCars[i].distanceTraveled = movements[i].distanceTraveled;
     
-    // Check if car has completed its planned trip AFTER updating distanceTraveled
+    // Update lane if changed
+    if (movements[i].newLane !== undefined) {
+      updatedCars[i].lane = movements[i].newLane;
+      updatedCars[i].lastLaneChange = currentTime;
+    }
+    
+    // Check if car has completed its planned trip
     if (updatedCars[i].distanceTraveled >= updatedCars[i].distTripPlanned) {
       carsToRemove.push({ index: i, car: updatedCars[i] });
     }
   }
   
   // Remove cars that have completed their trips
-  // We need to remove from the end to avoid index shifting issues
   for (let i = carsToRemove.length - 1; i >= 0; i--) {
     const { index: indexToRemove, car } = carsToRemove[i];
     updatedCars.splice(indexToRemove, 1);
@@ -339,32 +440,20 @@ export function updateSimulation(
   }
   
   // Add new cars to maintain traffic density
-  // For each car that exited, add a new car at the beginning of the road
   for (let i = 0; i < carsToRemove.length; i++) {
-    // For a straight road, new cars enter at the beginning (position 0)
     const newPosition = 0;
-    
-    // Generate desired speed for the new car
     const desiredSpeed = normalRandom(
       params.meanSpeed,
       params.stdSpeed,
       params.minSpeed,
       params.maxSpeed
     );
-    
-    // Initial speed is the desired speed
     const speed = desiredSpeed;
-    
-    // Calculate virtual length based on initial speed
     const virtualLength = calculateVirtualLength(speed, params);
-    
-    // Generate planned trip distance using log-normal distribution
     const distTripPlanned = logNormalRandom(
       params.meanDistTripPlanned,
       params.sigmaDistTripPlanned
     );
-    
-    // Generate a new car ID (use the maximum existing ID + 1)
     const newId = updatedCars.length > 0 
       ? Math.max(...updatedCars.map(car => car.id)) + 1 
       : 0;
@@ -374,12 +463,17 @@ export function updateSimulation(
       id: newId,
       name: `Car ${newId + 1}`,
       position: newPosition,
+      lane: 0,
       speed,
       desiredSpeed,
       color: carColors[newId % carColors.length],
       virtualLength,
       distTripPlanned,
       distanceTraveled: 0,
+      lastLaneChange: currentTime,
+      driverType: 'normal' as const,
+      laneChangeProbability: (params.minLaneChangeProbability + params.maxLaneChangeProbability) / 2,
+      laneStickiness: (params.minLaneStickiness + params.maxLaneStickiness) / 2,
     };
     
     updatedCars.push(newCar);
@@ -395,4 +489,191 @@ export function updateSimulation(
   }
 
   return { cars: updatedCars, events };
+}
+
+// Calculate acceleration based on current speed, desired speed, and gap
+function calculateAcceleration(
+  car: Car,
+  gap: number,
+  leaderSpeed: number,
+  params: SimulationParams
+): number {
+  const mphToFtPerSec = 5280 / 3600;
+  const currentSpeed = car.speed * mphToFtPerSec;
+  const leaderSpeedFtPerSec = leaderSpeed * mphToFtPerSec;
+  
+  // Calculate desired acceleration based on speed difference
+  let accel = (car.desiredSpeed - car.speed) * params.k;
+  
+  // Apply safe-distance logic
+  const safeDist = calculateSafeDistance(car.speed, params.tDist);
+  if (gap < safeDist + params.lengthCar) {
+    const decel = Math.min(
+      (currentSpeed ** 2 - leaderSpeedFtPerSec ** 2) / (2 * Math.max(safeDist - gap + params.lengthCar, 1)),
+      params.aMax
+    );
+    accel = Math.min(accel, -decel);
+  }
+  
+  return accel;
+}
+
+// Find cars in adjacent lanes
+function findAdjacentCars(
+  car: Car,
+  cars: Car[],
+  laneLength: number,
+  params: SimulationParams
+): { leftLane: { leader?: Car; follower?: Car }; rightLane: { leader?: Car; follower?: Car } } {
+  const result = {
+    leftLane: { leader: undefined, follower: undefined },
+    rightLane: { leader: undefined, follower: undefined }
+  };
+  
+  // Check if left lane exists
+  if (car.lane > 0) {
+    const leftLaneCars = cars.filter(c => c.lane === car.lane - 1);
+    if (leftLaneCars.length > 0) {
+      // Find leader and follower in left lane
+      const sortedLeftLaneCars = leftLaneCars.sort((a, b) => {
+        const distA = (a.position - car.position + laneLength) % laneLength;
+        const distB = (b.position - car.position + laneLength) % laneLength;
+        return distA - distB;
+      });
+      
+      result.leftLane.leader = sortedLeftLaneCars.find(c => 
+        (c.position - car.position + laneLength) % laneLength > 0
+      );
+      result.leftLane.follower = sortedLeftLaneCars.find(c => 
+        (car.position - c.position + laneLength) % laneLength > 0
+      );
+    }
+  }
+  
+  // Check if right lane exists
+  if (car.lane < params.numLanes - 1) {
+    const rightLaneCars = cars.filter(c => c.lane === car.lane + 1);
+    if (rightLaneCars.length > 0) {
+      // Find leader and follower in right lane
+      const sortedRightLaneCars = rightLaneCars.sort((a, b) => {
+        const distA = (a.position - car.position + laneLength) % laneLength;
+        const distB = (b.position - car.position + laneLength) % laneLength;
+        return distA - distB;
+      });
+      
+      result.rightLane.leader = sortedRightLaneCars.find(c => 
+        (c.position - car.position + laneLength) % laneLength > 0
+      );
+      result.rightLane.follower = sortedRightLaneCars.find(c => 
+        (car.position - c.position + laneLength) % laneLength > 0
+      );
+    }
+  }
+  
+  return result;
+}
+
+// Calculate MOBIL incentive for lane change
+function calculateLaneChangeIncentive(
+  car: Car,
+  currentLeader: Car | undefined,
+  targetLane: { leader?: Car; follower?: Car },
+  params: SimulationParams,
+  laneLength: number
+): number {
+  // Calculate current acceleration
+  const currentGap = currentLeader ? 
+    (currentLeader.position - car.position + laneLength) % laneLength : 
+    laneLength;
+  const currentAccel = calculateAcceleration(
+    car,
+    currentGap,
+    currentLeader?.speed || params.maxSpeed,
+    params
+  );
+  
+  // Calculate acceleration in target lane
+  const targetGap = targetLane.leader ? 
+    (targetLane.leader.position - car.position + laneLength) % laneLength : 
+    laneLength;
+  const targetAccel = calculateAcceleration(
+    car,
+    targetGap,
+    targetLane.leader?.speed || params.maxSpeed,
+    params
+  );
+  
+  // Calculate follower's acceleration change
+  let followerAccelChange = 0;
+  if (targetLane.follower) {
+    const followerGapBefore = (car.position - targetLane.follower.position + laneLength) % laneLength;
+    const followerGapAfter = (targetLane.leader ? 
+      (targetLane.leader.position - targetLane.follower.position + laneLength) % laneLength : 
+      laneLength);
+    
+    const followerAccelBefore = calculateAcceleration(
+      targetLane.follower,
+      followerGapBefore,
+      car.speed,
+      params
+    );
+    const followerAccelAfter = calculateAcceleration(
+      targetLane.follower,
+      followerGapAfter,
+      targetLane.leader?.speed || params.maxSpeed,
+      params
+    );
+    
+    followerAccelChange = followerAccelAfter - followerAccelBefore;
+  }
+  
+  // Calculate MOBIL incentive
+  let incentive = targetAccel - currentAccel + params.politenessFactor * followerAccelChange;
+  
+  // Add right lane bias
+  if (targetLane.leader && car.lane < targetLane.leader.lane) {
+    incentive += params.rightLaneBias;
+  }
+  
+  return incentive;
+}
+
+// Determine if lane change is possible and beneficial
+function shouldChangeLane(
+  car: Car,
+  currentLeader: Car | undefined,
+  adjacentLanes: { leftLane: { leader?: Car; follower?: Car }; rightLane: { leader?: Car; follower?: Car } },
+  params: SimulationParams,
+  laneLength: number,
+  currentTime: number
+): { shouldChange: boolean; targetLane: number | null } {
+  // Check if enough time has passed since last lane change
+  if (currentTime - car.lastLaneChange < params.laneChangeCooldown) {
+    return { shouldChange: false, targetLane: null };
+  }
+  
+  // Calculate incentives for both lanes
+  const leftIncentive = car.lane > 0 ? 
+    calculateLaneChangeIncentive(car, currentLeader, adjacentLanes.leftLane, params, laneLength) : 
+    -Infinity;
+  const rightIncentive = car.lane < params.numLanes - 1 ? 
+    calculateLaneChangeIncentive(car, currentLeader, adjacentLanes.rightLane, params, laneLength) : 
+    -Infinity;
+  
+  // Apply lane stickiness to incentives
+  const adjustedLeftIncentive = leftIncentive * (1 - car.laneStickiness);
+  const adjustedRightIncentive = rightIncentive * (1 - car.laneStickiness);
+  
+  // Check if any lane change is beneficial
+  if (adjustedLeftIncentive > params.accelerationThreshold || adjustedRightIncentive > params.accelerationThreshold) {
+    // Choose the lane with higher incentive
+    const targetLane = adjustedLeftIncentive > adjustedRightIncentive ? car.lane - 1 : car.lane + 1;
+    
+    // Apply probabilistic lane change based on driver's lane change probability
+    if (Math.random() < car.laneChangeProbability) {
+      return { shouldChange: true, targetLane };
+    }
+  }
+  
+  return { shouldChange: false, targetLane: null };
 }

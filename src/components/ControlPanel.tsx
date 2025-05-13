@@ -47,43 +47,51 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const handleNumCarsChange = (value: number[]) => {
     onUpdateParams({ numCars: value[0] });
   };
-  
+
   const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
     if (!isNaN(value) && value > 0) {
       onUpdateParams({ meanSpeed: value });
     }
   };
-  
+
   const handleBrakeCarChange = (value: string) => {
     onUpdateParams({ brakeCarIndex: parseInt(value) });
   };
-  
-  const handleMeanTripDistanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const handleMeanTripDistanceChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const value = parseFloat(e.target.value);
     if (!isNaN(value) && value > 0) {
       onUpdateParams({ meanDistTripPlanned: value });
     }
   };
-  
-  const handleTripDistanceStdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const handleTripDistanceStdChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const value = parseFloat(e.target.value);
     if (!isNaN(value) && value > 0) {
       onUpdateParams({ sigmaDistTripPlanned: value });
     }
   };
-  
+
+  const handleNumLanesChange = (value: number[]) => {
+    onUpdateParams({ numLanes: value[0] });
+  };
+
   const applyTrafficPreset = (numCars: number) => {
     onUpdateParams({ numCars });
     onReset();
   };
-  
+
   // Generate car options based on numCars
   const carOptions = Array.from({ length: params.numCars }, (_, i) => ({
     value: i.toString(),
-    label: `Car ${i + 1}`
+    label: `Car ${i + 1}`,
   }));
-  
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -106,27 +114,46 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               >
                 {preset.icon}
                 <span>{preset.name}</span>
-                <span className="text-xs text-muted-foreground">({preset.cars})</span>
+                <span className="text-xs text-muted-foreground">
+                  ({preset.cars})
+                </span>
               </Button>
             ))}
           </div>
         </div>
-        
+
+        {/* Number of Lanes */}
         <div className="space-y-2">
-          <div className="flex justify-between">
-            <Label htmlFor="num-cars">Number of Cars: {params.numCars}</Label>
-          </div>
+          <Label>Number of Lanes</Label>
           <Slider
-            id="num-cars"
+            value={[params.numLanes]}
+            onValueChange={handleNumLanesChange}
+            min={1}
+            max={4}
+            step={1}
+            disabled={isRunning}
+          />
+          <div className="text-sm text-muted-foreground">
+            {params.numLanes} {params.numLanes === 1 ? 'Lane' : 'Lanes'}
+          </div>
+        </div>
+
+        {/* Number of Cars */}
+        <div className="space-y-2">
+          <Label>Number of Cars</Label>
+          <Slider
+            value={[params.numCars]}
+            onValueChange={handleNumCarsChange}
             min={1}
             max={100}
             step={1}
-            value={[params.numCars]}
-            onValueChange={handleNumCarsChange}
-            className="py-4"
+            disabled={isRunning}
           />
+          <div className="text-sm text-muted-foreground">
+            {params.numCars} {params.numCars === 1 ? 'Car' : 'Cars'}
+          </div>
         </div>
-        
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="avg-speed">Average Speed (mph)</Label>
@@ -139,7 +166,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               max={80}
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="time-headway">Time Headway (s)</Label>
             <Input
@@ -158,8 +185,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             />
           </div>
         </div>
-        
-        <div className="space-y-2">
+
+        {/* <div className="space-y-2">
           <Label htmlFor="brake-car">Car to Slow Down</Label>
           <Select 
             value={params.brakeCarIndex.toString()} 
@@ -179,6 +206,63 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <p className="text-xs text-muted-foreground">
             This car will slow down after {params.brakeTime} seconds of simulation time
           </p>
+        </div> */}
+
+        <div className="space-y-4">
+          <Label className="text-base">Trip Planning Parameters</Label>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="mean-trip-distance">
+                Mean Trip Distance (ft)
+              </Label>
+              <Input
+                id="mean-trip-distance"
+                type="number"
+                value={params.meanDistTripPlanned}
+                onChange={handleMeanTripDistanceChange}
+                min={1000}
+                max={50000}
+                step={1000}
+              />
+              <p className="text-xs text-muted-foreground">
+                Average distance cars will travel before exiting
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="trip-distance-std">Trip Distance Std Dev</Label>
+              <Input
+                id="trip-distance-std"
+                type="number"
+                value={params.sigmaDistTripPlanned}
+                onChange={handleTripDistanceStdChange}
+                min={0.1}
+                max={2}
+                step={0.1}
+              />
+              <p className="text-xs text-muted-foreground">
+                Variation in trip distances (log-normal distribution)
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="speed-limit">Speed Limit (mph)</Label>
+          <Input
+            id="speed-limit"
+            type="number"
+            value={params.speedLimit}
+            onChange={(e) => {
+              const value = parseFloat(e.target.value);
+              if (!isNaN(value) && value >= 20 && value <= 80) {
+                onUpdateParams({ speedLimit: value });
+              }
+            }}
+            min={20}
+            max={80}
+            step={1}
+          />
         </div>
         
         <div className="space-y-4">
