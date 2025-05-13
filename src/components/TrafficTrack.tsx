@@ -16,6 +16,9 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength, numLanes 
   const trackWidth = 30; // width of each lane in pixels
   const trackLength = 800; // length of the track in pixels
   
+  // Calculate total track size including all lanes
+  const totalTrackSize = trackRadius * 2 + (trackWidth * numLanes);
+  
   return (
     <div className="space-y-4">
       <Tabs defaultValue="circular" onValueChange={(value) => setActiveView(value as "circular" | "straight")}>
@@ -24,18 +27,29 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength, numLanes 
           <TabsTrigger value="straight">Straight Track</TabsTrigger>
         </TabsList>
         <TabsContent value="circular">
-          <div className="relative mx-auto" style={{ width: trackRadius * 2 + trackWidth * numLanes, height: trackRadius * 2 + trackWidth * numLanes }}>
+          <div className="relative mx-auto" style={{ width: totalTrackSize, height: totalTrackSize }}>
             {/* Create lanes */}
             {Array.from({ length: numLanes }, (_, i) => {
               const currentRadius = trackRadius + (i * trackWidth);
+              const currentSize = currentRadius * 2;
               return (
-                <div key={i} className="absolute" style={{ width: currentRadius * 2, height: currentRadius * 2, left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}>
+                <div 
+                  key={i} 
+                  className="absolute" 
+                  style={{ 
+                    width: currentSize, 
+                    height: currentSize, 
+                    left: "50%", 
+                    top: "50%", 
+                    transform: "translate(-50%, -50%)" 
+                  }}
+                >
                   {/* Lane background */}
                   <div 
                     className="absolute border-8 border-gray-300 bg-gray-100 rounded-full"
                     style={{
-                      width: currentRadius * 2,
-                      height: currentRadius * 2,
+                      width: currentSize,
+                      height: currentSize,
                       left: "0",
                       top: "0",
                     }}
@@ -45,8 +59,8 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength, numLanes 
                   <div 
                     className="absolute border-dashed border-2 border-gray-400 rounded-full"
                     style={{
-                      width: currentRadius * 2,
-                      height: currentRadius * 2,
+                      width: currentSize,
+                      height: currentSize,
                       left: "0",
                       top: "0",
                     }}
