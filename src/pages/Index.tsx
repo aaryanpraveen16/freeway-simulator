@@ -6,8 +6,9 @@ import StatsDisplay from "@/components/StatsDisplay";
 import CarStatsCard from "@/components/CarStatsCard";
 import SimulationInfo from "@/components/SimulationInfo";
 import Navbar from "@/components/Navbar";
-import PackFormationChart, { identifyPacks } from "@/components/PackFormationChart";
-import AveragePackLengthChart, { calculateAveragePackLength } from "@/components/AveragePackLengthChart";
+import PackFormationChart, { identifyPacks, PackHistoryItem } from "@/components/PackFormationChart";
+import AveragePackLengthChart, { calculateAveragePackLength, PackLengthHistoryItem } from "@/components/AveragePackLengthChart";
+import PackDensityChart, { calculatePackDensityMetrics, PackDensityItem } from "@/components/PackDensityChart";
 import { 
   initializeSimulation, 
   updateSimulation, 
@@ -16,11 +17,6 @@ import {
   type Car
 } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
-
-interface PackHistoryItem {
-  time: number;
-  packCount: number;
-}
 
 interface SimulationEvent {
   type: 'exit' | 'enter' | 'laneChange';
@@ -31,9 +27,12 @@ interface SimulationEvent {
   lane?: number;
 }
 
-interface PackLengthHistoryItem {
-  time: number;
-  averageLength: number;
+interface SimulationRun {
+  id: string;
+  packHistory: PackHistoryItem[];
+  packLengthHistory: PackLengthHistoryItem[];
+  params: SimulationParams;
+  timestamp: number;
 }
 
 const Index = () => {
@@ -44,10 +43,78 @@ const Index = () => {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [packHistory, setPackHistory] = useState<PackHistoryItem[]>([]);
   const [packLengthHistory, setPackLengthHistory] = useState<PackLengthHistoryItem[]>([]);
+  const [packDensityData, setPackDensityData] = useState<PackDensityItem[]>([]);
+  const [savedRuns, setSavedRuns] = useState<SimulationRun[]>([]);
+  const [showPreviousRuns, setShowPreviousRuns] = useState<boolean>(false);
+  
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
   const lastPackRecordTimeRef = useRef<number>(0);
+  const lastDensityUpdateTimeRef = useRef<number>(0);
   const { toast } = useToast();
+
+  // Load saved runs from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedRunsJson = localStorage.getItem('freewaySimulator_savedRuns');
+      if (savedRunsJson) {
+        const parsed = JSON.parse(savedRunsJson);
+        if (Array.isArray(parsed)) {
+          setSavedRuns(parsed);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading saved runs:", error);
+    }
+  }, []);
+
+  const saveRunToLocalStorage = useCallback((runs: SimulationRun[]) => {
+    try {
+      localStorage.setItem('freewaySimulator_savedRuns', JSON.stringify(runs));
+    } catch (error) {
+      console.error("Error saving runs:", error);
+      toast({
+        title: "Save Failed",
+        description: "Could not save simulation runs.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const handleSaveCurrentRun = useCallback(() => {
+    if (packHistory.length === 0) {
+      toast({
+        title: "Nothing to Save",
+        description: "Run the simulation first to generate data.",
+        variant: "default",
+      });
+      return;
+    }
+    
+    const newRun: SimulationRun = {
+      id: `run-${Date.now()}`,
+      packHistory: packHistory.map(item => ({ ...item })),
+      packLengthHistory: packLengthHistory.map(item => ({ ...item })),
+      params: { ...params },
+      timestamp: Date.now()
+    };
+    
+    setSavedRuns(prev => {
+      const updatedRuns = [...prev, newRun].slice(-5); // Keep only the 5 most recent runs
+      saveRunToLocalStorage(updatedRuns);
+      return updatedRuns;
+    });
+    
+    toast({
+      title: "Run Saved",
+      description: "Current simulation run has been saved.",
+      duration: 3000,
+    });
+  }, [packHistory, packLengthHistory, params, saveRunToLocalStorage, toast]);
+
+  const togglePreviousRuns = useCallback(() => {
+    setShowPreviousRuns(prev => !prev);
+  }, []);
 
   const initSimulation = useCallback(() => {
     const { cars, laneLength } = initializeSimulation(params);
@@ -56,7 +123,9 @@ const Index = () => {
     setElapsedTime(0);
     setPackHistory([]);
     setPackLengthHistory([]);
+    setPackDensityData([]);
     lastPackRecordTimeRef.current = 0;
+    lastDensityUpdateTimeRef.current = 0;
   }, [params]);
 
   const handleUpdateParams = useCallback((newParams: Partial<SimulationParams>) => {
@@ -99,6 +168,13 @@ const Index = () => {
       });
       
       lastPackRecordTimeRef.current = time;
+    }
+    
+    // Update pack density data less frequently
+    if (time - lastDensityUpdateTimeRef.current >= 2) {
+      const densityData = calculatePackDensityMetrics(newCars, currentLaneLength);
+      setPackDensityData(densityData);
+      lastDensityUpdateTimeRef.current = time;
     }
   }, []);
 
@@ -147,7 +223,6 @@ const Index = () => {
       handleSimulationEvents(events);
     }
     
-    // recordPackData(updatedCars, newElapsedTime);
     recordPackData(updatedCars, newElapsedTime, laneLength);
 
     animationFrameRef.current = requestAnimationFrame(animationLoop);
@@ -173,6 +248,14 @@ const Index = () => {
       }
     };
   }, [isRunning, animationLoop, elapsedTime]);
+
+  const getPreviousRunsPackHistories = () => {
+    return savedRuns.map(run => run.packHistory);
+  };
+  
+  const getPreviousRunsPackLengthHistories = () => {
+    return savedRuns.map(run => run.packLengthHistory);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -220,8 +303,21 @@ const Index = () => {
         
         {/* Charts in vertical layout */}
         <div className="mt-8 space-y-8">
-          <PackFormationChart packHistory={packHistory} />
-          <AveragePackLengthChart packLengthHistory={packLengthHistory} />
+          <PackFormationChart 
+            packHistory={packHistory} 
+            previousRunsData={showPreviousRuns ? getPreviousRunsPackHistories() : []}
+            onSaveCurrentRun={handleSaveCurrentRun}
+            onTogglePreviousRuns={savedRuns.length > 0 ? togglePreviousRuns : undefined}
+            showPreviousRuns={showPreviousRuns}
+          />
+          <AveragePackLengthChart 
+            packLengthHistory={packLengthHistory} 
+            previousRunsData={showPreviousRuns ? getPreviousRunsPackLengthHistories() : []}
+            onSaveCurrentRun={handleSaveCurrentRun}
+            onTogglePreviousRuns={savedRuns.length > 0 ? togglePreviousRuns : undefined}
+            showPreviousRuns={showPreviousRuns}
+          />
+          <PackDensityChart packDensityData={packDensityData} />
         </div>
       </div>
     </div>

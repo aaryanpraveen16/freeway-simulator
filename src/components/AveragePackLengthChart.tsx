@@ -3,20 +3,41 @@ import React, { useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Download } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea } from "recharts";
+import { Download, BarChart2 } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
 import { identifyPacks } from "./PackFormationChart";
 import { useToast } from "@/hooks/use-toast";
 
-interface AveragePackLengthChartProps {
-  packLengthHistory: {
-    time: number;
-    averageLength: number;
-  }[];
+export interface PackLengthHistoryItem {
+  time: number;
+  averageLength: number;
+  runId?: string; // Add runId to distinguish between different simulation runs
 }
 
-const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({ packLengthHistory }) => {
+interface AveragePackLengthChartProps {
+  packLengthHistory: PackLengthHistoryItem[];
+  previousRunsData?: PackLengthHistoryItem[][];
+  onSaveCurrentRun?: () => void;
+  onTogglePreviousRuns?: () => void;
+  showPreviousRuns?: boolean;
+}
+
+const COLORS = [
+  'hsl(var(--chart-yellow))', 
+  'hsl(var(--chart-blue))', 
+  'hsl(var(--chart-green))', 
+  'hsl(var(--chart-purple))',
+  'hsl(var(--chart-red))'
+];
+
+const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({ 
+  packLengthHistory, 
+  previousRunsData = [],
+  onSaveCurrentRun,
+  onTogglePreviousRuns,
+  showPreviousRuns = false
+}) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -35,6 +56,24 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({ packLen
       
       // Set background for the SVG
       clonedSvg.setAttribute("background", "white");
+      clonedSvg.setAttribute("style", "background-color: white;");
+      
+      // Ensure all elements are visible in export
+      const allPaths = clonedSvg.querySelectorAll("path");
+      allPaths.forEach(path => {
+        // Increase stroke-width for better visibility
+        const currentWidth = path.getAttribute("stroke-width") || "1";
+        if (parseFloat(currentWidth) <= 1) {
+          path.setAttribute("stroke-width", "2");
+        }
+      });
+      
+      // Enhance dots visibility
+      const allCircles = clonedSvg.querySelectorAll("circle");
+      allCircles.forEach(circle => {
+        circle.setAttribute("r", "4"); // Increase radius
+        circle.setAttribute("stroke-width", "2");
+      });
       
       // Serialize SVG to a string
       const svgData = new XMLSerializer().serializeToString(clonedSvg);
@@ -70,15 +109,38 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({ packLen
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg">Average Pack Length Over Time</CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1" 
-            onClick={handleExportImage}
-          >
-            <Download size={16} />
-            Export
-          </Button>
+          <div className="flex items-center gap-2">
+            {onSaveCurrentRun && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-1"
+                onClick={onSaveCurrentRun}
+              >
+                <BarChart2 size={16} />
+                Save Run
+              </Button>
+            )}
+            {onTogglePreviousRuns && previousRunsData.length > 0 && (
+              <Button 
+                variant={showPreviousRuns ? "default" : "outline"} 
+                size="sm" 
+                className="flex items-center gap-1"
+                onClick={onTogglePreviousRuns}
+              >
+                {showPreviousRuns ? "Hide" : "Show"} Previous
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1" 
+              onClick={handleExportImage}
+            >
+              <Download size={16} />
+              Export
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -115,10 +177,27 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({ packLen
               <Line
                 type="monotone"
                 dataKey="averageLength"
-                name="Average Length"
+                name="Current Run"
                 stroke="hsl(var(--chart-yellow))"
+                strokeWidth={2}
+                dot={{ r: 4, strokeWidth: 2 }}
                 activeDot={{ r: 8 }}
               />
+              
+              {/* Display previous runs if toggled on */}
+              {showPreviousRuns && previousRunsData.map((runData, index) => (
+                <Line
+                  key={`prev-run-${index}`}
+                  type="monotone"
+                  data={runData}
+                  dataKey="averageLength"
+                  name={`Run ${index + 1}`}
+                  stroke={COLORS[(index + 1) % COLORS.length]}
+                  strokeWidth={1.5}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 6 }}
+                />
+              ))}
             </LineChart>
           </ChartContainer>
         </div>

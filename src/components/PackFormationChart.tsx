@@ -4,18 +4,39 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { Download } from "lucide-react";
+import { Download, BarChart2 } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
 
-interface PackFormationChartProps {
-  packHistory: {
-    time: number;
-    packCount: number;
-  }[];
+export interface PackHistoryItem {
+  time: number;
+  packCount: number;
+  runId?: string; // Add runId to distinguish between different simulation runs
 }
 
-const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) => {
+interface PackFormationChartProps {
+  packHistory: PackHistoryItem[];
+  previousRunsData?: PackHistoryItem[][];
+  onSaveCurrentRun?: () => void;
+  onTogglePreviousRuns?: () => void;
+  showPreviousRuns?: boolean;
+}
+
+const COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--chart-blue))', 
+  'hsl(var(--chart-green))', 
+  'hsl(var(--chart-purple))',
+  'hsl(var(--chart-red))'
+];
+
+const PackFormationChart: React.FC<PackFormationChartProps> = ({ 
+  packHistory,
+  previousRunsData = [],
+  onSaveCurrentRun,
+  onTogglePreviousRuns,
+  showPreviousRuns = false
+}) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -34,6 +55,24 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) 
       
       // Set background for the SVG
       clonedSvg.setAttribute("background", "white");
+      clonedSvg.setAttribute("style", "background-color: white;");
+      
+      // Ensure all elements are visible in export
+      const allPaths = clonedSvg.querySelectorAll("path");
+      allPaths.forEach(path => {
+        // Increase stroke-width for better visibility
+        const currentWidth = path.getAttribute("stroke-width") || "1";
+        if (parseFloat(currentWidth) <= 1) {
+          path.setAttribute("stroke-width", "2");
+        }
+      });
+      
+      // Enhance dots visibility
+      const allCircles = clonedSvg.querySelectorAll("circle");
+      allCircles.forEach(circle => {
+        circle.setAttribute("r", "4"); // Increase radius
+        circle.setAttribute("stroke-width", "2");
+      });
       
       // Serialize SVG to a string
       const svgData = new XMLSerializer().serializeToString(clonedSvg);
@@ -69,15 +108,38 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) 
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg">Pack Formation Over Time</CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1" 
-            onClick={handleExportImage}
-          >
-            <Download size={16} />
-            Export
-          </Button>
+          <div className="flex items-center gap-2">
+            {onSaveCurrentRun && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-1"
+                onClick={onSaveCurrentRun}
+              >
+                <BarChart2 size={16} />
+                Save Run
+              </Button>
+            )}
+            {onTogglePreviousRuns && previousRunsData.length > 0 && (
+              <Button 
+                variant={showPreviousRuns ? "default" : "outline"} 
+                size="sm" 
+                className="flex items-center gap-1"
+                onClick={onTogglePreviousRuns}
+              >
+                {showPreviousRuns ? "Hide" : "Show"} Previous
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1" 
+              onClick={handleExportImage}
+            >
+              <Download size={16} />
+              Export
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -114,10 +176,27 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({ packHistory }) 
               <Line
                 type="monotone"
                 dataKey="packCount"
-                name="Pack Count"
+                name="Current Run"
                 stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                dot={{ r: 4, strokeWidth: 2 }}
                 activeDot={{ r: 8 }}
               />
+              
+              {/* Display previous runs if toggled on */}
+              {showPreviousRuns && previousRunsData.map((runData, index) => (
+                <Line
+                  key={`prev-run-${index}`}
+                  type="monotone"
+                  data={runData}
+                  dataKey="packCount"
+                  name={`Run ${index + 1}`}
+                  stroke={COLORS[(index + 1) % COLORS.length]}
+                  strokeWidth={1.5}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 6 }}
+                />
+              ))}
             </LineChart>
           </ChartContainer>
         </div>
