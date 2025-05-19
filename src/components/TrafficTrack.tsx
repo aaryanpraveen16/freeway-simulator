@@ -16,8 +16,8 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength, numLanes 
   const trackWidth = 30; // width of each lane in pixels
   const trackLength = 800; // length of the track in pixels
   
-  // Calculate total track size including all lanes
-  const totalTrackSize = trackRadius * 2 + (trackWidth * numLanes);
+  // For circular view, we only show one lane
+  const totalTrackSize = trackRadius * 2 + trackWidth;
   
   return (
     <div className="space-y-4">
@@ -26,48 +26,42 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength, numLanes 
           <TabsTrigger value="circular">Circular Track</TabsTrigger>
           <TabsTrigger value="straight">Straight Track</TabsTrigger>
         </TabsList>
+        
         <TabsContent value="circular">
           <div className="relative mx-auto" style={{ width: totalTrackSize, height: totalTrackSize }}>
-            {/* Create lanes */}
-            {Array.from({ length: numLanes }, (_, i) => {
-              const currentRadius = trackRadius + (i * trackWidth);
-              const currentSize = currentRadius * 2;
-              return (
-                <div 
-                  key={i} 
-                  className="absolute" 
-                  style={{ 
-                    width: currentSize, 
-                    height: currentSize, 
-                    left: "50%", 
-                    top: "50%", 
-                    transform: "translate(-50%, -50%)" 
-                  }}
-                >
-                  {/* Lane background */}
-                  <div 
-                    className="absolute border-8 border-gray-300 bg-gray-100 rounded-full"
-                    style={{
-                      width: currentSize,
-                      height: currentSize,
-                      left: "0",
-                      top: "0",
-                    }}
-                  />
-                  
-                  {/* Lane markings */}
-                  <div 
-                    className="absolute border-dashed border-2 border-gray-400 rounded-full"
-                    style={{
-                      width: currentSize,
-                      height: currentSize,
-                      left: "0",
-                      top: "0",
-                    }}
-                  />
-                </div>
-              );
-            })}
+            {/* Single lane for circular view */}
+            <div 
+              className="absolute" 
+              style={{ 
+                width: trackRadius * 2, 
+                height: trackRadius * 2, 
+                left: "50%", 
+                top: "50%", 
+                transform: "translate(-50%, -50%)" 
+              }}
+            >
+              {/* Lane background */}
+              <div 
+                className="absolute border-8 border-gray-300 bg-gray-100 rounded-full"
+                style={{
+                  width: trackRadius * 2,
+                  height: trackRadius * 2,
+                  left: "0",
+                  top: "0",
+                }}
+              />
+              
+              {/* Lane markings */}
+              <div 
+                className="absolute border-dashed border-2 border-gray-400 rounded-full"
+                style={{
+                  width: trackRadius * 2,
+                  height: trackRadius * 2,
+                  left: "0",
+                  top: "0",
+                }}
+              />
+            </div>
             
             {/* Cars */}
             {cars.map((car, index) => (
@@ -75,7 +69,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength, numLanes 
                 key={car.id} 
                 car={car} 
                 laneLength={laneLength} 
-                trackRadius={trackRadius + (car.lane * trackWidth)}
+                trackRadius={trackRadius}
                 trackType="circular"
                 distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
               />

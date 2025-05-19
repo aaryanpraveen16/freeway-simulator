@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TrafficTrack from "@/components/TrafficTrack";
 import ControlPanel from "@/components/ControlPanel";
@@ -17,6 +16,8 @@ import {
   type Car
 } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Pause, Play } from "lucide-react";
 
 interface SimulationEvent {
   type: 'exit' | 'enter' | 'laneChange';
@@ -189,7 +190,7 @@ const Index = () => {
       } else if (event.type === 'enter') {
         toast({
           title: "Car Entered",
-          description: `${event.carName} has entered the freeway at position ${Math.round(event.position)} ft.`,
+          description: `${event.carName} has entered the freeway at position ${(event.position / 5280).toFixed(2)} mi.`,
           variant: "default",
         });
       } else if (event.type === 'laneChange') {
@@ -260,7 +261,8 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <Navbar />
-      <div className="container mx-auto py-4 px-4">
+      
+      <div className="container mx-auto px-4 py-8">
         <header className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Freeway Simulator
@@ -270,6 +272,28 @@ const Index = () => {
             traffic jams can emerge from the dynamics of car following behavior.
           </p>
         </header>
+
+        {/* Play/Pause button below header */}
+        <div className="flex justify-center mb-8">
+          <Button
+            onClick={toggleSimulation}
+            variant={isRunning ? "destructive" : "default"}
+            className="flex items-center gap-2"
+            size="lg"
+          >
+            {isRunning ? (
+              <>
+                <Pause size={20} />
+                Pause
+              </>
+            ) : (
+              <>
+                <Play size={20} />
+                Start
+              </>
+            )}
+          </Button>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">

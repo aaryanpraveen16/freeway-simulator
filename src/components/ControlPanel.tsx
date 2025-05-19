@@ -81,6 +81,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     onUpdateParams({ numLanes: value[0] });
   };
 
+  const handleFreewayLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value > 0) {
+      onUpdateParams({ freewayLength: value });
+    }
+  };
+
   const applyTrafficPreset = (numCars: number) => {
     onUpdateParams({ numCars });
     onReset();
@@ -136,6 +143,24 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <div className="text-sm text-muted-foreground">
             {params.numLanes} {params.numLanes === 1 ? 'Lane' : 'Lanes'}
           </div>
+        </div>
+
+        {/* Freeway Length */}
+        <div className="space-y-2">
+          <Label htmlFor="freeway-length">Freeway Length (miles)</Label>
+          <Input
+            id="freeway-length"
+            type="number"
+            value={params.freewayLength}
+            onChange={handleFreewayLengthChange}
+            min={1}
+            max={100}
+            step={1}
+            disabled={isRunning}
+          />
+          <p className="text-xs text-muted-foreground">
+            Total length of the freeway in miles
+          </p>
         </div>
 
         {/* Number of Cars */}
@@ -208,45 +233,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </p>
         </div> */}
 
-        <div className="space-y-4">
-          <Label className="text-base">Trip Planning Parameters</Label>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="mean-trip-distance">
-                Mean Trip Distance (ft)
-              </Label>
-              <Input
-                id="mean-trip-distance"
-                type="number"
-                value={params.meanDistTripPlanned}
-                onChange={handleMeanTripDistanceChange}
-                min={1000}
-                max={50000}
-                step={1000}
-              />
-              <p className="text-xs text-muted-foreground">
-                Average distance cars will travel before exiting
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="trip-distance-std">Trip Distance Std Dev</Label>
-              <Input
-                id="trip-distance-std"
-                type="number"
-                value={params.sigmaDistTripPlanned}
-                onChange={handleTripDistanceStdChange}
-                min={0.1}
-                max={2}
-                step={0.1}
-              />
-              <p className="text-xs text-muted-foreground">
-                Variation in trip distances (log-normal distribution)
-              </p>
-            </div>
-          </div>
-        </div>
         <div className="space-y-2">
           <Label htmlFor="speed-limit">Speed Limit (mph)</Label>
           <Input
@@ -270,15 +256,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="mean-trip-distance">Mean Trip Distance (ft)</Label>
+              <Label htmlFor="mean-trip-distance">Mean Trip Distance (miles)</Label>
               <Input
                 id="mean-trip-distance"
                 type="number"
                 value={params.meanDistTripPlanned}
                 onChange={handleMeanTripDistanceChange}
-                min={1000}
-                max={50000}
-                step={1000}
+                min={1}
+                max={50}
+                step={1}
               />
               <p className="text-xs text-muted-foreground">
                 Average distance cars will travel before exiting
@@ -303,7 +289,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
+      <CardFooter className="flex justify-end">
         <Button
           onClick={onReset}
           variant="outline"
@@ -311,23 +297,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         >
           <RotateCcw size={16} />
           Reset
-        </Button>
-        <Button
-          onClick={onToggleSimulation}
-          variant={isRunning ? "destructive" : "default"}
-          className="flex items-center gap-2"
-        >
-          {isRunning ? (
-            <>
-              <Pause size={16} />
-              Pause
-            </>
-          ) : (
-            <>
-              <Play size={16} />
-              Start
-            </>
-          )}
         </Button>
       </CardFooter>
     </Card>

@@ -187,7 +187,7 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                     <div>
                       <span className="text-muted-foreground">Distance:</span>
                       <span className="font-medium ml-1">
-                        {distanceToCarAhead} ft
+                        {(distanceToCarAhead / 5280).toFixed(2)} mi
                       </span>
                     </div>
                     <div>
@@ -232,8 +232,8 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                       ></div>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>{Math.round(car.distanceTraveled)} ft</span>
-                      <span>{Math.round(car.distTripPlanned)} ft</span>
+                      <span>{(car.distanceTraveled / 5280).toFixed(2)} mi</span>
+                      <span>{(car.distTripPlanned / 5280).toFixed(2)} mi</span>
                     </div>
                   </div>
                 </div>

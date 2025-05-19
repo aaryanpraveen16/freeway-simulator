@@ -31,9 +31,10 @@ export interface SimulationParams {
   maxSpeed: number; // maximum speed in mph
   meanSpeed: number; // mean desired speed in mph
   stdSpeed: number; // standard deviation of desired speeds
-  meanDistTripPlanned: number; // mean planned trip distance in feet
+  meanDistTripPlanned: number; // mean planned trip distance in miles
   sigmaDistTripPlanned: number; // standard deviation of planned trip distances
-  speedLimit:number;
+  speedLimit: number;
+  freewayLength: number; // total length of the freeway in miles
   // MOBIL parameters
   politenessFactor: number; // p in MOBIL model (0-1)
   accelerationThreshold: number; // a_thr in MOBIL model
@@ -64,9 +65,10 @@ export const defaultParams: SimulationParams = {
   maxSpeed: 80, // mph
   meanSpeed: 65, // mph
   stdSpeed: 5, // mph
-  meanDistTripPlanned: 10000, // 10,000 feet (about 1.9 miles)
+  meanDistTripPlanned: 10, // 10 miles
   sigmaDistTripPlanned: 0.5, // standard deviation for log-normal distribution
   speedLimit: 70,
+  freewayLength: 10, // 10 miles
   // MOBIL parameters
   politenessFactor: 0.5, // balanced between selfish and polite
   accelerationThreshold: 0.2, // m/s^2
@@ -119,6 +121,24 @@ export function calculateVirtualLength(speed: number, params: SimulationParams):
   return params.lengthCar + safeDistance;
 }
 
+// Calculate car color based on trip progress
+function calculateCarColor(car: Car): string {
+  const progress = car.distanceTraveled / car.distTripPlanned;
+  
+  if (progress < 0.3) {
+    // Green to white transition (0-30% of trip)
+    const greenToWhite = progress / 0.3;
+    return `hsl(142, 72%, ${29 + (71 * greenToWhite)}%)`;
+  } else if (progress < 0.7) {
+    // White (30-70% of trip)
+    return "hsl(0, 0%, 100%)";
+  } else {
+    // White to red transition (70-100% of trip)
+    const whiteToRed = (progress - 0.7) / 0.3;
+    return `hsl(0, ${72 * whiteToRed}%, ${100 - (49 * whiteToRed)}%)`;
+  }
+}
+
 // Initialize the simulation
 export function initializeSimulation(params: SimulationParams): {
   cars: Car[];
@@ -126,14 +146,9 @@ export function initializeSimulation(params: SimulationParams): {
   density: number;
 } {
   const cars: Car[] = [];
-  const carColors = [
-    "hsl(var(--car-red))",
-    "hsl(var(--car-blue))",
-    "hsl(var(--car-green))",
-    "hsl(var(--car-yellow))",
-    "hsl(var(--car-purple))",
-    "hsl(var(--car-orange))",
-  ];
+  
+  // Convert miles to feet for internal calculations
+  const laneLengthInFeet = params.freewayLength * 5280;
   
   // Generate cars with random desired speeds and driver types
   for (let i = 0; i < params.numCars; i++) {
@@ -179,9 +194,9 @@ export function initializeSimulation(params: SimulationParams): {
     // Calculate virtual length based on initial speed
     const virtualLength = calculateVirtualLength(speed, params);
     
-    // Generate planned trip distance using log-normal distribution
+    // Generate planned trip distance using log-normal distribution (convert miles to feet)
     const distTripPlanned = logNormalRandom(
-      params.meanDistTripPlanned,
+      params.meanDistTripPlanned * 5280,
       params.sigmaDistTripPlanned
     );
     
@@ -192,7 +207,7 @@ export function initializeSimulation(params: SimulationParams): {
       lane: 0,
       speed,
       desiredSpeed,
-      color: carColors[i % carColors.length],
+      color: calculateCarColor({ distanceTraveled: 0, distTripPlanned } as Car),
       virtualLength,
       distTripPlanned,
       distanceTraveled: 0,
@@ -203,13 +218,8 @@ export function initializeSimulation(params: SimulationParams): {
     });
   }
   
-  // Calculate total lane length based on virtual lengths
-  const totalVirtualLength = cars.reduce((sum, car) => sum + car.virtualLength, 0);
-  const buffer = params.initialGap * params.numCars; // Add some buffer space
-  const laneLength = totalVirtualLength + buffer;
-  
   // Calculate traffic density (cars per mile)
-  const density = params.numCars / (laneLength / 5280);
+  const density = params.numCars / params.freewayLength;
   
   // UPDATED: Randomly position cars along the lane
   // Create an array of possible positions
@@ -226,13 +236,13 @@ export function initializeSimulation(params: SimulationParams): {
     
     while (!validPosition && attempts < maxAttempts) {
       // Generate a random position around the track
-      position = Math.random() * laneLength;
+      position = Math.random() * laneLengthInFeet;
       validPosition = true;
       
       // Check if this position is too close to any other car
       for (const usedPos of usedPositions) {
         const distance = Math.abs(position - usedPos);
-        const wrappedDistance = Math.min(distance, laneLength - distance);
+        const wrappedDistance = Math.min(distance, laneLengthInFeet - distance);
         
         // If too close to another car, try again
         if (wrappedDistance < params.lengthCar + params.initialGap / 2) {
@@ -258,7 +268,7 @@ export function initializeSimulation(params: SimulationParams): {
     cars[i].name = `Car ${i + 1}`;
   }
   
-  return { cars, laneLength, density };
+  return { cars, laneLength: laneLengthInFeet, density };
 }
 
 // Calculate distance to car ahead
@@ -296,16 +306,6 @@ export function updateSimulation(
   const updatedCars = [...cars];
   const numCars = cars.length;
   
-  // Define car colors for new cars
-  const carColors = [
-    "hsl(var(--car-red))",
-    "hsl(var(--car-blue))",
-    "hsl(var(--car-green))",
-    "hsl(var(--car-yellow))",
-    "hsl(var(--car-purple))",
-    "hsl(var(--car-orange))",
-  ];
-
   // First, calculate all car movements without updating positions
   const movements: { newPosition: number; newSpeed: number; distanceTraveled: number; newLane?: number }[] = [];
   const carsToRemove: { index: number; car: Car }[] = [];
@@ -411,6 +411,7 @@ export function updateSimulation(
     updatedCars[i].position = movements[i].newPosition;
     updatedCars[i].speed = movements[i].newSpeed;
     updatedCars[i].distanceTraveled = movements[i].distanceTraveled;
+    updatedCars[i].color = calculateCarColor(updatedCars[i]);
     
     // Update lane if changed
     if (movements[i].newLane !== undefined) {
@@ -451,7 +452,7 @@ export function updateSimulation(
     const speed = desiredSpeed;
     const virtualLength = calculateVirtualLength(speed, params);
     const distTripPlanned = logNormalRandom(
-      params.meanDistTripPlanned,
+      params.meanDistTripPlanned * 5280,
       params.sigmaDistTripPlanned
     );
     const newId = updatedCars.length > 0 
@@ -466,7 +467,7 @@ export function updateSimulation(
       lane: 0,
       speed,
       desiredSpeed,
-      color: carColors[newId % carColors.length],
+      color: calculateCarColor({ distanceTraveled: 0, distTripPlanned } as Car),
       virtualLength,
       distTripPlanned,
       distanceTraveled: 0,
