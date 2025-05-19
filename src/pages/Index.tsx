@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TrafficTrack from "@/components/TrafficTrack";
 import ControlPanel from "@/components/ControlPanel";
@@ -179,7 +180,7 @@ const Index = () => {
       <div className="container mx-auto py-4 px-4">
         <header className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Traffic Flow Simulation
+            Freeway Simulator
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
             A real-time simulation of traffic flow in a closed loop, demonstrating how 

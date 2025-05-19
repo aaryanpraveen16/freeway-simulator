@@ -16,8 +16,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/traffic-simulation" replace />} />
-          <Route path="/traffic-simulation" element={<Index />} />
+          <Route path="/" element={<Navigate to="/freeway-simulator" replace />} />
+          <Route path="/freeway-simulator" element={<Index />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
