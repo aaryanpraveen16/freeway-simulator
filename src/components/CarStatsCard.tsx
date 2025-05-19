@@ -47,13 +47,10 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
       gap += sortedCars[sortedCars.length - 1].position + 1000;
     }
     
-    // Check both speed difference AND gap criteria
-    const speedDifference = Math.abs(car.speed - currentPackSpeed);
-    const isNewPackBySpeed = speedDifference > 10;
-    const isNewPackByGap = gap > totalGapThreshold;
+    // Check for new pack: ONLY gap must be large (proximity-based packs)
+    const isNewPack = gap > 700;
     
-    // If speeds are within 10 mph of each other AND gap is small enough, consider them part of the same pack
-    if (!isNewPackBySpeed && !isNewPackByGap) {
+    if (!isNewPack) {
       currentPack.push(car.id);
     } else {
       // Create a new pack with the cars collected so far
@@ -63,15 +60,12 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
           speed: Math.round(currentPackSpeed),
           carCount: currentPack.length
         });
-        
         // Map cars to their respective packs
         currentPack.forEach(carId => {
           carPackMap[carId] = packId;
         });
-        
         packId++;
       }
-      
       // Start a new pack
       currentPack = [car.id];
       currentPackSpeed = car.speed;

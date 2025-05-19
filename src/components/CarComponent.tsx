@@ -58,9 +58,11 @@ const CarComponent: React.FC<CarComponentProps> = ({
         <CarIcon
           size={carSize}
           className={cn(
-            "transition-colors",
-            car.color
+            "transition-colors"
           )}
+          style={{ color: car.color }}
+          fill={car.color}
+          stroke="#222"
         />
         
         {/* Tooltip */}

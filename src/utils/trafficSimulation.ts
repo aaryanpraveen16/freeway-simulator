@@ -121,22 +121,22 @@ export function calculateVirtualLength(speed: number, params: SimulationParams):
   return params.lengthCar + safeDistance;
 }
 
-// Calculate car color based on trip progress
+// Calculate car color based on car state
 function calculateCarColor(car: Car): string {
-  const progress = car.distanceTraveled / car.distTripPlanned;
-  
-  if (progress < 0.3) {
-    // Green to white transition (0-30% of trip)
-    const greenToWhite = progress / 0.3;
-    return `hsl(142, 72%, ${29 + (71 * greenToWhite)}%)`;
-  } else if (progress < 0.7) {
-    // White (30-70% of trip)
-    return "hsl(0, 0%, 100%)";
-  } else {
-    // White to red transition (70-100% of trip)
-    const whiteToRed = (progress - 0.7) / 0.3;
-    return `hsl(0, ${72 * whiteToRed}%, ${100 - (49 * whiteToRed)}%)`;
+  // Lane change: highest priority
+  if (car.lastLaneChange && (Date.now() / 1000 - car.lastLaneChange) < 2) {
+    return "hsl(48, 96%, 53%)"; // Yellow
   }
+  // About to leave
+  if (car.distanceTraveled / car.distTripPlanned > 0.7) {
+    return "hsl(0, 72%, 51%)"; // Red
+  }
+  // Just entered
+  if (car.distanceTraveled / car.distTripPlanned < 0.3) {
+    return "hsl(142, 72%, 29%)"; // Green
+  }
+  // Default
+  return "hsl(0, 0%, 100%)"; // White
 }
 
 // Initialize the simulation
@@ -652,7 +652,16 @@ function shouldChangeLane(
   if (currentTime - car.lastLaneChange < params.laneChangeCooldown) {
     return { shouldChange: false, targetLane: null };
   }
-  
+
+  // Only consider lane change if there is a slower car ahead within 500 feet and at least 2 mph slower
+  if (!currentLeader || currentLeader.speed >= car.speed - 2) {
+    return { shouldChange: false, targetLane: null };
+  }
+  const gapToLeader = (currentLeader.position - car.position + laneLength) % laneLength;
+  if (gapToLeader > 500) {
+    return { shouldChange: false, targetLane: null };
+  }
+
   // Calculate incentives for both lanes
   const leftIncentive = car.lane > 0 ? 
     calculateLaneChangeIncentive(car, currentLeader, adjacentLanes.leftLane, params, laneLength) : 
