@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LinkedIn, ExternalLink } from "lucide-react";
+import { Linkedin, ExternalLink } from "lucide-react";
 
 interface Contributor {
   name: string;
@@ -66,7 +66,7 @@ const Navbar = () => {
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
                     >
-                      <LinkedIn size={16} /> LinkedIn
+                      <Linkedin size={16} /> LinkedIn
                     </a>
                   )}
                   {contributor.portfolio && (
