@@ -4,6 +4,7 @@ import ControlPanel from "@/components/ControlPanel";
 import StatsDisplay from "@/components/StatsDisplay";
 import CarStatsCard from "@/components/CarStatsCard";
 import SimulationInfo from "@/components/SimulationInfo";
+import Navbar from "@/components/Navbar";
 import PackFormationChart, { identifyPacks } from "@/components/PackFormationChart";
 import AveragePackLengthChart, { calculateAveragePackLength } from "@/components/AveragePackLengthChart";
 import { 
@@ -174,7 +175,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div className="container mx-auto py-8 px-4">
+      <Navbar />
+      <div className="container mx-auto py-4 px-4">
         <header className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Traffic Flow Simulation
