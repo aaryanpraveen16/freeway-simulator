@@ -17,7 +17,8 @@ export interface Car {
 }
 
 export interface SimulationParams {
-  numCars: number;
+  trafficDensity: number; // cars per mile across all lanes
+  trafficDensityPerLane: number; // cars per mile per lane
   numLanes: number; // number of lanes
   dt: number; // time step in seconds
   aMax: number; // max deceleration
@@ -35,6 +36,9 @@ export interface SimulationParams {
   sigmaDistTripPlanned: number; // standard deviation of planned trip distances
   speedLimit: number;
   freewayLength: number; // total length of the freeway in miles
+  // Color coding parameters
+  entryColorDistance: number; // distance in miles for entry color coding
+  exitColorDistance: number; // distance in miles for exit color coding
   // MOBIL parameters
   politenessFactor: number; // p in MOBIL model (0-1)
   accelerationThreshold: number; // a_thr in MOBIL model
@@ -47,11 +51,14 @@ export interface SimulationParams {
   maxLaneChangeProbability: number;
   minLaneStickiness: number;
   maxLaneStickiness: number;
+  // Lane changing rules
+  laneChangeRule: 'american' | 'european'; // Traffic rules for lane changing
 }
 
 // Default simulation parameters
 export const defaultParams: SimulationParams = {
-  numCars: 10,
+  trafficDensity: 20, // 20 cars per mile across all lanes
+  trafficDensityPerLane: 20, // 20 cars per mile per lane (will be calculated)
   numLanes: 1, // start with 1 lane
   dt: 0.1, // 100ms time step
   aMax: 10, // ft/s^2
@@ -69,6 +76,9 @@ export const defaultParams: SimulationParams = {
   sigmaDistTripPlanned: 0.5, // standard deviation for log-normal distribution
   speedLimit: 70,
   freewayLength: 10, // 10 miles
+  // Color coding parameters
+  entryColorDistance: 0.5, // 0.5 miles for entry color
+  exitColorDistance: 1.0, // 1 mile for exit color
   // MOBIL parameters
   politenessFactor: 0.5, // balanced between selfish and polite
   accelerationThreshold: 0.2, // m/s^2
@@ -81,6 +91,8 @@ export const defaultParams: SimulationParams = {
   maxLaneChangeProbability: 0.8,
   minLaneStickiness: 0.1,
   maxLaneStickiness: 0.9,
+  // Lane changing rules
+  laneChangeRule: 'american', // Default to American rules
 };
 
 // Generate random number from normal distribution
@@ -121,21 +133,64 @@ export function calculateVirtualLength(speed: number, params: SimulationParams):
   return params.lengthCar + safeDistance;
 }
 
-// Calculate car color based on trip progress
-function calculateCarColor(car: Car): string {
-  const progress = car.distanceTraveled / car.distTripPlanned;
+// Calculate car color based on trip progress and distance-based entry/exit
+function calculateCarColor(car: Car, params: SimulationParams): string {
+  const distanceTraveledMiles = car.distanceTraveled / 5280;
+  const tripPlannedMiles = car.distTripPlanned / 5280;
+  const distanceLeftMiles = tripPlannedMiles - distanceTraveledMiles;
   
-  if (progress < 0.3) {
-    // Green to white transition (0-30% of trip)
-    const greenToWhite = progress / 0.3;
-    return `hsl(142, 72%, ${29 + (71 * greenToWhite)}%)`;
-  } else if (progress < 0.7) {
-    // White (30-70% of trip)
-    return "hsl(0, 0%, 100%)";
+  // Entry color coding (first part of trip)
+  if (distanceTraveledMiles <= params.entryColorDistance) {
+    const progress = distanceTraveledMiles / params.entryColorDistance;
+    if (progress < 0.5) {
+      // Dark green to light green
+      const lightness = 25 + (35 * (progress / 0.5)); // 25% to 60%
+      return `hsl(142, 72%, ${lightness}%)`;
+    } else {
+      // Light green to white
+      const lightness = 60 + (40 * ((progress - 0.5) / 0.5)); // 60% to 100%
+      return `hsl(142, ${72 * (1 - (progress - 0.5) / 0.5)}%, ${lightness}%)`;
+    }
+  }
+  
+  // Exit color coding (last part of trip)
+  if (distanceLeftMiles <= params.exitColorDistance) {
+    const progress = 1 - (distanceLeftMiles / params.exitColorDistance);
+    if (progress < 0.5) {
+      // White to light red
+      const saturation = 72 * (progress / 0.5);
+      const lightness = 100 - (49 * (progress / 0.5)); // 100% to 51%
+      return `hsl(0, ${saturation}%, ${lightness}%)`;
+    } else {
+      // Light red to dark red
+      const lightness = 51 - (26 * ((progress - 0.5) / 0.5)); // 51% to 25%
+      return `hsl(0, 72%, ${lightness}%)`;
+    }
+  }
+  
+  // Middle of trip - white
+  return "hsl(0, 0%, 100%)";
+}
+
+// Calculate number of cars based on traffic density
+export function calculateNumCars(params: SimulationParams): number {
+  return Math.round(params.trafficDensity * params.freewayLength);
+}
+
+// Update traffic density when lanes change
+export function updateTrafficDensity(params: SimulationParams, updateType: 'density' | 'perLane'): SimulationParams {
+  if (updateType === 'density') {
+    // Update per-lane density based on total density
+    return {
+      ...params,
+      trafficDensityPerLane: params.trafficDensity / params.numLanes
+    };
   } else {
-    // White to red transition (70-100% of trip)
-    const whiteToRed = (progress - 0.7) / 0.3;
-    return `hsl(0, ${72 * whiteToRed}%, ${100 - (49 * whiteToRed)}%)`;
+    // Update total density based on per-lane density
+    return {
+      ...params,
+      trafficDensity: params.trafficDensityPerLane * params.numLanes
+    };
   }
 }
 
@@ -150,8 +205,11 @@ export function initializeSimulation(params: SimulationParams): {
   // Convert miles to feet for internal calculations
   const laneLengthInFeet = params.freewayLength * 5280;
   
+  // Calculate number of cars based on traffic density
+  const numCars = calculateNumCars(params);
+  
   // Generate cars with random desired speeds and driver types
-  for (let i = 0; i < params.numCars; i++) {
+  for (let i = 0; i < numCars; i++) {
     const desiredSpeed = normalRandom(
       params.meanSpeed,
       params.stdSpeed,
@@ -207,7 +265,7 @@ export function initializeSimulation(params: SimulationParams): {
       lane: 0,
       speed,
       desiredSpeed,
-      color: calculateCarColor({ distanceTraveled: 0, distTripPlanned } as Car),
+      color: calculateCarColor({ distanceTraveled: 0, distTripPlanned } as Car, params),
       virtualLength,
       distTripPlanned,
       distanceTraveled: 0,
@@ -219,14 +277,14 @@ export function initializeSimulation(params: SimulationParams): {
   }
   
   // Calculate traffic density (cars per mile)
-  const density = params.numCars / params.freewayLength;
+  const density = params.trafficDensity;
   
   // UPDATED: Randomly position cars along the lane
   // Create an array of possible positions
   const usedPositions: number[] = [];
   
   // For each car, find a random position that doesn't overlap with other cars
-  for (let i = 0; i < params.numCars; i++) {
+  for (let i = 0; i < numCars; i++) {
     let validPosition = false;
     let position = 0;
     
@@ -266,6 +324,7 @@ export function initializeSimulation(params: SimulationParams): {
   for (let i = 0; i < cars.length; i++) {
     cars[i].id = i;
     cars[i].name = `Car ${i + 1}`;
+    cars[i].color = calculateCarColor(cars[i], params);
   }
   
   return { cars, laneLength: laneLengthInFeet, density };
@@ -284,6 +343,113 @@ export function calculateDistanceToCarAhead(carIndex: number, cars: Car[], laneL
   }
   
   return Math.round(distance);
+}
+
+// Enhanced lane change decision with traffic rules
+function shouldChangeLane(
+  car: Car,
+  currentLeader: Car | undefined,
+  adjacentLanes: { leftLane: { leader?: Car; follower?: Car }; rightLane: { leader?: Car; follower?: Car } },
+  params: SimulationParams,
+  laneLength: number,
+  currentTime: number
+): { shouldChange: boolean; targetLane: number | null } {
+  // Check if enough time has passed since last lane change
+  if (currentTime - car.lastLaneChange < params.laneChangeCooldown) {
+    return { shouldChange: false, targetLane: null };
+  }
+  
+  // Driver's desired speed constraint
+  const effectiveDesiredSpeed = Math.min(car.desiredSpeed, params.speedLimit);
+  
+  // Current lane speed assessment
+  const currentLaneSpeed = currentLeader ? Math.min(currentLeader.speed, effectiveDesiredSpeed) : effectiveDesiredSpeed;
+  const isCurrentLaneSlow = currentLaneSpeed < effectiveDesiredSpeed;
+  
+  // Check left lane
+  let canChangeLeft = car.lane > 0;
+  let shouldChangeLeft = false;
+  
+  if (canChangeLeft) {
+    const leftLaneSpeed = adjacentLanes.leftLane.leader ? 
+      Math.min(adjacentLanes.leftLane.leader.speed, effectiveDesiredSpeed) : 
+      effectiveDesiredSpeed;
+    
+    // Apply traffic rules
+    if (params.laneChangeRule === 'european') {
+      // European rule: only pass on the left
+      shouldChangeLeft = isCurrentLaneSlow && leftLaneSpeed > currentLaneSpeed;
+    } else {
+      // American rule: can pass on either side
+      shouldChangeLeft = isCurrentLaneSlow && leftLaneSpeed > currentLaneSpeed;
+    }
+  }
+  
+  // Check right lane
+  let canChangeRight = car.lane < params.numLanes - 1;
+  let shouldChangeRight = false;
+  
+  if (canChangeRight) {
+    const rightLaneSpeed = adjacentLanes.rightLane.leader ? 
+      Math.min(adjacentLanes.rightLane.leader.speed, effectiveDesiredSpeed) : 
+      effectiveDesiredSpeed;
+    
+    // Apply traffic rules
+    if (params.laneChangeRule === 'european') {
+      // European rule: must move right if possible and not blocking traffic
+      const rightLaneAllowsSpeed = rightLaneSpeed >= effectiveDesiredSpeed;
+      shouldChangeRight = rightLaneAllowsSpeed || (isCurrentLaneSlow && rightLaneSpeed > currentLaneSpeed);
+    } else {
+      // American rule: can pass on either side, keep right is recommended but not enforced
+      shouldChangeRight = isCurrentLaneSlow && rightLaneSpeed > currentLaneSpeed;
+      // Add slight bias for keeping right
+      if (rightLaneSpeed >= currentLaneSpeed) {
+        shouldChangeRight = shouldChangeRight || (Math.random() < 0.1); // 10% chance to move right
+      }
+    }
+  }
+  
+  // Safety check for lane changes
+  if (shouldChangeLeft) {
+    const isSafeLeft = isLaneChangeSafe(car, adjacentLanes.leftLane, params, laneLength);
+    if (isSafeLeft && Math.random() < car.laneChangeProbability) {
+      return { shouldChange: true, targetLane: car.lane - 1 };
+    }
+  }
+  
+  if (shouldChangeRight) {
+    const isSafeRight = isLaneChangeSafe(car, adjacentLanes.rightLane, params, laneLength);
+    if (isSafeRight && Math.random() < car.laneChangeProbability) {
+      return { shouldChange: true, targetLane: car.lane + 1 };
+    }
+  }
+  
+  return { shouldChange: false, targetLane: null };
+}
+
+// Check if lane change is safe
+function isLaneChangeSafe(
+  car: Car,
+  targetLane: { leader?: Car; follower?: Car },
+  params: SimulationParams,
+  laneLength: number
+): boolean {
+  const safeGap = calculateSafeDistance(car.speed, params.tDist) + params.lengthCar;
+  
+  // Check gap to leader in target lane
+  if (targetLane.leader) {
+    const gapToLeader = (targetLane.leader.position - car.position + laneLength) % laneLength;
+    if (gapToLeader < safeGap) return false;
+  }
+  
+  // Check gap to follower in target lane
+  if (targetLane.follower) {
+    const gapToFollower = (car.position - targetLane.follower.position + laneLength) % laneLength;
+    const followerSafeGap = calculateSafeDistance(targetLane.follower.speed, params.tDist) + params.lengthCar;
+    if (gapToFollower < followerSafeGap) return false;
+  }
+  
+  return true;
 }
 
 // Update simulation for one time step
@@ -411,7 +577,7 @@ export function updateSimulation(
     updatedCars[i].position = movements[i].newPosition;
     updatedCars[i].speed = movements[i].newSpeed;
     updatedCars[i].distanceTraveled = movements[i].distanceTraveled;
-    updatedCars[i].color = calculateCarColor(updatedCars[i]);
+    updatedCars[i].color = calculateCarColor(updatedCars[i], params);
     
     // Update lane if changed
     if (movements[i].newLane !== undefined) {
@@ -467,7 +633,7 @@ export function updateSimulation(
       lane: 0,
       speed,
       desiredSpeed,
-      color: calculateCarColor({ distanceTraveled: 0, distTripPlanned } as Car),
+      color: calculateCarColor({ distanceTraveled: 0, distTripPlanned } as Car, params),
       virtualLength,
       distTripPlanned,
       distanceTraveled: 0,
@@ -637,44 +803,4 @@ function calculateLaneChangeIncentive(
   }
   
   return incentive;
-}
-
-// Determine if lane change is possible and beneficial
-function shouldChangeLane(
-  car: Car,
-  currentLeader: Car | undefined,
-  adjacentLanes: { leftLane: { leader?: Car; follower?: Car }; rightLane: { leader?: Car; follower?: Car } },
-  params: SimulationParams,
-  laneLength: number,
-  currentTime: number
-): { shouldChange: boolean; targetLane: number | null } {
-  // Check if enough time has passed since last lane change
-  if (currentTime - car.lastLaneChange < params.laneChangeCooldown) {
-    return { shouldChange: false, targetLane: null };
-  }
-  
-  // Calculate incentives for both lanes
-  const leftIncentive = car.lane > 0 ? 
-    calculateLaneChangeIncentive(car, currentLeader, adjacentLanes.leftLane, params, laneLength) : 
-    -Infinity;
-  const rightIncentive = car.lane < params.numLanes - 1 ? 
-    calculateLaneChangeIncentive(car, currentLeader, adjacentLanes.rightLane, params, laneLength) : 
-    -Infinity;
-  
-  // Apply lane stickiness to incentives
-  const adjustedLeftIncentive = leftIncentive * (1 - car.laneStickiness);
-  const adjustedRightIncentive = rightIncentive * (1 - car.laneStickiness);
-  
-  // Check if any lane change is beneficial
-  if (adjustedLeftIncentive > params.accelerationThreshold || adjustedRightIncentive > params.accelerationThreshold) {
-    // Choose the lane with higher incentive
-    const targetLane = adjustedLeftIncentive > adjustedRightIncentive ? car.lane - 1 : car.lane + 1;
-    
-    // Apply probabilistic lane change based on driver's lane change probability
-    if (Math.random() < car.laneChangeProbability) {
-      return { shouldChange: true, targetLane };
-    }
-  }
-  
-  return { shouldChange: false, targetLane: null };
 }

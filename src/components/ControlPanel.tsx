@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SimulationParams } from "@/utils/trafficSimulation";
+import { SimulationParams, calculateNumCars, updateTrafficDensity } from "@/utils/trafficSimulation";
 import { Play, Pause, RotateCcw, Car } from "lucide-react";
 import {
   Select,
@@ -31,10 +32,10 @@ interface ControlPanelProps {
 
 // Predefined traffic settings
 const trafficPresets = [
-  { name: "Light Traffic", cars: 10, icon: <Car size={16} /> },
-  { name: "Busy Traffic", cars: 30, icon: <Car size={16} /> },
-  { name: "Heavy Traffic", cars: 60, icon: <Car size={16} /> },
-  { name: "Fully Packed", cars: 100, icon: <Car size={16} /> },
+  { name: "Light Traffic", density: 5, icon: <Car size={16} /> },
+  { name: "Busy Traffic", density: 15, icon: <Car size={16} /> },
+  { name: "Heavy Traffic", density: 30, icon: <Car size={16} /> },
+  { name: "Fully Packed", density: 50, icon: <Car size={16} /> },
 ];
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -44,8 +45,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   params,
   onUpdateParams,
 }) => {
-  const handleNumCarsChange = (value: number[]) => {
-    onUpdateParams({ numCars: value[0] });
+  const handleTrafficDensityChange = (value: number[]) => {
+    const newParams = updateTrafficDensity(
+      { ...params, trafficDensity: value[0] },
+      'density'
+    );
+    onUpdateParams(newParams);
+  };
+
+  const handleTrafficDensityPerLaneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value > 0) {
+      const newParams = updateTrafficDensity(
+        { ...params, trafficDensityPerLane: value },
+        'perLane'
+      );
+      onUpdateParams(newParams);
+    }
   };
 
   const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,30 +71,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     }
   };
 
-  const handleBrakeCarChange = (value: string) => {
-    onUpdateParams({ brakeCarIndex: parseInt(value) });
-  };
-
-  const handleMeanTripDistanceChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      onUpdateParams({ meanDistTripPlanned: value });
-    }
-  };
-
-  const handleTripDistanceStdChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      onUpdateParams({ sigmaDistTripPlanned: value });
-    }
-  };
-
   const handleNumLanesChange = (value: number[]) => {
-    onUpdateParams({ numLanes: value[0] });
+    const newParams = updateTrafficDensity(
+      { ...params, numLanes: value[0] },
+      'perLane'
+    );
+    onUpdateParams(newParams);
   };
 
   const handleFreewayLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,16 +86,34 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     }
   };
 
-  const applyTrafficPreset = (numCars: number) => {
-    onUpdateParams({ numCars });
+  const handleEntryColorDistanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value > 0) {
+      onUpdateParams({ entryColorDistance: value });
+    }
+  };
+
+  const handleExitColorDistanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value > 0) {
+      onUpdateParams({ exitColorDistance: value });
+    }
+  };
+
+  const handleLaneChangeRuleChange = (value: string) => {
+    onUpdateParams({ laneChangeRule: value as 'american' | 'european' });
+  };
+
+  const applyTrafficPreset = (density: number) => {
+    const newParams = updateTrafficDensity(
+      { ...params, trafficDensity: density },
+      'density'
+    );
+    onUpdateParams(newParams);
     onReset();
   };
 
-  // Generate car options based on numCars
-  const carOptions = Array.from({ length: params.numCars }, (_, i) => ({
-    value: i.toString(),
-    label: `Car ${i + 1}`,
-  }));
+  const currentNumCars = calculateNumCars(params);
 
   return (
     <Card className="w-full">
@@ -117,12 +133,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 key={preset.name}
                 variant="outline"
                 className="flex items-center gap-1"
-                onClick={() => applyTrafficPreset(preset.cars)}
+                onClick={() => applyTrafficPreset(preset.density)}
               >
                 {preset.icon}
                 <span>{preset.name}</span>
                 <span className="text-xs text-muted-foreground">
-                  ({preset.cars})
+                  ({preset.density}/mi)
                 </span>
               </Button>
             ))}
@@ -145,6 +161,43 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
         </div>
 
+        {/* Traffic Density */}
+        <div className="space-y-4">
+          <Label className="text-base">Traffic Density</Label>
+          
+          <div className="space-y-2">
+            <Label>Total Traffic Density (cars/mile)</Label>
+            <Slider
+              value={[params.trafficDensity]}
+              onValueChange={handleTrafficDensityChange}
+              min={1}
+              max={100}
+              step={1}
+              disabled={isRunning}
+            />
+            <div className="text-sm text-muted-foreground">
+              {params.trafficDensity.toFixed(1)} cars/mile ({currentNumCars} total cars)
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="density-per-lane">Traffic Density per Lane (cars/mile/lane)</Label>
+            <Input
+              id="density-per-lane"
+              type="number"
+              value={params.trafficDensityPerLane.toFixed(1)}
+              onChange={handleTrafficDensityPerLaneChange}
+              min={0.1}
+              max={50}
+              step={0.1}
+              disabled={isRunning}
+            />
+            <p className="text-xs text-muted-foreground">
+              Density per individual lane
+            </p>
+          </div>
+        </div>
+
         {/* Freeway Length */}
         <div className="space-y-2">
           <Label htmlFor="freeway-length">Freeway Length (miles)</Label>
@@ -163,19 +216,65 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </p>
         </div>
 
-        {/* Number of Cars */}
+        {/* Lane Change Rules */}
         <div className="space-y-2">
-          <Label>Number of Cars</Label>
-          <Slider
-            value={[params.numCars]}
-            onValueChange={handleNumCarsChange}
-            min={1}
-            max={100}
-            step={1}
-            disabled={isRunning}
-          />
-          <div className="text-sm text-muted-foreground">
-            {params.numCars} {params.numCars === 1 ? 'Car' : 'Cars'}
+          <Label htmlFor="lane-change-rule">Lane Change Rules</Label>
+          <Select 
+            value={params.laneChangeRule} 
+            onValueChange={handleLaneChangeRuleChange}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select lane change rules" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="american">American (Pass left/right, keep right recommended)</SelectItem>
+              <SelectItem value="european">European (Pass left only, keep right enforced)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {params.laneChangeRule === 'american' 
+              ? 'Cars can pass on either side, keeping right is recommended but not enforced'
+              : 'Cars must pass on the left only, keeping right is strictly enforced'
+            }
+          </p>
+        </div>
+
+        {/* Color Coding Parameters */}
+        <div className="space-y-4">
+          <Label className="text-base">Car Color Coding</Label>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="entry-color-distance">Entry Color Distance (miles)</Label>
+              <Input
+                id="entry-color-distance"
+                type="number"
+                value={params.entryColorDistance}
+                onChange={handleEntryColorDistanceChange}
+                min={0.1}
+                max={5}
+                step={0.1}
+              />
+              <p className="text-xs text-muted-foreground">
+                Distance from entry where cars show green color
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="exit-color-distance">Exit Color Distance (miles)</Label>
+              <Input
+                id="exit-color-distance"
+                type="number"
+                value={params.exitColorDistance}
+                onChange={handleExitColorDistanceChange}
+                min={0.1}
+                max={5}
+                step={0.1}
+              />
+              <p className="text-xs text-muted-foreground">
+                Distance before exit where cars show red color
+              </p>
+            </div>
           </div>
         </div>
 
@@ -210,28 +309,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             />
           </div>
         </div>
-
-        {/* <div className="space-y-2">
-          <Label htmlFor="brake-car">Car to Slow Down</Label>
-          <Select 
-            value={params.brakeCarIndex.toString()} 
-            onValueChange={handleBrakeCarChange}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select which car to slow down" />
-            </SelectTrigger>
-            <SelectContent>
-              {carOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            This car will slow down after {params.brakeTime} seconds of simulation time
-          </p>
-        </div> */}
 
         <div className="space-y-2">
           <Label htmlFor="speed-limit">Speed Limit (mph)</Label>
