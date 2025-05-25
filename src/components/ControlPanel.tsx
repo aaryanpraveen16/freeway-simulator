@@ -100,20 +100,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     }
   };
 
-  const handleMeanTripDistanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      onUpdateParams({ meanDistTripPlanned: value });
-    }
-  };
-
-  const handleTripDistanceStdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      onUpdateParams({ sigmaDistTripPlanned: value });
-    }
-  };
-
   const handleLaneChangeRuleChange = (value: string) => {
     onUpdateParams({ laneChangeRule: value as 'american' | 'european' });
   };
@@ -175,6 +161,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
         </div>
 
+        {/* Traffic Density */}
         <div className="space-y-4">
           <Label className="text-base">Traffic Density</Label>
           
@@ -211,6 +198,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
         </div>
 
+        {/* Freeway Length */}
         <div className="space-y-2">
           <Label htmlFor="freeway-length">Freeway Length (miles)</Label>
           <Input
@@ -228,6 +216,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </p>
         </div>
 
+        {/* Lane Change Rules */}
         <div className="space-y-2">
           <Label htmlFor="lane-change-rule">Lane Change Rules</Label>
           <Select 
@@ -250,6 +239,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </p>
         </div>
 
+        {/* Color Coding Parameters */}
         <div className="space-y-4">
           <Label className="text-base">Car Color Coding</Label>
           
