@@ -1,4 +1,3 @@
-
 import React, { useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -170,9 +169,9 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
                 label={{ value: "Time (seconds)", position: "insideBottomRight", offset: -10 }}
               />
               <YAxis
-                label={{ value: "Average Pack Length (feet)", angle: -90, position: "insideLeft" }}
+                label={{ value: "Average Pack Length (miles)", angle: -90, position: "insideLeft" }}
               />
-              <Tooltip formatter={(value: number) => [`${value.toFixed(1)} feet`, "Average Pack Length"]} />
+              <Tooltip formatter={(value: number) => [`${value.toFixed(3)} mi`, "Average Pack Length"]} />
               <Legend />
               <Line
                 type="monotone"
@@ -218,8 +217,8 @@ export const calculateAveragePackLength = (cars: Car[], laneLength: number): num
   let packLengths: number[] = [];
   let currentPackSpeed = sortedCars[0].speed;
   
-  const safeDistanceThreshold = 100; // Safe distance threshold in feet
-  const gapThresholdBuffer = 50; // Buffer for gap threshold in feet
+  const safeDistanceThreshold = 100 / 5280; // in miles
+  const gapThresholdBuffer = 50 / 5280; // in miles
   const totalGapThreshold = safeDistanceThreshold + gapThresholdBuffer;
   
   for (let i = 1; i < sortedCars.length; i++) {

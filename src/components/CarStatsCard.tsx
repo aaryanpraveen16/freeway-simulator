@@ -17,86 +17,71 @@ interface PackInfo {
 const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<number, number> } => {
   const packs: PackInfo[] = [];
   const carPackMap: Record<number, number> = {};
-  
-  // Handle empty cars array
+
   if (!cars.length) {
     return { packs, carPackMap };
   }
-  
-  // Sort cars by position to find adjacent cars
+
   const sortedCars = [...cars].sort((a, b) => a.position - b.position);
-  
+
   let currentPack: number[] = [sortedCars[0].id];
   let currentPackSpeed = sortedCars[0].speed;
   let packId = 0;
-  
-  const safeDistanceThreshold = 100; // Safe distance threshold in feet
-  const gapThresholdBuffer = 50; // Buffer for gap threshold in feet
-  const totalGapThreshold = safeDistanceThreshold + gapThresholdBuffer;
-  
-  // Group cars into packs based on similar speeds and gap thresholds
+
+  // All thresholds in miles
+  const gapThreshold = 0.20; // in miles (~53 ft)
+  const speedDiffThreshold = 20; // mph
+
   for (let i = 1; i < sortedCars.length; i++) {
     const car = sortedCars[i];
     const prevCar = sortedCars[i - 1];
-    
+
     // Calculate gap between current car and previous car
     let gap = car.position - prevCar.position;
-    
-    // Adjust for track wraparound
     if (gap < 0) {
-      gap += sortedCars[sortedCars.length - 1].position + 1000;
+      gap += sortedCars[sortedCars.length - 1].position + gapThreshold; // handle wraparound
     }
-    
-    // Check both speed difference AND gap criteria
+
     const speedDifference = Math.abs(car.speed - currentPackSpeed);
-    const isNewPackBySpeed = speedDifference > 10;
-    const isNewPackByGap = gap > totalGapThreshold;
-    
-    // If speeds are within 10 mph of each other AND gap is small enough, consider them part of the same pack
+    const isNewPackBySpeed = speedDifference > speedDiffThreshold;
+    const isNewPackByGap = gap > gapThreshold;
+
     if (!isNewPackBySpeed && !isNewPackByGap) {
       currentPack.push(car.id);
     } else {
-      // Create a new pack with the cars collected so far
       if (currentPack.length > 0) {
         packs.push({
           packId,
           speed: Math.round(currentPackSpeed),
           carCount: currentPack.length
         });
-        
-        // Map cars to their respective packs
         currentPack.forEach(carId => {
           carPackMap[carId] = packId;
         });
-        
         packId++;
       }
-      
-      // Start a new pack
       currentPack = [car.id];
       currentPackSpeed = car.speed;
     }
   }
-  
-  // Don't forget to process the last pack
+
   if (currentPack.length > 0) {
     packs.push({
       packId,
       speed: Math.round(currentPackSpeed),
       carCount: currentPack.length
     });
-    
     currentPack.forEach(carId => {
       carPackMap[carId] = packId;
     });
   }
-  
+
   return { packs, carPackMap };
 };
 
 const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
   const { packs, carPackMap } = identifyPacks(cars);
-  
+
   return (
     <div className="space-y-4">
       <Card>
@@ -142,9 +127,9 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                 cars,
                 laneLength
               );
-              
+
               const packId = carPackMap[car.id];
-              
+
               // Calculate trip progress percentage
               const tripProgress = Math.min(
                 (car.distanceTraveled / car.distTripPlanned) * 100,
@@ -187,7 +172,7 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                     <div>
                       <span className="text-muted-foreground">Distance:</span>
                       <span className="font-medium ml-1">
-                        {(distanceToCarAhead / 5280).toFixed(2)} mi
+                        {distanceToCarAhead} ft
                       </span>
                     </div>
                     <div>
@@ -232,8 +217,8 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                       ></div>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>{(car.distanceTraveled / 5280).toFixed(2)} mi</span>
-                      <span>{(car.distTripPlanned / 5280).toFixed(2)} mi</span>
+                      <span>{Math.round(car.distanceTraveled)} ft</span>
+                      <span>{Math.round(car.distTripPlanned)} ft</span>
                     </div>
                   </div>
                 </div>

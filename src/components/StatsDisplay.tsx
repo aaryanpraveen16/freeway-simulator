@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { Car } from "@/utils/trafficSimulation";
 import {
@@ -24,7 +23,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
     const minSpeed = Math.min(...cars.map((car) => car.speed));
     const maxSpeed = Math.max(...cars.map((car) => car.speed));
-    const density = (cars.length / (laneLength / 5280)).toFixed(2); // cars per mile
+    const density = (cars.length / laneLength).toFixed(2); // cars per mile
     
     return {
       avgSpeed: Math.round(avgSpeed),

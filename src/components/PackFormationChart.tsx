@@ -1,4 +1,3 @@
-
 import React, { useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -206,44 +205,48 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({
 };
 
 // Helper function to identify packs, to be used across components
-export const identifyPacks = (cars: Car[]): number => {
+export const identifyPacks = (cars: Car[], laneLength: number): number => {
   if (!cars.length) return 0;
-  
-  // Sort cars by position
+
   const sortedCars = [...cars].sort((a, b) => a.position - b.position);
-  
-  let packCount = 1; // Start with at least one pack
+
+  let currentPack: number[] = [sortedCars[0].id];
   let currentPackSpeed = sortedCars[0].speed;
-  const safeDistanceThreshold = 100; // Safe distance threshold in feet
-  const gapThresholdBuffer = 50; // Buffer for gap threshold in feet
-  const totalGapThreshold = safeDistanceThreshold + gapThresholdBuffer;
-  
+  let packCount = 0;
+
+  // All thresholds in miles
+  const gapThreshold = 0.20; // in miles (~53 ft)
+  const speedDiffThreshold = 20; // mph
+
   for (let i = 1; i < sortedCars.length; i++) {
     const car = sortedCars[i];
     const prevCar = sortedCars[i - 1];
-    
+
     // Calculate gap between current car and previous car
     let gap = car.position - prevCar.position;
-    
-    // Adjust for track wraparound
     if (gap < 0) {
-      // Assuming laneLength is known, but since it's not available here
-      // we'll use a large value as a heuristic
-      const estimatedLaneLength = 5000;
-      gap += estimatedLaneLength;
+      gap += sortedCars[sortedCars.length - 1].position + gapThreshold; // handle wraparound
     }
-    
-    // Check both speed difference AND gap criteria
+
     const speedDifference = Math.abs(car.speed - currentPackSpeed);
-    const isNewPackBySpeed = speedDifference > 10;
-    const isNewPackByGap = gap > totalGapThreshold;
-    
-    if (isNewPackBySpeed || isNewPackByGap) {
-      packCount++;
+    const isNewPackBySpeed = speedDifference > speedDiffThreshold;
+    const isNewPackByGap = gap > gapThreshold;
+
+    if (!isNewPackBySpeed && !isNewPackByGap) {
+      currentPack.push(car.id);
+    } else {
+      if (currentPack.length > 0) {
+        packCount++;
+      }
+      currentPack = [car.id];
       currentPackSpeed = car.speed;
     }
   }
-  
+
+  if (currentPack.length > 0) {
+    packCount++;
+  }
+
   return packCount;
 };
 

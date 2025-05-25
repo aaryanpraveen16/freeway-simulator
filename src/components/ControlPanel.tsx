@@ -27,6 +27,7 @@ interface ControlPanelProps {
   onReset: () => void;
   params: SimulationParams;
   onUpdateParams: (newParams: Partial<SimulationParams>) => void;
+  setSimulationSpeed: (speed: number) => void;
 }
 
 // Predefined traffic settings
@@ -43,6 +44,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onReset,
   params,
   onUpdateParams,
+  setSimulationSpeed,
 }) => {
   const handleNumCarsChange = (value: number[]) => {
     onUpdateParams({ numCars: value[0] });
@@ -289,16 +291,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-end">
-        <Button
-          onClick={onReset}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
-          <RotateCcw size={16} />
-          Reset
-        </Button>
-      </CardFooter>
     </Card>
   );
 };

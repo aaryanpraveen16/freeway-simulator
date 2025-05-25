@@ -17,7 +17,7 @@ import {
 } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Pause, Play } from "lucide-react";
+import { Pause, Play, RotateCcw } from "lucide-react";
 
 interface SimulationEvent {
   type: 'exit' | 'enter' | 'laneChange';
@@ -47,6 +47,7 @@ const Index = () => {
   const [packDensityData, setPackDensityData] = useState<PackDensityItem[]>([]);
   const [savedRuns, setSavedRuns] = useState<SimulationRun[]>([]);
   const [showPreviousRuns, setShowPreviousRuns] = useState<boolean>(false);
+  const [simulationSpeed, setSimulationSpeed] = useState<number>(1);
   
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
@@ -149,7 +150,7 @@ const Index = () => {
 
   const recordPackData = useCallback((newCars: Car[], time: number, currentLaneLength: number) => {
     if (time - lastPackRecordTimeRef.current >= 0.5) {
-      const packCount = identifyPacks(newCars);
+      const packCount = identifyPacks(newCars, currentLaneLength);
       const averagePackLength = calculateAveragePackLength(newCars, currentLaneLength);
       
       setPackHistory(prev => {
@@ -210,7 +211,7 @@ const Index = () => {
       return;
     }
 
-    const deltaTime = (timestamp - lastTimestampRef.current) / 1000; // in seconds
+    const deltaTime = ((timestamp - lastTimestampRef.current) / 1000) * simulationSpeed; // in seconds
     lastTimestampRef.current = timestamp;
 
     const newElapsedTime = elapsedTime + deltaTime;
@@ -227,7 +228,7 @@ const Index = () => {
     recordPackData(updatedCars, newElapsedTime, laneLength);
 
     animationFrameRef.current = requestAnimationFrame(animationLoop);
-  }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents]);
+  }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents, simulationSpeed]);
 
   useEffect(() => {
     initSimulation();
@@ -293,6 +294,15 @@ const Index = () => {
               </>
             )}
           </Button>
+          <Button
+            onClick={handleReset}
+            variant="outline"
+            className="flex items-center gap-2 ml-4"
+            size="lg"
+          >
+            <RotateCcw size={20} />
+            Reset
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -321,27 +331,54 @@ const Index = () => {
               onReset={handleReset}
               params={params}
               onUpdateParams={handleUpdateParams}
+              setSimulationSpeed={setSimulationSpeed}
             />
           </div>
         </div>
         
-        {/* Charts in vertical layout */}
-        <div className="mt-8 space-y-8">
-          <PackFormationChart 
-            packHistory={packHistory} 
-            previousRunsData={showPreviousRuns ? getPreviousRunsPackHistories() : []}
-            onSaveCurrentRun={handleSaveCurrentRun}
-            onTogglePreviousRuns={savedRuns.length > 0 ? togglePreviousRuns : undefined}
-            showPreviousRuns={showPreviousRuns}
-          />
-          <AveragePackLengthChart 
-            packLengthHistory={packLengthHistory} 
-            previousRunsData={showPreviousRuns ? getPreviousRunsPackLengthHistories() : []}
-            onSaveCurrentRun={handleSaveCurrentRun}
-            onTogglePreviousRuns={savedRuns.length > 0 ? togglePreviousRuns : undefined}
-            showPreviousRuns={showPreviousRuns}
-          />
-          <PackDensityChart packDensityData={packDensityData} />
+        {/* Charts in vertical layout with descriptions */}
+        <div className="mt-8 space-y-12">
+          <div className="flex gap-4 items-start">
+            <div className="flex-grow">
+              <PackFormationChart 
+                packHistory={packHistory} 
+                previousRunsData={showPreviousRuns ? getPreviousRunsPackHistories() : []}
+                onSaveCurrentRun={handleSaveCurrentRun}
+                onTogglePreviousRuns={savedRuns.length > 0 ? togglePreviousRuns : undefined}
+                showPreviousRuns={showPreviousRuns}
+              />
+            </div>
+            <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
+              <h4 className="font-semibold text-slate-700 mb-1">Pack Formation</h4>
+              <p>Tracks the number of distinct traffic packs over time. Helps identify when and how traffic jams form or dissipate.</p>
+            </div>
+          </div>
+
+          <div className="flex gap-4 items-start">
+            <div className="flex-grow">
+              <AveragePackLengthChart 
+                packLengthHistory={packLengthHistory} 
+                previousRunsData={showPreviousRuns ? getPreviousRunsPackLengthHistories() : []}
+                onSaveCurrentRun={handleSaveCurrentRun}
+                onTogglePreviousRuns={savedRuns.length > 0 ? togglePreviousRuns : undefined}
+                showPreviousRuns={showPreviousRuns}
+              />
+            </div>
+            <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
+              <h4 className="font-semibold text-slate-700 mb-1">Average Pack Length</h4>
+              <p>Shows the average length of traffic packs over time (in cars). Longer average pack lengths can indicate more severe congestion.</p>
+            </div>
+          </div>
+
+          <div className="flex gap-4 items-start">
+            <div className="flex-grow">
+              <PackDensityChart packDensityData={packDensityData} />
+            </div>
+            <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
+              <h4 className="font-semibold text-slate-700 mb-1">Pack Density Analysis</h4>
+              <p>Visualizes car count, density (cars per 100ft of pack length), and average speed for each currently identified traffic pack.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
