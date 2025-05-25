@@ -123,18 +123,36 @@ export function calculateVirtualLength(speed: number, params: SimulationParams):
 
 // Calculate car color based on car state
 function calculateCarColor(car: Car): string {
+  // Convert distances to miles for easier threshold comparison
+  const distanceTraveledMiles = car.distanceTraveled / 5280;
+  const distanceLeftMiles = (car.distTripPlanned - car.distanceTraveled) / 5280;
+  const entryThresholdMiles = 2; // 2 miles threshold for entry/exit colors
+  
   // Lane change: highest priority
   if (car.lastLaneChange && (Date.now() / 1000 - car.lastLaneChange) < 2) {
     return "hsl(48, 96%, 53%)"; // Yellow
   }
-  // About to leave
-  if (car.distanceTraveled / car.distTripPlanned > 0.7) {
-    return "hsl(0, 72%, 51%)"; // Red
+  
+  // About to leave (within last 2 miles)
+  if (distanceLeftMiles <= entryThresholdMiles) {
+    // Full red when within 1 mile of exit
+    if (distanceLeftMiles <= entryThresholdMiles / 2) {
+      return "hsl(0, 72%, 51%)"; // Full red
+    }
+    // Light red when within 2 miles of exit
+    return "hsl(0, 72%, 65%)"; // Light red
   }
-  // Just entered
-  if (car.distanceTraveled / car.distTripPlanned < 0.3) {
-    return "hsl(142, 72%, 29%)"; // Green
+  
+  // Just entered (within first 2 miles)
+  if (distanceTraveledMiles <= entryThresholdMiles) {
+    // Full green when within 1 mile of entry
+    if (distanceTraveledMiles <= entryThresholdMiles / 2) {
+      return "hsl(142, 72%, 29%)"; // Full green
+    }
+    // Light green when within 2 miles of entry
+    return "hsl(142, 72%, 45%)"; // Light green
   }
+  
   // Default
   return "hsl(0, 0%, 100%)"; // White
 }
@@ -204,7 +222,7 @@ export function initializeSimulation(params: SimulationParams): {
       id: i,
       name: `Car ${i + 1}`,
       position: 0,
-      lane: 0,
+      lane: Math.floor(Math.random() * params.numLanes), // random lane
       speed,
       desiredSpeed,
       color: calculateCarColor({ distanceTraveled: 0, distTripPlanned } as Car),
@@ -291,7 +309,8 @@ export function updateSimulation(
   cars: Car[],
   laneLength: number,
   params: SimulationParams,
-  currentTime: number
+  currentTime: number,
+  trafficRule: 'american' | 'european'
 ): { 
   cars: Car[]; 
   events: { 
@@ -344,7 +363,8 @@ export function updateSimulation(
       adjacentLanes,
       params,
       laneLength,
-      currentTime
+      currentTime,
+      trafficRule
     );
 
     // Apply lane change if beneficial
@@ -464,7 +484,7 @@ export function updateSimulation(
       id: newId,
       name: `Car ${newId + 1}`,
       position: newPosition,
-      lane: 0,
+      lane: Math.floor(Math.random() * params.numLanes), // random lane
       speed,
       desiredSpeed,
       color: calculateCarColor({ distanceTraveled: 0, distTripPlanned } as Car),
@@ -646,7 +666,8 @@ function shouldChangeLane(
   adjacentLanes: { leftLane: { leader?: Car; follower?: Car }; rightLane: { leader?: Car; follower?: Car } },
   params: SimulationParams,
   laneLength: number,
-  currentTime: number
+  currentTime: number,
+  trafficRule: 'american' | 'european'
 ): { shouldChange: boolean; targetLane: number | null } {
   // Check if enough time has passed since last lane change
   if (currentTime - car.lastLaneChange < params.laneChangeCooldown) {
@@ -674,14 +695,22 @@ function shouldChangeLane(
   const adjustedLeftIncentive = leftIncentive * (1 - car.laneStickiness);
   const adjustedRightIncentive = rightIncentive * (1 - car.laneStickiness);
   
-  // Check if any lane change is beneficial
-  if (adjustedLeftIncentive > params.accelerationThreshold || adjustedRightIncentive > params.accelerationThreshold) {
-    // Choose the lane with higher incentive
-    const targetLane = adjustedLeftIncentive > adjustedRightIncentive ? car.lane - 1 : car.lane + 1;
-    
-    // Apply probabilistic lane change based on driver's lane change probability
-    if (Math.random() < car.laneChangeProbability) {
-      return { shouldChange: true, targetLane };
+  // Strict overtaking: only allow overtaking in the correct direction
+  if (trafficRule === 'american') {
+    // Only consider left lane for overtaking (up, lower index)
+    if (car.lane > 0 && adjustedLeftIncentive > params.accelerationThreshold) {
+      const targetLane = car.lane - 1;
+      if (Math.random() < car.laneChangeProbability) {
+        return { shouldChange: true, targetLane };
+      }
+    }
+  } else {
+    // Only consider right lane for overtaking (down, higher index)
+    if (car.lane < params.numLanes - 1 && adjustedRightIncentive > params.accelerationThreshold) {
+      const targetLane = car.lane + 1;
+      if (Math.random() < car.laneChangeProbability) {
+        return { shouldChange: true, targetLane };
+      }
     }
   }
   

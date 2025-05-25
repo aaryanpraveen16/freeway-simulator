@@ -27,6 +27,8 @@ interface ControlPanelProps {
   onReset: () => void;
   params: SimulationParams;
   onUpdateParams: (newParams: Partial<SimulationParams>) => void;
+  trafficRule: 'american' | 'european';
+  onTrafficRuleChange: (rule: 'american' | 'european') => void;
 }
 
 // Predefined traffic settings
@@ -43,6 +45,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onReset,
   params,
   onUpdateParams,
+  trafficRule,
+  onTrafficRuleChange,
 }) => {
   const handleNumCarsChange = (value: number[]) => {
     onUpdateParams({ numCars: value[0] });
@@ -286,6 +290,24 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 Variation in trip distances (log-normal distribution)
               </p>
             </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Traffic Rule</Label>
+          <div className="flex gap-2">
+            <Button
+              variant={trafficRule === 'american' ? 'default' : 'outline'}
+              onClick={() => onTrafficRuleChange('american')}
+            >
+              American (Right-hand)
+            </Button>
+            <Button
+              variant={trafficRule === 'european' ? 'default' : 'outline'}
+              onClick={() => onTrafficRuleChange('european')}
+            >
+              European (Left-hand)
+            </Button>
           </div>
         </div>
       </CardContent>

@@ -47,6 +47,7 @@ const Index = () => {
   const [packDensityData, setPackDensityData] = useState<PackDensityItem[]>([]);
   const [savedRuns, setSavedRuns] = useState<SimulationRun[]>([]);
   const [showPreviousRuns, setShowPreviousRuns] = useState<boolean>(false);
+  const [trafficRule, setTrafficRule] = useState<'american' | 'european'>('american');
   
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
@@ -216,7 +217,7 @@ const Index = () => {
     const newElapsedTime = elapsedTime + deltaTime;
     setElapsedTime(newElapsedTime);
     
-    const { cars: updatedCars, events } = updateSimulation(cars, laneLength, params, elapsedTime);
+    const { cars: updatedCars, events } = updateSimulation(cars, laneLength, params, elapsedTime, trafficRule);
     setCars(updatedCars);
     
     // Handle car exit and enter events
@@ -227,7 +228,7 @@ const Index = () => {
     recordPackData(updatedCars, newElapsedTime, laneLength);
 
     animationFrameRef.current = requestAnimationFrame(animationLoop);
-  }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents]);
+  }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents, trafficRule]);
 
   useEffect(() => {
     initSimulation();
@@ -321,6 +322,8 @@ const Index = () => {
               onReset={handleReset}
               params={params}
               onUpdateParams={handleUpdateParams}
+              trafficRule={trafficRule}
+              onTrafficRuleChange={setTrafficRule}
             />
           </div>
         </div>
