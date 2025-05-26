@@ -218,7 +218,7 @@ const Index = () => {
     const newElapsedTime = elapsedTime + deltaTime;
     setElapsedTime(newElapsedTime);
     
-    const { cars: updatedCars, events } = updateSimulation(cars, laneLength, params, elapsedTime, trafficRule);
+    const { cars: updatedCars, events } = updateSimulation(cars, laneLength, params, elapsedTime, trafficRule, simulationSpeed);
     setCars(updatedCars);
     
     // Handle car exit and enter events

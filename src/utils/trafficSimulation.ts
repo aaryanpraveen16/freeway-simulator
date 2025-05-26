@@ -282,7 +282,8 @@ export function updateSimulation(
   laneLength: number,
   params: SimulationParams,
   currentTime: number,
-  trafficRule: 'american' | 'european'
+  trafficRule: 'american' | 'european',
+  simulationSpeed: number = 1
 ): { 
   cars: Car[]; 
   events: { 
@@ -309,6 +310,9 @@ export function updateSimulation(
   const sortedIndices = [...Array(numCars).keys()].sort((a, b) => {
     return updatedCars[a].position - updatedCars[b].position;
   });
+  
+  // Apply simulation speed to the timestep
+  const effectiveDt = params.dt * simulationSpeed;
   
   for (let i = 0; i < numCars; i++) {
     const carIndex = sortedIndices[i];
@@ -359,7 +363,7 @@ export function updateSimulation(
       gap = aheadCar ? (aheadCar.position - car.position + laneLength) % laneLength : laneLength;
     }
     
-    carSpeed += (car.desiredSpeed - carSpeed) * params.k * params.dt;
+    carSpeed += (car.desiredSpeed - carSpeed) * params.k * effectiveDt;
     carSpeed = Math.min(carSpeed, params.speedLimit);
     const safeDist = calculateSafeDistance(carSpeed, params.tDist);
     car.virtualLength = calculateVirtualLength(carSpeed, params);
@@ -370,7 +374,7 @@ export function updateSimulation(
         params.aMax
       );
       carSpeed = Math.max(
-        carSpeed - decel * (1 / 3600) * params.dt,
+        carSpeed - decel * (1 / 3600) * effectiveDt,
         0
       );
       if (gap < (params.lengthCar * 1.5) / 5280) {
@@ -380,7 +384,7 @@ export function updateSimulation(
     
     // Convert speed from mph to miles per second
     const mphToMilesPerSec = 1 / 3600;
-    const potentialMove = carSpeed * mphToMilesPerSec * params.dt;
+    const potentialMove = carSpeed * mphToMilesPerSec * effectiveDt;
     const newPosition = (car.position + potentialMove) % laneLength;
     const newDistanceTraveled = car.distanceTraveled + potentialMove;
     movements[carIndex] = { 
