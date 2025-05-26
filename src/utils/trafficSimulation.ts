@@ -62,13 +62,13 @@ export const defaultParams: SimulationParams = {
   brakeTime: 5, // seconds
   brakeCarIndex: 0, // default to first car
   minSpeed: 10, // mph
-  maxSpeed: 80, // mph
+  maxSpeed: 100, // mph
   meanSpeed: 65, // mph
   stdSpeed: 5, // mph
   meanDistTripPlanned: 10, // 10 miles
   sigmaDistTripPlanned: 0.5, // standard deviation for log-normal distribution
-  speedLimit: 70,
-  freewayLength: 10, // 10 miles
+  speedLimit: 65, // mph
+  freewayLength: 50, // 50 miles
   // MOBIL parameters
   politenessFactor: 0.5, // balanced between selfish and polite
   accelerationThreshold: 0.2, // m/s^2
@@ -674,42 +674,72 @@ function shouldChangeLane(
     return { shouldChange: false, targetLane: null };
   }
 
-  // Only consider lane change if there is a slower car ahead within 500 feet and at least 2 mph slower
-  if (!currentLeader || currentLeader.speed >= car.speed - 2) {
-    return { shouldChange: false, targetLane: null };
-  }
-  const gapToLeader = (currentLeader.position - car.position + laneLength) % laneLength;
-  if (gapToLeader > 500) {
+  // Calculate maximum allowed speed (minimum of desired speed and speed limit)
+  const maxAllowedSpeed = Math.min(car.desiredSpeed, params.speedLimit);
+
+  // Only consider lane change if current speed is below max allowed speed
+  if (car.speed >= maxAllowedSpeed) {
     return { shouldChange: false, targetLane: null };
   }
 
+  // Check if current lane is slower than desired
+  const isCurrentLaneSlow = currentLeader && currentLeader.speed < maxAllowedSpeed;
+  if (!isCurrentLaneSlow) {
+    return { shouldChange: false, targetLane: null };
+  }
+
+  // Safety check function
+  const isLaneChangeSafe = (follower: Car | undefined, leader: Car | undefined): boolean => {
+    if (!follower) return true; // No follower means safe
+
+    // Calculate gaps
+    const gapToFollower = (car.position - follower.position + laneLength) % laneLength;
+    const gapToLeader = leader ? (leader.position - car.position + laneLength) % laneLength : laneLength;
+
+    // Calculate safe distances
+    const safeDistanceToFollower = calculateSafeDistance(follower.speed, params.tDist);
+    const safeDistanceToLeader = calculateSafeDistance(car.speed, params.tDist);
+
+    // Check if gaps are safe
+    return gapToFollower > safeDistanceToFollower && gapToLeader > safeDistanceToLeader;
+  };
+
+  // Check potential speed in adjacent lanes
+  const checkLaneSpeed = (lane: { leader?: Car; follower?: Car }): number => {
+    if (!lane.leader) return params.maxSpeed;
+    return lane.leader.speed;
+  };
+
   // Calculate incentives for both lanes
-  const leftIncentive = car.lane > 0 ? 
-    calculateLaneChangeIncentive(car, currentLeader, adjacentLanes.leftLane, params, laneLength) : 
-    -Infinity;
-  const rightIncentive = car.lane < params.numLanes - 1 ? 
-    calculateLaneChangeIncentive(car, currentLeader, adjacentLanes.rightLane, params, laneLength) : 
-    -Infinity;
-  
-  // Apply lane stickiness to incentives
-  const adjustedLeftIncentive = leftIncentive * (1 - car.laneStickiness);
-  const adjustedRightIncentive = rightIncentive * (1 - car.laneStickiness);
-  
-  // Strict overtaking: only allow overtaking in the correct direction
+  const leftLaneSpeed = car.lane > 0 ? checkLaneSpeed(adjacentLanes.leftLane) : 0;
+  const rightLaneSpeed = car.lane < params.numLanes - 1 ? checkLaneSpeed(adjacentLanes.rightLane) : 0;
+
+  // Check if adjacent lanes allow higher speed
+  const canImproveInLeftLane = leftLaneSpeed > car.speed && leftLaneSpeed <= maxAllowedSpeed;
+  const canImproveInRightLane = rightLaneSpeed > car.speed && rightLaneSpeed <= maxAllowedSpeed;
+
+  // Check safety in adjacent lanes
+  const isLeftLaneSafe = car.lane > 0 && isLaneChangeSafe(adjacentLanes.leftLane.follower, adjacentLanes.leftLane.leader);
+  const isRightLaneSafe = car.lane < params.numLanes - 1 && isLaneChangeSafe(adjacentLanes.rightLane.follower, adjacentLanes.rightLane.leader);
+
+  // Apply traffic rules
   if (trafficRule === 'american') {
-    // Only consider left lane for overtaking (up, lower index)
-    if (car.lane > 0 && adjustedLeftIncentive > params.accelerationThreshold) {
-      const targetLane = car.lane - 1;
+    // American rule: Can pass on either side if safe and beneficial
+    if (canImproveInLeftLane && isLeftLaneSafe) {
       if (Math.random() < car.laneChangeProbability) {
-        return { shouldChange: true, targetLane };
+        return { shouldChange: true, targetLane: car.lane - 1 };
+      }
+    }
+    if (canImproveInRightLane && isRightLaneSafe) {
+      if (Math.random() < car.laneChangeProbability) {
+        return { shouldChange: true, targetLane: car.lane + 1 };
       }
     }
   } else {
-    // Only consider right lane for overtaking (down, higher index)
-    if (car.lane < params.numLanes - 1 && adjustedRightIncentive > params.accelerationThreshold) {
-      const targetLane = car.lane + 1;
+    // European rule: Can only pass on the left if safe and beneficial
+    if (canImproveInLeftLane && isLeftLaneSafe) {
       if (Math.random() < car.laneChangeProbability) {
-        return { shouldChange: true, targetLane };
+        return { shouldChange: true, targetLane: car.lane - 1 };
       }
     }
   }

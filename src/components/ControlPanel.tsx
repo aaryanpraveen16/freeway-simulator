@@ -32,12 +32,53 @@ interface ControlPanelProps {
 }
 
 // Predefined traffic settings
-const trafficPresets = [
-  { name: "Light Traffic", cars: 10, icon: <Car size={16} /> },
-  { name: "Busy Traffic", cars: 30, icon: <Car size={16} /> },
-  { name: "Heavy Traffic", cars: 60, icon: <Car size={16} /> },
-  { name: "Fully Packed", cars: 100, icon: <Car size={16} /> },
-];
+const trafficPresets = {
+  perLane: [
+    { name: "Low Density", cars: 5, icon: <Car size={16} /> },
+    { name: "Medium Density", cars: 15, icon: <Car size={16} /> },
+    { name: "High Density", cars: 30, icon: <Car size={16} /> },
+  ],
+  total: [
+    { name: "Low Traffic", cars: 10, icon: <Car size={16} /> },
+    { name: "Medium Traffic", cars: 30, icon: <Car size={16} /> },
+    { name: "Heavy Traffic", cars: 60, icon: <Car size={16} /> },
+  ]
+};
+
+// Traffic rule descriptions
+const trafficRuleDescriptions = {
+  american: {
+    title: "American (Right-hand) Rules",
+    slowTraffic: "If the right lane is open, you may stay in the current lane. 'Slow traffic keep right' is recommended but not enforced.",
+    passing: "You may pass the leading car by changing to either the left or right lane."
+  },
+  european: {
+    title: "European (Left-hand) Rules",
+    slowTraffic: "If the right lane is open, you must move to the right lane. 'Slow traffic keep right' is strictly enforced.",
+    passing: "You may only pass the leading car by changing to the left lane."
+  }
+};
+
+// Research presets
+const researchPresets = {
+  speeds: [
+    { name: "50 mph", value: 50 },
+    { name: "65 mph", value: 65 },
+    { name: "80 mph", value: 80 },
+    { name: "100 mph", value: 100 },
+  ],
+  tripDistances: [
+    { name: "5 miles", value: 5 },
+    { name: "10 miles", value: 10 },
+    { name: "20 miles", value: 20 },
+    { name: "30 miles", value: 30 },
+  ],
+  lanes: [
+    { name: "1 Lane", value: 1 },
+    { name: "2 Lanes", value: 2 },
+    { name: "3 Lanes", value: 3 },
+  ],
+};
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
   isRunning,
@@ -112,24 +153,140 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Predefined traffic presets */}
-        <div className="space-y-2">
-          <Label>Predefined Traffic Densities</Label>
-          <div className="flex flex-wrap gap-2">
-            {trafficPresets.map((preset) => (
-              <Button
-                key={preset.name}
-                variant="outline"
-                className="flex items-center gap-1"
-                onClick={() => applyTrafficPreset(preset.cars)}
-              >
-                {preset.icon}
-                <span>{preset.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  ({preset.cars})
-                </span>
-              </Button>
-            ))}
+        {/* Research Configuration */}
+        <div className="space-y-4">
+          <Label className="text-base">Research Configuration</Label>
+          
+          {/* Speed Presets */}
+          <div className="space-y-2">
+            <Label>Mean Speed (mph)</Label>
+            <div className="flex flex-wrap gap-2">
+              {researchPresets.speeds.map((preset) => (
+                <Button
+                  key={preset.name}
+                  variant={params.meanSpeed === preset.value ? "default" : "outline"}
+                  className="flex items-center gap-1"
+                  onClick={() => onUpdateParams({ meanSpeed: preset.value })}
+                  disabled={isRunning}
+                >
+                  {preset.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Trip Distance Presets */}
+          <div className="space-y-2">
+            <Label>Mean Trip Distance (miles)</Label>
+            <div className="flex flex-wrap gap-2">
+              {researchPresets.tripDistances.map((preset) => (
+                <Button
+                  key={preset.name}
+                  variant={params.meanDistTripPlanned === preset.value ? "default" : "outline"}
+                  className="flex items-center gap-1"
+                  onClick={() => onUpdateParams({ meanDistTripPlanned: preset.value })}
+                  disabled={isRunning}
+                >
+                  {preset.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Lane Configuration */}
+          <div className="space-y-2">
+            <Label>Number of Lanes</Label>
+            <div className="flex flex-wrap gap-2">
+              {researchPresets.lanes.map((preset) => (
+                <Button
+                  key={preset.name}
+                  variant={params.numLanes === preset.value ? "default" : "outline"}
+                  className="flex items-center gap-1"
+                  onClick={() => onUpdateParams({ numLanes: preset.value })}
+                  disabled={isRunning}
+                >
+                  {preset.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Traffic Rules */}
+        <div className="space-y-4">
+          <Label className="text-base">Traffic Rules</Label>
+          <div className="flex gap-2">
+            <Button
+              variant={trafficRule === 'american' ? 'default' : 'outline'}
+              onClick={() => onTrafficRuleChange('american')}
+              className="flex-1"
+            >
+              American (Right-hand)
+            </Button>
+            <Button
+              variant={trafficRule === 'european' ? 'default' : 'outline'}
+              onClick={() => onTrafficRuleChange('european')}
+              className="flex-1"
+            >
+              European (Left-hand)
+            </Button>
+          </div>
+          <div className="text-sm text-muted-foreground space-y-2">
+            <p><strong>{trafficRuleDescriptions[trafficRule].title}</strong></p>
+            <p><strong>Slow Traffic Rule:</strong> {trafficRuleDescriptions[trafficRule].slowTraffic}</p>
+            <p><strong>Passing Rule:</strong> {trafficRuleDescriptions[trafficRule].passing}</p>
+          </div>
+        </div>
+
+        {/* Traffic Density */}
+        <div className="space-y-4">
+          <Label className="text-base">Traffic Density</Label>
+          
+          {/* Per Lane Density */}
+          <div className="space-y-2">
+            <Label>Density per Lane</Label>
+            <div className="flex flex-wrap gap-2">
+              {trafficPresets.perLane.map((preset) => (
+                <Button
+                  key={preset.name}
+                  variant="outline"
+                  className="flex items-center gap-1"
+                  onClick={() => {
+                    const totalCars = preset.cars * params.numLanes;
+                    onUpdateParams({ numCars: totalCars });
+                  }}
+                  disabled={isRunning}
+                >
+                  {preset.icon}
+                  <span>{preset.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({preset.cars}/lane)
+                  </span>
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Total Traffic Density */}
+          <div className="space-y-2">
+            <Label>Total Traffic</Label>
+            <div className="flex flex-wrap gap-2">
+              {trafficPresets.total.map((preset) => (
+                <Button
+                  key={preset.name}
+                  variant="outline"
+                  className="flex items-center gap-1"
+                  onClick={() => onUpdateParams({ numCars: preset.cars })}
+                  disabled={isRunning}
+                >
+                  {preset.icon}
+                  <span>{preset.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({preset.cars})
+                  </span>
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -290,24 +447,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 Variation in trip distances (log-normal distribution)
               </p>
             </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Traffic Rule</Label>
-          <div className="flex gap-2">
-            <Button
-              variant={trafficRule === 'american' ? 'default' : 'outline'}
-              onClick={() => onTrafficRuleChange('american')}
-            >
-              American (Right-hand)
-            </Button>
-            <Button
-              variant={trafficRule === 'european' ? 'default' : 'outline'}
-              onClick={() => onTrafficRuleChange('european')}
-            >
-              European (Left-hand)
-            </Button>
           </div>
         </div>
       </CardContent>
