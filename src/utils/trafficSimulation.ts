@@ -9,7 +9,10 @@ export interface Car {
   virtualLength: number; // physical length + safe distance
   distTripPlanned: number; // planned trip distance in feet
   distanceTraveled: number; // distance traveled so far in feet
-  lane?: number; // lane index (optional)
+  lane: number; // lane index (required)
+  driverType: 'aggressive' | 'normal' | 'conservative'; // driver personality
+  laneChangeProbability: number; // probability of changing lanes (0-1)
+  laneStickiness: number; // tendency to stay in current lane (0-1)
 }
 
 export interface SimulationParams {
@@ -96,6 +99,38 @@ export function calculateVirtualLength(speed: number, params: SimulationParams):
   return lengthCarMiles + safeDistance;
 }
 
+// Generate driver type and associated properties
+function generateDriverProperties(): {
+  driverType: 'aggressive' | 'normal' | 'conservative';
+  laneChangeProbability: number;
+  laneStickiness: number;
+} {
+  const rand = Math.random();
+  
+  if (rand < 0.2) {
+    // Aggressive driver
+    return {
+      driverType: 'aggressive',
+      laneChangeProbability: normalRandom(0.8, 0.1, 0.6, 1.0),
+      laneStickiness: normalRandom(0.3, 0.1, 0.1, 0.5)
+    };
+  } else if (rand < 0.8) {
+    // Normal driver
+    return {
+      driverType: 'normal',
+      laneChangeProbability: normalRandom(0.5, 0.15, 0.2, 0.8),
+      laneStickiness: normalRandom(0.6, 0.15, 0.3, 0.9)
+    };
+  } else {
+    // Conservative driver
+    return {
+      driverType: 'conservative',
+      laneChangeProbability: normalRandom(0.2, 0.1, 0.05, 0.4),
+      laneStickiness: normalRandom(0.8, 0.1, 0.6, 1.0)
+    };
+  }
+}
+
 // Initialize the simulation
 export function initializeSimulation(params: SimulationParams): {
   cars: Car[];
@@ -111,6 +146,8 @@ export function initializeSimulation(params: SimulationParams): {
     "hsl(var(--car-purple))",
     "hsl(var(--car-orange))",
   ];
+  
+  const numLanes = params.numLanes || 1;
   
   // Generate cars with random desired speeds
   for (let i = 0; i < params.numCars; i++) {
@@ -133,6 +170,12 @@ export function initializeSimulation(params: SimulationParams): {
       params.sigmaDistTripPlanned
     ) / 5280;
     
+    // Generate driver properties
+    const driverProps = generateDriverProperties();
+    
+    // Assign to random lane
+    const lane = Math.floor(Math.random() * numLanes);
+    
     cars.push({
       id: i,
       name: `Car ${i + 1}`,
@@ -143,6 +186,8 @@ export function initializeSimulation(params: SimulationParams): {
       virtualLength,
       distTripPlanned,
       distanceTraveled: 0,
+      lane,
+      ...driverProps
     });
   }
   
@@ -286,6 +331,9 @@ export function updateSimulation(
       speed: car.speed
     });
   }
+  
+  const numLanes = params.numLanes || 1;
+  
   for (let i = 0; i < carsToRemove.length; i++) {
     const newPosition = 0;
     const desiredSpeed = normalRandom(
@@ -300,9 +348,17 @@ export function updateSimulation(
       params.meanDistTripPlanned,
       params.sigmaDistTripPlanned
     ) / 5280;
+    
+    // Generate driver properties for new car
+    const driverProps = generateDriverProperties();
+    
     const newId = updatedCars.length > 0 
       ? Math.max(...updatedCars.map(car => car.id)) + 1 
       : 0;
+      
+    // Assign to random lane
+    const lane = Math.floor(Math.random() * numLanes);
+      
     const newCar = {
       id: newId,
       name: `Car ${newId + 1}`,
@@ -313,6 +369,8 @@ export function updateSimulation(
       virtualLength,
       distTripPlanned,
       distanceTraveled: 0,
+      lane,
+      ...driverProps
     };
     updatedCars.push(newCar);
     events.push({
