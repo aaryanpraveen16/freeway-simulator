@@ -13,6 +13,7 @@ export interface Car {
   driverType: 'aggressive' | 'normal' | 'conservative'; // driver personality
   laneChangeProbability: number; // probability of changing lanes (0-1)
   laneStickiness: number; // tendency to stay in current lane (0-1)
+  lastLaneChange?: number; // timestamp of last lane change
 }
 
 export interface SimulationParams {
@@ -180,28 +181,26 @@ export function initializeSimulation(params: SimulationParams): {
     // Generate driver properties
     const driverProps = generateDriverProperties();
     
-    // Assign to random lane
-    const lane = Math.floor(Math.random() * numLanes);
+    // Assign to lane using round-robin to ensure even distribution
+    const lane = i % numLanes;
     
     cars.push({
       id: i,
       name: `Car ${i + 1}`,
       position: 0, // Will be set properly later (in miles)
-      lane: Math.floor(Math.random() * (params.numLanes ?? 1)), // random lane
       speed,
       desiredSpeed,
-      color: '', // will set below
+      color: carColors[i % carColors.length],
       virtualLength,
       distTripPlanned,
       distanceTraveled: 0,
       lane,
+      lastLaneChange: 0,
       ...driverProps
     });
   }
   
   // Calculate total lane length based on virtual lengths (in miles)
-  const totalVirtualLength = cars.reduce((sum, car) => sum + car.virtualLength, 0);
-  const buffer = params.initialGap * params.numCars; // buffer in miles
   const laneLength = params.freewayLength ?? 10; // lane length in miles
   
   // Calculate traffic density (cars per mile)
@@ -230,11 +229,14 @@ export function initializeSimulation(params: SimulationParams): {
     usedPositions.push(position);
     cars[i].position = position;
   }
+  
+  // Sort cars by position and update their IDs and names
   cars.sort((a, b) => a.position - b.position);
   for (let i = 0; i < cars.length; i++) {
     cars[i].id = i;
     cars[i].name = `Car ${i + 1}`;
   }
+  
   return { cars, laneLength, density };
 }
 
@@ -307,6 +309,7 @@ export function updateSimulation(
   const sortedIndices = [...Array(numCars).keys()].sort((a, b) => {
     return updatedCars[a].position - updatedCars[b].position;
   });
+  
   for (let i = 0; i < numCars; i++) {
     const carIndex = sortedIndices[i];
     const car = updatedCars[carIndex];
@@ -355,13 +358,15 @@ export function updateSimulation(
       );
       gap = aheadCar ? (aheadCar.position - car.position + laneLength) % laneLength : laneLength;
     }
+    
     carSpeed += (car.desiredSpeed - carSpeed) * params.k * params.dt;
     carSpeed = Math.min(carSpeed, params.speedLimit);
     const safeDist = calculateSafeDistance(carSpeed, params.tDist);
     car.virtualLength = calculateVirtualLength(carSpeed, params);
+    
     if (gap < safeDist + (params.lengthCar / 5280)) {
       const decel = Math.min(
-        (carSpeed ** 2 - aheadCar.speed ** 2) / (2 * Math.max(safeDist - gap + (params.lengthCar / 5280), 1e-6)),
+        (carSpeed ** 2 - (aheadCar?.speed || 0) ** 2) / (2 * Math.max(safeDist - gap + (params.lengthCar / 5280), 1e-6)),
         params.aMax
       );
       carSpeed = Math.max(
@@ -369,9 +374,10 @@ export function updateSimulation(
         0
       );
       if (gap < (params.lengthCar * 1.5) / 5280) {
-        carSpeed = Math.min(carSpeed, aheadCar.speed * 0.9);
+        carSpeed = Math.min(carSpeed, (aheadCar?.speed || 0) * 0.9);
       }
     }
+    
     // Convert speed from mph to miles per second
     const mphToMilesPerSec = 1 / 3600;
     const potentialMove = carSpeed * mphToMilesPerSec * params.dt;
@@ -383,6 +389,7 @@ export function updateSimulation(
       distanceTraveled: newDistanceTraveled
     };
   }
+  
   for (let i = 0; i < numCars; i++) {
     updatedCars[i].position = movements[i].newPosition;
     updatedCars[i].speed = movements[i].newSpeed;
@@ -393,6 +400,7 @@ export function updateSimulation(
       carsToRemove.push({ index: i, car: updatedCars[i] });
     }
   }
+  
   for (let i = carsToRemove.length - 1; i >= 0; i--) {
     const { index: indexToRemove, car } = carsToRemove[i];
     updatedCars.splice(indexToRemove, 1);
@@ -420,7 +428,7 @@ export function updateSimulation(
     const distTripPlanned = logNormalRandom(
       params.meanDistTripPlanned,
       params.sigmaDistTripPlanned
-    ) / 5280;
+    );
     
     // Generate driver properties for new car
     const driverProps = generateDriverProperties();
@@ -443,6 +451,7 @@ export function updateSimulation(
       distTripPlanned,
       distanceTraveled: 0,
       lane,
+      lastLaneChange: 0,
       ...driverProps
     };
     updatedCars.push(newCar);
