@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TrafficTrack from "@/components/TrafficTrack";
 import ControlPanel from "@/components/ControlPanel";
@@ -266,6 +265,25 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <Navbar />
+      
+      {/* Color Legend */}
+      <div className="absolute top-20 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border p-3 z-10">
+        <h4 className="text-xs font-semibold text-gray-700 mb-2">Car Colors</h4>
+        <div className="space-y-1 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-green-600"></div>
+            <span className="text-gray-600">Just entered</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-white border border-gray-300"></div>
+            <span className="text-gray-600">In transit</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+            <span className="text-gray-600">About to exit</span>
+          </div>
+        </div>
+      </div>
       
       <div className="container mx-auto px-4 py-8">
         <header className="text-center mb-8">
