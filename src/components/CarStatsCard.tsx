@@ -1,5 +1,5 @@
 import React from "react";
-import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
+import { Car, calculateDistanceToCarAhead, getCarColor } from "@/utils/trafficSimulation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface CarStatsCardProps {
@@ -26,6 +26,7 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
 
   let currentPack: number[] = [sortedCars[0].id];
   let currentPackSpeed = sortedCars[0].speed;
+  let currentPackLane = sortedCars[0].lane;
   let packId = 0;
 
   // All thresholds in miles
@@ -45,8 +46,9 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
     const speedDifference = Math.abs(car.speed - currentPackSpeed);
     const isNewPackBySpeed = speedDifference > speedDiffThreshold;
     const isNewPackByGap = gap > gapThreshold;
+    const isNewPackByLane = car.lane !== prevCar.lane;
 
-    if (!isNewPackBySpeed && !isNewPackByGap) {
+    if (!isNewPackBySpeed && !isNewPackByGap && !isNewPackByLane) {
       currentPack.push(car.id);
     } else {
       if (currentPack.length > 0) {
@@ -62,6 +64,7 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
       }
       currentPack = [car.id];
       currentPackSpeed = car.speed;
+      currentPackLane = car.lane;
     }
   }
 
@@ -140,12 +143,12 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                 <div
                   key={car.id}
                   className="flex flex-col p-3 border rounded-lg"
-                  style={{ borderColor: car.color }}
+                  style={{ borderColor: getCarColor(car) }}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <div
                       className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: car.color }}
+                      style={{ backgroundColor: getCarColor(car) }}
                     />
                     <span className="font-semibold">{car.name}</span>
                     <span className="text-xs bg-gray-100 px-1 py-0.5 rounded">
@@ -154,56 +157,32 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <span className="text-muted-foreground">
-                        Desired Speed:
-                      </span>
-                      <span className="font-medium ml-1">
-                        {Math.round(car.desiredSpeed)} mph
-                      </span>
+                      <span className="text-muted-foreground">Desired Speed:</span>
+                      <span className="font-medium ml-1">{Math.round(car.desiredSpeed)} mph</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">
-                        Current Speed:
-                      </span>
-                      <span className="font-medium ml-1">
-                        {Math.round(car.speed)} mph
-                      </span>
+                      <span className="text-muted-foreground">Current Speed:</span>
+                      <span className="font-medium ml-1">{Math.round(car.speed)} mph</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Distance:</span>
-                      <span className="font-medium ml-1">
-                        {distanceToCarAhead} ft
-                      </span>
+                      <span className="text-muted-foreground">Distance to Car Ahead:</span>
+                      <span className="font-medium ml-1">{distanceToCarAhead.toFixed(2)} mi</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Trip Progress:</span>
-                      <span className="font-medium ml-1">
-                        {Math.round(tripProgress)}%
-                      </span>
+                      <span className="font-medium ml-1">{Math.round(tripProgress)}%</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Current Lane:</span>
-                      <span className="font-medium ml-1">
-                        Lane {car.lane + 1}
-                      </span>
+                      <span className="font-medium ml-1">Lane {car.lane + 1}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Driver Type:</span>
-                      <span className="font-medium ml-1 capitalize">
-                        {car.driverType}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Lane Change:</span>
-                      <span className="font-medium ml-1">
-                        {Math.round(car.laneChangeProbability * 100)}% likely
-                      </span>
+                      <span className="text-muted-foreground">Lane Change Prob.:</span>
+                      <span className="font-medium ml-1">{car.laneChangeProbability?.toFixed(2)}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Lane Stickiness:</span>
-                      <span className="font-medium ml-1">
-                        {Math.round(car.laneStickiness * 100)}%
-                      </span>
+                      <span className="font-medium ml-1">{car.laneStickiness?.toFixed(2)}</span>
                     </div>
                   </div>
                   <div className="mt-2">
@@ -212,13 +191,13 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                         className="h-2.5 rounded-full" 
                         style={{ 
                           width: `${tripProgress}%`,
-                          backgroundColor: car.color
+                          backgroundColor: getCarColor(car)
                         }}
                       ></div>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>{Math.round(car.distanceTraveled)} ft</span>
-                      <span>{Math.round(car.distTripPlanned)} ft</span>
+                      <span>{car.distanceTraveled.toFixed(2)} mi</span>
+                      <span>{car.distTripPlanned.toFixed(2)} mi</span>
                     </div>
                   </div>
                 </div>

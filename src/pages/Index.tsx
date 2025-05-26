@@ -48,6 +48,7 @@ const Index = () => {
   const [savedRuns, setSavedRuns] = useState<SimulationRun[]>([]);
   const [showPreviousRuns, setShowPreviousRuns] = useState<boolean>(false);
   const [simulationSpeed, setSimulationSpeed] = useState<number>(1);
+  const [trafficRule, setTrafficRule] = useState<'american' | 'european'>('american');
   
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
@@ -217,7 +218,7 @@ const Index = () => {
     const newElapsedTime = elapsedTime + deltaTime;
     setElapsedTime(newElapsedTime);
     
-    const { cars: updatedCars, events } = updateSimulation(cars, laneLength, params, elapsedTime);
+    const { cars: updatedCars, events } = updateSimulation(cars, laneLength, params, elapsedTime, trafficRule);
     setCars(updatedCars);
     
     // Handle car exit and enter events
@@ -228,7 +229,7 @@ const Index = () => {
     recordPackData(updatedCars, newElapsedTime, laneLength);
 
     animationFrameRef.current = requestAnimationFrame(animationLoop);
-  }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents, simulationSpeed]);
+  }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents, simulationSpeed, trafficRule]);
 
   useEffect(() => {
     initSimulation();
@@ -303,6 +304,24 @@ const Index = () => {
             <RotateCcw size={20} />
             Reset
           </Button>
+          {/* Speed control buttons */}
+          <Button
+            onClick={() => setSimulationSpeed(s => Math.max(0.25, s / 2))}
+            variant="secondary"
+            className="flex items-center gap-2 ml-4"
+            size="lg"
+          >
+            0.5x
+          </Button>
+          <Button
+            onClick={() => setSimulationSpeed(s => Math.min(16, s * 2))}
+            variant="secondary"
+            className="flex items-center gap-2 ml-2"
+            size="lg"
+          >
+            2x
+          </Button>
+          <span className="ml-4 text-lg font-semibold text-blue-700 flex items-center">{simulationSpeed.toFixed(2)}x</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -332,6 +351,8 @@ const Index = () => {
               params={params}
               onUpdateParams={handleUpdateParams}
               setSimulationSpeed={setSimulationSpeed}
+              trafficRule={trafficRule}
+              onTrafficRuleChange={setTrafficRule}
             />
           </div>
         </div>

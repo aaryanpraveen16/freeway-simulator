@@ -16,6 +16,12 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({ cars, laneLength,
   
   return (
     <div className="relative mx-auto" style={{ width: trackLength, height: totalTrackHeight + 50 }}>
+      {/* Info display - moved above the track */}
+      <div className="mb-2 flex items-center justify-center">
+        <span className="text-sm font-medium text-gray-500">
+          {cars.length} Cars • {numLanes} Lanes
+        </span>
+      </div>
       {/* Track container */}
       <div className="absolute" style={{ width: trackLength, height: totalTrackHeight, top: "25px" }}>
         {/* Create lanes */}
@@ -67,19 +73,6 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({ cars, laneLength,
           laneOffset={car.lane * trackWidth}
         />
       ))}
-      
-      {/* Info display */}
-      <div 
-        className="absolute bg-white shadow-sm flex items-center justify-center p-2 rounded"
-        style={{
-          left: "10px",
-          top: "10px",
-        }}
-      >
-        <span className="text-sm font-medium text-gray-500">
-          {cars.length} Cars • {numLanes} Lanes
-        </span>
-      </div>
     </div>
   );
 };
