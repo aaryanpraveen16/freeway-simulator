@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TrafficTrack from "@/components/TrafficTrack";
 import ControlPanel from "@/components/ControlPanel";
@@ -212,13 +213,15 @@ const Index = () => {
       return;
     }
 
-    const deltaTime = ((timestamp - lastTimestampRef.current) / 1000) * simulationSpeed; // in seconds
+    // Calculate delta time and apply simulation speed multiplier
+    const deltaTime = ((timestamp - lastTimestampRef.current) / 1000) * simulationSpeed;
     lastTimestampRef.current = timestamp;
 
     const newElapsedTime = elapsedTime + deltaTime;
     setElapsedTime(newElapsedTime);
     
-    const { cars: updatedCars, events } = updateSimulation(cars, laneLength, params, elapsedTime, trafficRule, simulationSpeed);
+    // Pass the original deltaTime to updateSimulation, it will handle simulation speed internally
+    const { cars: updatedCars, events } = updateSimulation(cars, laneLength, params, newElapsedTime, trafficRule, simulationSpeed);
     setCars(updatedCars);
     
     // Handle car exit and enter events
