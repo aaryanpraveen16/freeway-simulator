@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -32,12 +33,12 @@ interface ControlPanelProps {
   onTrafficRuleChange: (rule: 'american' | 'european') => void;
 }
 
-// Predefined traffic settings
+// Predefined traffic density presets (cars per mile per lane)
 const trafficPresets = [
-  { name: "Light Traffic", cars: 10, icon: <Car size={16} /> },
-  { name: "Busy Traffic", cars: 30, icon: <Car size={16} /> },
-  { name: "Heavy Traffic", cars: 60, icon: <Car size={16} /> },
-  { name: "Fully Packed", cars: 100, icon: <Car size={16} /> },
+  { name: "Light Traffic", density: 2, icon: <Car size={16} /> },
+  { name: "Moderate Traffic", density: 4, icon: <Car size={16} /> },
+  { name: "Heavy Traffic", density: 8, icon: <Car size={16} /> },
+  { name: "Congested", density: 12, icon: <Car size={16} /> },
 ];
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -50,8 +51,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   trafficRule,
   onTrafficRuleChange,
 }) => {
-  const handleNumCarsChange = (value: number[]) => {
-    onUpdateParams({ numCars: value[0] });
+  const handleTrafficDensityChange = (laneIndex: number, density: number) => {
+    const newTrafficDensity = [...params.trafficDensity];
+    newTrafficDensity[laneIndex] = density;
+    onUpdateParams({ trafficDensity: newTrafficDensity });
   };
 
   const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +87,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   const handleNumLanesChange = (value: number[]) => {
-    onUpdateParams({ numLanes: value[0] });
+    const newNumLanes = value[0];
+    const currentDensities = params.trafficDensity;
+    
+    // Adjust traffic density array to match new number of lanes
+    const newTrafficDensity = Array.from({ length: newNumLanes }, (_, i) => 
+      currentDensities[i] || currentDensities[0] || 3
+    );
+    
+    onUpdateParams({ 
+      numLanes: newNumLanes,
+      trafficDensity: newTrafficDensity
+    });
   };
 
   const handleFreewayLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,16 +108,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     }
   };
 
-  const applyTrafficPreset = (numCars: number) => {
-    onUpdateParams({ numCars });
+  const applyTrafficPreset = (density: number) => {
+    const newTrafficDensity = Array.from({ length: params.numLanes || 2 }, () => density);
+    onUpdateParams({ trafficDensity: newTrafficDensity });
     onReset();
   };
-
-  // Generate car options based on numCars
-  const carOptions = Array.from({ length: params.numCars }, (_, i) => ({
-    value: i.toString(),
-    label: `Car ${i + 1}`,
-  }));
 
   return (
     <Card className="w-full">
@@ -123,12 +132,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 key={preset.name}
                 variant="outline"
                 className="flex items-center gap-1"
-                onClick={() => applyTrafficPreset(preset.cars)}
+                onClick={() => applyTrafficPreset(preset.density)}
               >
                 {preset.icon}
                 <span>{preset.name}</span>
                 <span className="text-xs text-muted-foreground">
-                  ({preset.cars})
+                  ({preset.density}/mi)
                 </span>
               </Button>
             ))}
@@ -139,7 +148,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <div className="space-y-2">
           <Label>Number of Lanes</Label>
           <Slider
-            value={[params.numLanes]}
+            value={[params.numLanes || 1]}
             onValueChange={handleNumLanesChange}
             min={1}
             max={4}
@@ -147,8 +156,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             disabled={isRunning}
           />
           <div className="text-sm text-muted-foreground">
-            {params.numLanes} {params.numLanes === 1 ? 'Lane' : 'Lanes'}
+            {params.numLanes || 1} {(params.numLanes || 1) === 1 ? 'Lane' : 'Lanes'}
           </div>
+        </div>
+
+        {/* Traffic Density per Lane */}
+        <div className="space-y-4">
+          <Label className="text-base">Traffic Density per Lane (cars/mile)</Label>
+          {Array.from({ length: params.numLanes || 1 }, (_, i) => (
+            <div key={i} className="space-y-2">
+              <Label>Lane {i + 1} Density</Label>
+              <Slider
+                value={[params.trafficDensity[i] || 3]}
+                onValueChange={(value) => handleTrafficDensityChange(i, value[0])}
+                min={1}
+                max={15}
+                step={0.5}
+                disabled={isRunning}
+              />
+              <div className="text-sm text-muted-foreground">
+                {params.trafficDensity[i] || 3} cars per mile
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Freeway Length */}
@@ -167,22 +197,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <p className="text-xs text-muted-foreground">
             Total length of the freeway in miles
           </p>
-        </div>
-
-        {/* Number of Cars */}
-        <div className="space-y-2">
-          <Label>Number of Cars</Label>
-          <Slider
-            value={[params.numCars]}
-            onValueChange={handleNumCarsChange}
-            min={1}
-            max={100}
-            step={1}
-            disabled={isRunning}
-          />
-          <div className="text-sm text-muted-foreground">
-            {params.numCars} {params.numCars === 1 ? 'Car' : 'Cars'}
-          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -216,28 +230,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             />
           </div>
         </div>
-
-        {/* <div className="space-y-2">
-          <Label htmlFor="brake-car">Car to Slow Down</Label>
-          <Select 
-            value={params.brakeCarIndex.toString()} 
-            onValueChange={handleBrakeCarChange}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select which car to slow down" />
-            </SelectTrigger>
-            <SelectContent>
-              {carOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            This car will slow down after {params.brakeTime} seconds of simulation time
-          </p>
-        </div> */}
 
         <div className="space-y-2">
           <Label htmlFor="speed-limit">Speed Limit (mph)</Label>

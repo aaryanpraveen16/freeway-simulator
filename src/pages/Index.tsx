@@ -266,6 +266,13 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <Navbar />
       
+      {/* Visual Overlap Disclaimer */}
+      <div className="absolute top-20 right-4 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm p-3 z-10 max-w-xs">
+        <p className="text-xs text-yellow-800">
+          <strong>Note:</strong> Cars may appear to overlap visually, but they maintain safe distances in the simulation logic.
+        </p>
+      </div>
+      
       {/* Color Legend */}
       <div className="absolute top-20 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border p-3 z-10">
         <h4 className="text-xs font-semibold text-gray-700 mb-2">Car Colors</h4>

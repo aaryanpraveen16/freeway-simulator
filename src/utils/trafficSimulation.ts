@@ -17,7 +17,7 @@ export interface Car {
 }
 
 export interface SimulationParams {
-  numCars: number;
+  trafficDensity: number[]; // cars per mile per lane
   dt: number; // time step in seconds
   aMax: number; // max deceleration (mi/s^2)
   k: number; // speed adjustment sensitivity
@@ -43,7 +43,7 @@ export interface SimulationParams {
 
 // Default simulation parameters
 export const defaultParams: SimulationParams = {
-  numCars: 10,
+  trafficDensity: [3, 3], // 3 cars per mile per lane (default for 2 lanes)
   dt: 0.1, // 100ms time step
   aMax: 10 / 5280, // 10 ft/s^2 converted to mi/s^2
   k: 0.3, // unitless
@@ -60,7 +60,7 @@ export const defaultParams: SimulationParams = {
   sigmaDistTripPlanned: 0.5, // standard deviation for log-normal distribution (miles)
   speedLimit: 70,
   freewayLength: 10, // initial value in miles
-  numLanes: 1, // default to 1 lane
+  numLanes: 2, // default to 2 lanes
   politenessFactor: 0.3, // typical MOBIL value
   rightLaneBias: 0.1, // small bias for right lane
   accelerationThreshold: 0.2, // threshold for lane change
@@ -156,78 +156,95 @@ export function initializeSimulation(params: SimulationParams): {
   ];
   
   const numLanes = params.numLanes || 1;
-  
-  // Generate cars with random desired speeds
-  for (let i = 0; i < params.numCars; i++) {
-    const desiredSpeed = normalRandom(
-      params.meanSpeed,
-      params.stdSpeed,
-      params.minSpeed,
-      params.maxSpeed
-    );
-    
-    // Initial speed is the desired speed
-    const speed = desiredSpeed;
-    
-    // Calculate virtual length based on initial speed (in miles)
-    const virtualLength = calculateVirtualLength(speed, params);
-    
-    // Generate planned trip distance using log-normal distribution (miles)
-    const distTripPlanned = logNormalRandom(
-      params.meanDistTripPlanned,
-      params.sigmaDistTripPlanned
-    );
-    
-    // Generate driver properties
-    const driverProps = generateDriverProperties();
-    
-    // Assign to lane using round-robin to ensure even distribution
-    const lane = i % numLanes;
-    
-    cars.push({
-      id: i,
-      name: `Car ${i + 1}`,
-      position: 0, // Will be set properly later (in miles)
-      speed,
-      desiredSpeed,
-      color: carColors[i % carColors.length],
-      virtualLength,
-      distTripPlanned,
-      distanceTraveled: 0,
-      lane,
-      lastLaneChange: 0,
-      ...driverProps
-    });
-  }
-  
-  // Calculate total lane length based on virtual lengths (in miles)
   const laneLength = params.freewayLength ?? 10; // lane length in miles
   
-  // Calculate traffic density (cars per mile)
-  const density = params.numCars / laneLength;
+  // Calculate total number of cars based on traffic density per lane
+  let totalCars = 0;
+  for (let lane = 0; lane < numLanes; lane++) {
+    const densityForLane = params.trafficDensity[lane] || params.trafficDensity[0] || 3;
+    const carsInThisLane = Math.round(densityForLane * laneLength);
+    totalCars += carsInThisLane;
+  }
   
-  // UPDATED: Randomly position cars along the lane (in miles)
-  const usedPositions: number[] = [];
-  for (let i = 0; i < params.numCars; i++) {
-    let validPosition = false;
-    let position = 0;
-    let attempts = 0;
-    const maxAttempts = 100;
-    while (!validPosition && attempts < maxAttempts) {
-      position = Math.random() * laneLength;
-      validPosition = true;
-      for (const usedPos of usedPositions) {
-        const distance = Math.abs(position - usedPos);
-        const wrappedDistance = Math.min(distance, laneLength - distance);
-        if (wrappedDistance < params.lengthCar + params.initialGap / 2) {
-          validPosition = false;
-          break;
-        }
-      }
-      attempts++;
+  // Generate cars with random desired speeds
+  let carId = 0;
+  for (let lane = 0; lane < numLanes; lane++) {
+    const densityForLane = params.trafficDensity[lane] || params.trafficDensity[0] || 3;
+    const carsInThisLane = Math.round(densityForLane * laneLength);
+    
+    for (let i = 0; i < carsInThisLane; i++) {
+      const desiredSpeed = normalRandom(
+        params.meanSpeed,
+        params.stdSpeed,
+        params.minSpeed,
+        params.maxSpeed
+      );
+      
+      // Initial speed is the desired speed
+      const speed = desiredSpeed;
+      
+      // Calculate virtual length based on initial speed (in miles)
+      const virtualLength = calculateVirtualLength(speed, params);
+      
+      // Generate planned trip distance using log-normal distribution (miles)
+      const distTripPlanned = logNormalRandom(
+        params.meanDistTripPlanned,
+        params.sigmaDistTripPlanned
+      );
+      
+      // Generate driver properties
+      const driverProps = generateDriverProperties();
+      
+      cars.push({
+        id: carId,
+        name: `Car ${carId + 1}`,
+        position: 0, // Will be set properly later (in miles)
+        speed,
+        desiredSpeed,
+        color: carColors[carId % carColors.length],
+        virtualLength,
+        distTripPlanned,
+        distanceTraveled: 0,
+        lane,
+        lastLaneChange: 0,
+        ...driverProps
+      });
+      carId++;
     }
-    usedPositions.push(position);
-    cars[i].position = position;
+  }
+  
+  // Calculate overall traffic density (cars per mile)
+  const density = totalCars / laneLength;
+  
+  // Randomly position cars along their respective lanes
+  for (let lane = 0; lane < numLanes; lane++) {
+    const carsInLane = cars.filter(car => car.lane === lane);
+    const usedPositions: number[] = [];
+    
+    for (const car of carsInLane) {
+      let validPosition = false;
+      let position = 0;
+      let attempts = 0;
+      const maxAttempts = 100;
+      
+      while (!validPosition && attempts < maxAttempts) {
+        position = Math.random() * laneLength;
+        validPosition = true;
+        
+        for (const usedPos of usedPositions) {
+          const distance = Math.abs(position - usedPos);
+          const wrappedDistance = Math.min(distance, laneLength - distance);
+          if (wrappedDistance < params.lengthCar + params.initialGap / 2) {
+            validPosition = false;
+            break;
+          }
+        }
+        attempts++;
+      }
+      
+      usedPositions.push(position);
+      car.position = position;
+    }
   }
   
   // Sort cars by position and update their IDs and names
