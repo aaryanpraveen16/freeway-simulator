@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { Car } from "@/utils/trafficSimulation";
 import {
@@ -25,12 +26,18 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
     const maxSpeed = Math.max(...cars.map((car) => car.speed));
     const density = (cars.length / laneLength).toFixed(2); // cars per mile
     
+    // Calculate freeway throughput (cars per hour per lane)
+    // Throughput = average speed * density
+    const throughputPerLane = avgSpeed * parseFloat(density);
+    const totalThroughput = throughputPerLane * (cars.length > 0 ? Math.max(...cars.map(c => c.lane)) + 1 : 1);
+    
     return {
       avgSpeed: Math.round(avgSpeed),
       minSpeed: Math.round(minSpeed),
       maxSpeed: Math.round(maxSpeed),
       density,
       elapsedTime: elapsedTime.toFixed(1),
+      throughput: Math.round(totalThroughput),
     };
   }, [cars, laneLength, elapsedTime]);
   
@@ -52,6 +59,11 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Traffic Density</p>
             <p className="text-2xl font-bold">{stats.density} cars/mi</p>
+          </div>
+          
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Freeway Throughput</p>
+            <p className="text-2xl font-bold">{stats.throughput} cars/hr</p>
           </div>
           
           <div className="space-y-1">
