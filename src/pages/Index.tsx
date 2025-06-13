@@ -70,6 +70,7 @@ const Index = () => {
   const [showPreviousRuns, setShowPreviousRuns] = useState<boolean>(false);
   const [simulationSpeed, setSimulationSpeed] = useState<number>(1);
   const [trafficRule, setTrafficRule] = useState<'american' | 'european'>('american');
+  const [stoppedCars, setStoppedCars] = useState<Set<number>>(new Set());
   
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
@@ -167,11 +168,34 @@ const Index = () => {
     }
     lastTimestampRef.current = null;
     setIsRunning(false);
+    setStoppedCars(new Set()); // Clear stopped cars on reset
     setDensityThroughputHistory([]);
     setPackFormationHistory([]);
     setLaneUtilizationHistory([]);
     initSimulation();
   }, [initSimulation]);
+
+  const handleStopCar = useCallback((carId: number) => {
+    setStoppedCars(prev => new Set([...prev, carId]));
+    toast({
+      title: "Car Stopped",
+      description: `Car ${carId + 1} has been stopped for testing`,
+      duration: 2000,
+    });
+  }, [toast]);
+
+  const handleResumeCar = useCallback((carId: number) => {
+    setStoppedCars(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(carId);
+      return newSet;
+    });
+    toast({
+      title: "Car Resumed",
+      description: `Car ${carId + 1} has resumed normal driving`,
+      duration: 2000,
+    });
+  }, [toast]);
 
   const recordPackData = useCallback((newCars: Car[], time: number, currentLaneLength: number) => {
     if (time - lastPackRecordTimeRef.current >= 0.5) {
@@ -312,7 +336,15 @@ const Index = () => {
     setElapsedTime(newElapsedTime);
     
     // Pass the original deltaTime to updateSimulation, it will handle simulation speed internally
-    const { cars: updatedCars, events } = updateSimulation(cars, laneLength, params, newElapsedTime, trafficRule, simulationSpeed);
+    const { cars: updatedCars, events } = updateSimulation(
+      cars, 
+      laneLength, 
+      params, 
+      newElapsedTime, 
+      trafficRule, 
+      simulationSpeed,
+      stoppedCars // Pass stopped cars to simulation
+    );
     setCars(updatedCars);
     
     // Handle car exit and enter events
@@ -323,7 +355,7 @@ const Index = () => {
     recordPackData(updatedCars, newElapsedTime, laneLength);
 
     animationFrameRef.current = requestAnimationFrame(animationLoop);
-  }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents, simulationSpeed, trafficRule]);
+  }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents, simulationSpeed, trafficRule, stoppedCars]);
 
   useEffect(() => {
     initSimulation();
@@ -384,6 +416,10 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500"></div>
             <span className="text-gray-600">About to exit</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-black"></div>
+            <span className="text-gray-600">Stopped for testing</span>
           </div>
         </div>
       </div>
@@ -477,6 +513,10 @@ const Index = () => {
               setSimulationSpeed={setSimulationSpeed}
               trafficRule={trafficRule}
               onTrafficRuleChange={setTrafficRule}
+              cars={cars}
+              onStopCar={handleStopCar}
+              onResumeCar={handleResumeCar}
+              stoppedCars={stoppedCars}
             />
           </div>
         </div>

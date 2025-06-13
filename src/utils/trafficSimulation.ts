@@ -300,7 +300,8 @@ export function updateSimulation(
   params: SimulationParams,
   currentTime: number,
   trafficRule: 'american' | 'european',
-  simulationSpeed: number = 1
+  simulationSpeed: number = 1,
+  stoppedCars: Set<number> = new Set()
 ): { 
   cars: Car[]; 
   events: { 
@@ -336,6 +337,18 @@ export function updateSimulation(
     const car = updatedCars[carIndex];
     let carSpeed = car.speed;
 
+    // Check if this car is stopped for testing
+    if (stoppedCars.has(car.id)) {
+      carSpeed = 0;
+      car.color = "black"; // Set stopped cars to black
+      movements[carIndex] = { 
+        newPosition: car.position, 
+        newSpeed: 0,
+        distanceTraveled: car.distanceTraveled
+      };
+      continue; // Skip all other processing for stopped cars
+    }
+
     // Find the car ahead in the same lane
     let currentLane = car.lane;
     let sameLaneCars = updatedCars.filter(c => c.lane === currentLane);
@@ -347,6 +360,7 @@ export function updateSimulation(
     let aheadCar = sortedSameLaneCars.find(c => 
       (c.position - car.position + laneLength) % laneLength > 0
     );
+    
     // Calculate gap to car ahead (with wrap-around)
     let gap = aheadCar ? (aheadCar.position - car.position + laneLength) % laneLength : laneLength;
 
@@ -385,17 +399,26 @@ export function updateSimulation(
     const safeDist = calculateSafeDistance(carSpeed, params.tDist);
     car.virtualLength = calculateVirtualLength(carSpeed, params);
     
+    // Enhanced collision avoidance for stopped cars ahead
     if (gap < safeDist + (params.lengthCar / 5280)) {
-      const decel = Math.min(
-        (carSpeed ** 2 - (aheadCar?.speed || 0) ** 2) / (2 * Math.max(safeDist - gap + (params.lengthCar / 5280), 1e-6)),
-        params.aMax
-      );
-      carSpeed = Math.max(
-        carSpeed - decel * (1 / 3600) * effectiveDt,
-        0
-      );
+      const aheadCarSpeed = aheadCar?.speed || 0;
+      
+      // If the car ahead is stopped, apply stronger braking
+      if (aheadCarSpeed === 0 && gap < safeDist * 2) {
+        carSpeed = Math.max(carSpeed * 0.5, 0); // Rapid deceleration
+      } else {
+        const decel = Math.min(
+          (carSpeed ** 2 - aheadCarSpeed ** 2) / (2 * Math.max(safeDist - gap + (params.lengthCar / 5280), 1e-6)),
+          params.aMax
+        );
+        carSpeed = Math.max(
+          carSpeed - decel * (1 / 3600) * effectiveDt,
+          0
+        );
+      }
+      
       if (gap < (params.lengthCar * 1.5) / 5280) {
-        carSpeed = Math.min(carSpeed, (aheadCar?.speed || 0) * 0.9);
+        carSpeed = Math.min(carSpeed, aheadCarSpeed * 0.9);
       }
     }
     
@@ -415,8 +438,12 @@ export function updateSimulation(
     updatedCars[i].position = movements[i].newPosition;
     updatedCars[i].speed = movements[i].newSpeed;
     updatedCars[i].distanceTraveled = movements[i].distanceTraveled;
-    // Set color based on entry/exit distance
-    updatedCars[i].color = getCarColor(updatedCars[i]);
+    
+    // Set color based on entry/exit distance (unless stopped)
+    if (!stoppedCars.has(updatedCars[i].id)) {
+      updatedCars[i].color = getCarColor(updatedCars[i]);
+    }
+    
     if (updatedCars[i].distanceTraveled >= updatedCars[i].distTripPlanned) {
       carsToRemove.push({ index: i, car: updatedCars[i] });
     }
