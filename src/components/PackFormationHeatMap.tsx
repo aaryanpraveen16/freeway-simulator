@@ -1,10 +1,12 @@
-
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
 import { identifyPacks } from "./PackFormationChart";
+import { useToast } from "@/hooks/use-toast";
 
 interface PackFormationDataPoint {
   density: number;
@@ -26,6 +28,9 @@ const PackFormationHeatMap: React.FC<PackFormationHeatMapProps> = ({
   elapsedTime,
   dataHistory
 }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
   const currentPoint = useMemo(() => {
     if (cars.length === 0) return null;
     
@@ -69,10 +74,72 @@ const PackFormationHeatMap: React.FC<PackFormationHeatMapProps> = ({
     return Math.max(4, Math.min(12, packCount * 2 + 4));
   };
 
+  const handleExportImage = () => {
+    if (!chartRef.current) return;
+    
+    try {
+      const svgElement = chartRef.current.querySelector("svg");
+      if (!svgElement) {
+        throw new Error("SVG element not found");
+      }
+      
+      const clonedSvg = svgElement.cloneNode(true) as SVGElement;
+      clonedSvg.setAttribute("style", "background-color: white;");
+      
+      const allPaths = clonedSvg.querySelectorAll("path");
+      allPaths.forEach(path => {
+        const currentWidth = path.getAttribute("stroke-width") || "1";
+        if (parseFloat(currentWidth) <= 1) {
+          path.setAttribute("stroke-width", "2");
+        }
+      });
+      
+      const allCircles = clonedSvg.querySelectorAll("circle");
+      allCircles.forEach(circle => {
+        circle.setAttribute("stroke-width", "2");
+      });
+      
+      const svgData = new XMLSerializer().serializeToString(clonedSvg);
+      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+      
+      const downloadLink = document.createElement("a");
+      downloadLink.href = URL.createObjectURL(svgBlob);
+      downloadLink.download = "pack-formation-heatmap.svg";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      toast({
+        title: "Chart exported",
+        description: "Pack formation heat map has been exported successfully",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Error exporting chart:", error);
+      toast({
+        title: "Export failed",
+        description: "Could not export the chart. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Pack Formation Heat Map</CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-lg">Pack Formation Heat Map</CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1" 
+            onClick={handleExportImage}
+          >
+            <Download size={16} />
+            Export
+          </Button>
+        </div>
         <p className="text-sm text-muted-foreground">
           Relationship between density, speed variation, and pack formation
         </p>

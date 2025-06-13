@@ -10,6 +10,7 @@ import AveragePackLengthChart, { calculateAveragePackLength, PackLengthHistoryIt
 import PackDensityChart, { calculatePackDensityMetrics, PackDensityItem } from "@/components/PackDensityChart";
 import DensityThroughputChart from "@/components/DensityThroughputChart";
 import PackFormationHeatMap from "@/components/PackFormationHeatMap";
+import LaneUtilizationChart from "@/components/LaneUtilizationChart";
 import { 
   initializeSimulation, 
   updateSimulation, 
@@ -49,6 +50,11 @@ interface PackFormationDataPoint {
   speedStdDev: number;
   packCount: number;
   time: number;
+}
+
+interface LaneUtilizationDataPoint {
+  time: number;
+  [key: string]: number; // Dynamic lane keys like "lane0", "lane1", etc.
 }
 
 const Index = () => {
@@ -163,6 +169,7 @@ const Index = () => {
     setIsRunning(false);
     setDensityThroughputHistory([]);
     setPackFormationHistory([]);
+    setLaneUtilizationHistory([]);
     initSimulation();
   }, [initSimulation]);
 
@@ -224,6 +231,28 @@ const Index = () => {
         });
       }
       
+      // Record lane utilization data
+      const laneDistribution: { [key: string]: number } = {};
+      for (let i = 0; i < params.numLanes; i++) {
+        laneDistribution[`lane${i}`] = 0;
+      }
+      
+      newCars.forEach(car => {
+        const laneKey = `lane${car.lane}`;
+        laneDistribution[laneKey] = (laneDistribution[laneKey] || 0) + 1;
+      });
+      
+      setLaneUtilizationHistory(prev => {
+        const newHistory = [...prev, {
+          time: parseFloat(time.toFixed(1)),
+          ...laneDistribution
+        }];
+        if (newHistory.length > 50) {
+          return newHistory.slice(-50);
+        }
+        return newHistory;
+      });
+
       lastPackRecordTimeRef.current = time;
     }
     
@@ -233,7 +262,7 @@ const Index = () => {
       setPackDensityData(densityData);
       lastDensityUpdateTimeRef.current = time;
     }
-  }, []);
+  }, [params.numLanes]);
 
   const handleSimulationEvents = useCallback((events: SimulationEvent[]) => {
     events.forEach(event => {
@@ -318,6 +347,7 @@ const Index = () => {
 
   const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
   const [packFormationHistory, setPackFormationHistory] = useState<PackFormationDataPoint[]>([]);
+  const [laneUtilizationHistory, setLaneUtilizationHistory] = useState<LaneUtilizationDataPoint[]>([]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -465,6 +495,22 @@ const Index = () => {
                   dataHistory={packFormationHistory}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Lane Utilization Chart */}
+          <div className="flex gap-4 items-start">
+            <div className="flex-grow">
+              <LaneUtilizationChart 
+                cars={cars}
+                elapsedTime={elapsedTime}
+                dataHistory={laneUtilizationHistory}
+                numLanes={params.numLanes}
+              />
+            </div>
+            <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
+              <h4 className="font-semibold text-slate-700 mb-1">Lane Utilization</h4>
+              <p>Shows how cars distribute across different lanes over time. Helps identify lane preferences and traffic patterns.</p>
             </div>
           </div>
 
