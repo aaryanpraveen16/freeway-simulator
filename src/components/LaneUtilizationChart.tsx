@@ -42,17 +42,25 @@ const LaneUtilizationChart: React.FC<LaneUtilizationChartProps> = ({
 
   const currentPoint = useMemo(() => {
     const laneDistribution: { [key: string]: number } = {};
+    const totalCars = cars.length;
     
     // Initialize all lanes with 0
     for (let i = 0; i < numLanes; i++) {
       laneDistribution[`lane${i}`] = 0;
     }
     
-    // Count cars in each lane
+    // Count cars in each lane and convert to percentage
     cars.forEach(car => {
       const laneKey = `lane${car.lane}`;
       laneDistribution[laneKey] = (laneDistribution[laneKey] || 0) + 1;
     });
+    
+    // Convert to percentages
+    for (let i = 0; i < numLanes; i++) {
+      const laneKey = `lane${i}`;
+      laneDistribution[laneKey] = totalCars > 0 ? 
+        parseFloat(((laneDistribution[laneKey] / totalCars) * 100).toFixed(1)) : 0;
+    }
     
     return {
       time: parseFloat(elapsedTime.toFixed(1)),
@@ -64,38 +72,76 @@ const LaneUtilizationChart: React.FC<LaneUtilizationChartProps> = ({
     if (dataHistory.length === 0 && currentPoint) {
       return [currentPoint];
     }
-    return dataHistory;
-  }, [dataHistory, currentPoint]);
+    
+    // Convert historical data to percentages if not already
+    return dataHistory.map(point => {
+      const totalCars = Object.keys(point)
+        .filter(key => key.startsWith('lane'))
+        .reduce((sum, key) => sum + point[key], 0);
+      
+      if (totalCars === 0) return point;
+      
+      const convertedPoint: any = { time: point.time };
+      for (let i = 0; i < numLanes; i++) {
+        const laneKey = `lane${i}`;
+        convertedPoint[laneKey] = parseFloat(((point[laneKey] / totalCars) * 100).toFixed(1));
+      }
+      return convertedPoint;
+    });
+  }, [dataHistory, currentPoint, numLanes]);
 
-  const handleExportImage = () => {
+  const handleExportImage = async () => {
     if (!chartRef.current) return;
     
     try {
+      // Wait a bit for the chart to fully render
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const svgElement = chartRef.current.querySelector("svg");
       if (!svgElement) {
-        throw new Error("SVG element not found");
+        throw new Error("Chart not found. Please wait for the chart to load.");
       }
       
+      // Clone the SVG to avoid modifying the original
       const clonedSvg = svgElement.cloneNode(true) as SVGElement;
+      
+      // Set proper dimensions and background
+      const bbox = svgElement.getBoundingClientRect();
+      clonedSvg.setAttribute("width", bbox.width.toString());
+      clonedSvg.setAttribute("height", bbox.height.toString());
       clonedSvg.setAttribute("style", "background-color: white;");
       
+      // Enhance line visibility
       const allPaths = clonedSvg.querySelectorAll("path");
       allPaths.forEach(path => {
         const currentWidth = path.getAttribute("stroke-width") || "1";
-        if (parseFloat(currentWidth) <= 1) {
-          path.setAttribute("stroke-width", "2");
+        if (parseFloat(currentWidth) <= 2) {
+          path.setAttribute("stroke-width", "3");
         }
       });
       
-      const svgData = new XMLSerializer().serializeToString(clonedSvg);
-      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+      // Enhance dots
+      const allCircles = clonedSvg.querySelectorAll("circle");
+      allCircles.forEach(circle => {
+        const currentR = circle.getAttribute("r") || "3";
+        if (parseFloat(currentR) <= 3) {
+          circle.setAttribute("r", "4");
+        }
+      });
       
+      // Serialize and download
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(clonedSvg);
+      const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+      
+      const url = URL.createObjectURL(svgBlob);
       const downloadLink = document.createElement("a");
-      downloadLink.href = URL.createObjectURL(svgBlob);
-      downloadLink.download = "lane-utilization-chart.svg";
+      downloadLink.href = url;
+      downloadLink.download = `lane-utilization-${new Date().toISOString().slice(0, 10)}.svg`;
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(url);
       
       toast({
         title: "Chart exported",
@@ -106,7 +152,7 @@ const LaneUtilizationChart: React.FC<LaneUtilizationChartProps> = ({
       console.error("Error exporting chart:", error);
       toast({
         title: "Export failed",
-        description: "Could not export the chart. Please try again.",
+        description: error instanceof Error ? error.message : "Could not export the chart. Please try again.",
         variant: "destructive",
         duration: 3000,
       });
@@ -129,7 +175,7 @@ const LaneUtilizationChart: React.FC<LaneUtilizationChartProps> = ({
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          Distribution of cars across different lanes over time
+          Percentage of traffic distribution across lanes over time
         </p>
       </CardHeader>
       <CardContent>
@@ -171,11 +217,12 @@ const LaneUtilizationChart: React.FC<LaneUtilizationChartProps> = ({
                 label={{ value: "Time (seconds)", position: "insideBottomRight", offset: -10 }}
               />
               <YAxis
-                label={{ value: "Number of Cars", angle: -90, position: "insideLeft" }}
+                label={{ value: "Utilization (%)", angle: -90, position: "insideLeft" }}
+                domain={[0, 100]}
               />
               <Tooltip 
                 formatter={(value, name) => [
-                  `${value} cars`, 
+                  `${value}%`, 
                   `Lane ${parseInt(name.toString().replace('lane', '')) + 1}`
                 ]}
               />
@@ -198,8 +245,9 @@ const LaneUtilizationChart: React.FC<LaneUtilizationChartProps> = ({
           </ChartContainer>
         </div>
         <div className="mt-4 text-xs text-muted-foreground">
-          <p>• Shows the number of cars in each lane over time</p>
-          <p>• Helps identify lane preferences and utilization patterns</p>
+          <p>• Shows the percentage of cars in each lane over time</p>
+          <p>• Helps identify lane preferences and balance across lanes</p>
+          <p>• Ideal distribution would be roughly equal across all lanes</p>
         </div>
       </CardContent>
     </Card>

@@ -231,8 +231,10 @@ const Index = () => {
         });
       }
       
-      // Record lane utilization data
+      // Record lane utilization data as percentages
       const laneDistribution: { [key: string]: number } = {};
+      const totalCars = newCars.length;
+      
       for (let i = 0; i < params.numLanes; i++) {
         laneDistribution[`lane${i}`] = 0;
       }
@@ -241,6 +243,13 @@ const Index = () => {
         const laneKey = `lane${car.lane}`;
         laneDistribution[laneKey] = (laneDistribution[laneKey] || 0) + 1;
       });
+      
+      // Convert to percentages
+      for (let i = 0; i < params.numLanes; i++) {
+        const laneKey = `lane${i}`;
+        laneDistribution[laneKey] = totalCars > 0 ? 
+          parseFloat(((laneDistribution[laneKey] / totalCars) * 100).toFixed(1)) : 0;
+      }
       
       setLaneUtilizationHistory(prev => {
         const newHistory = [...prev, {
