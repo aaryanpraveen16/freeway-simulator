@@ -8,6 +8,8 @@ import Navbar from "@/components/Navbar";
 import PackFormationChart, { identifyPacks, PackHistoryItem } from "@/components/PackFormationChart";
 import AveragePackLengthChart, { calculateAveragePackLength, PackLengthHistoryItem } from "@/components/AveragePackLengthChart";
 import PackDensityChart, { calculatePackDensityMetrics, PackDensityItem } from "@/components/PackDensityChart";
+import DensityThroughputChart from "@/components/DensityThroughputChart";
+import PackFormationHeatMap from "@/components/PackFormationHeatMap";
 import { 
   initializeSimulation, 
   updateSimulation, 
@@ -34,6 +36,19 @@ interface SimulationRun {
   packLengthHistory: PackLengthHistoryItem[];
   params: SimulationParams;
   timestamp: number;
+}
+
+interface DensityThroughputDataPoint {
+  density: number;
+  throughput: number;
+  time: number;
+}
+
+interface PackFormationDataPoint {
+  density: number;
+  speedStdDev: number;
+  packCount: number;
+  time: number;
 }
 
 const Index = () => {
@@ -146,6 +161,8 @@ const Index = () => {
     }
     lastTimestampRef.current = null;
     setIsRunning(false);
+    setDensityThroughputHistory([]);
+    setPackFormationHistory([]);
     initSimulation();
   }, [initSimulation]);
 
@@ -169,6 +186,43 @@ const Index = () => {
         }
         return newHistory;
       });
+
+      // Record density-throughput data
+      if (newCars.length > 0) {
+        const avgSpeed = newCars.reduce((sum, car) => sum + car.speed, 0) / newCars.length;
+        const density = newCars.length / currentLaneLength;
+        const throughput = avgSpeed * density;
+        
+        setDensityThroughputHistory(prev => {
+          const newHistory = [...prev, {
+            density: parseFloat(density.toFixed(2)),
+            throughput: parseFloat(throughput.toFixed(0)),
+            time: parseFloat(time.toFixed(1))
+          }];
+          if (newHistory.length > 100) {
+            return newHistory.slice(-100);
+          }
+          return newHistory;
+        });
+
+        // Record pack formation data
+        const speeds = newCars.map(car => car.speed);
+        const speedVariance = speeds.reduce((sum, speed) => sum + Math.pow(speed - avgSpeed, 2), 0) / speeds.length;
+        const speedStdDev = Math.sqrt(speedVariance);
+        
+        setPackFormationHistory(prev => {
+          const newHistory = [...prev, {
+            density: parseFloat(density.toFixed(2)),
+            speedStdDev: parseFloat(speedStdDev.toFixed(2)),
+            packCount,
+            time: parseFloat(time.toFixed(1))
+          }];
+          if (newHistory.length > 100) {
+            return newHistory.slice(-100);
+          }
+          return newHistory;
+        });
+      }
       
       lastPackRecordTimeRef.current = time;
     }
@@ -261,6 +315,9 @@ const Index = () => {
   const getPreviousRunsPackLengthHistories = () => {
     return savedRuns.map(run => run.packLengthHistory);
   };
+
+  const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
+  const [packFormationHistory, setPackFormationHistory] = useState<PackFormationDataPoint[]>([]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -387,6 +444,30 @@ const Index = () => {
         
         {/* Charts in vertical layout with descriptions */}
         <div className="mt-8 space-y-12">
+          {/* Research Visualizations */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="flex gap-4 items-start">
+              <div className="flex-grow">
+                <DensityThroughputChart 
+                  cars={cars}
+                  laneLength={laneLength}
+                  elapsedTime={elapsedTime}
+                  dataHistory={densityThroughputHistory}
+                />
+              </div>
+            </div>
+            <div className="flex gap-4 items-start">
+              <div className="flex-grow">
+                <PackFormationHeatMap 
+                  cars={cars}
+                  laneLength={laneLength}
+                  elapsedTime={elapsedTime}
+                  dataHistory={packFormationHistory}
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="flex gap-4 items-start">
             <div className="flex-grow">
               <PackFormationChart 
