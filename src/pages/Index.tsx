@@ -435,59 +435,17 @@ const Index = () => {
           </p>
         </header>
 
-        {/* Play/Pause button below header */}
-        <div className="flex justify-center mb-8">
-          <Button
-            onClick={toggleSimulation}
-            variant={isRunning ? "destructive" : "default"}
-            className="flex items-center gap-2"
-            size="lg"
-          >
-            {isRunning ? (
-              <>
-                <Pause size={20} />
-                Pause
-              </>
-            ) : (
-              <>
-                <Play size={20} />
-                Start
-              </>
-            )}
-          </Button>
-          <Button
-            onClick={handleReset}
-            variant="outline"
-            className="flex items-center gap-2 ml-4"
-            size="lg"
-          >
-            <RotateCcw size={20} />
-            Reset
-          </Button>
-          {/* Speed control buttons */}
-          <Button
-            onClick={() => setSimulationSpeed(s => Math.max(0.25, s / 2))}
-            variant="secondary"
-            className="flex items-center gap-2 ml-4"
-            size="lg"
-          >
-            0.5x
-          </Button>
-          <Button
-            onClick={() => setSimulationSpeed(s => Math.min(16, s * 2))}
-            variant="secondary"
-            className="flex items-center gap-2 ml-2"
-            size="lg"
-          >
-            2x
-          </Button>
-          <span className="ml-4 text-lg font-semibold text-blue-700 flex items-center">{simulationSpeed.toFixed(2)}x</span>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <TrafficTrack cars={cars} laneLength={laneLength} numLanes={params.numLanes} />
+              <TrafficTrack 
+                cars={cars} 
+                laneLength={laneLength} 
+                numLanes={params.numLanes}
+                stoppedCars={stoppedCars}
+                onStopCar={handleStopCar}
+                onResumeCar={handleResumeCar}
+              />
             </div>
             
             <CarStatsCard cars={cars} laneLength={laneLength} />
@@ -513,10 +471,6 @@ const Index = () => {
               setSimulationSpeed={setSimulationSpeed}
               trafficRule={trafficRule}
               onTrafficRuleChange={setTrafficRule}
-              cars={cars}
-              onStopCar={handleStopCar}
-              onResumeCar={handleResumeCar}
-              stoppedCars={stoppedCars}
             />
           </div>
         </div>

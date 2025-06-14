@@ -6,9 +6,19 @@ interface StraightLineTrackProps {
   cars: Car[];
   laneLength: number;
   numLanes: number;
+  stoppedCars?: Set<number>;
+  onStopCar?: (carId: number) => void;
+  onResumeCar?: (carId: number) => void;
 }
 
-const StraightLineTrack: React.FC<StraightLineTrackProps> = ({ cars, laneLength, numLanes }) => {
+const StraightLineTrack: React.FC<StraightLineTrackProps> = ({ 
+  cars, 
+  laneLength, 
+  numLanes,
+  stoppedCars = new Set(),
+  onStopCar,
+  onResumeCar,
+}) => {
   const trackWidth = 30; // width of each lane in pixels
   const trackHeight = 100; // height of the track in pixels
   const trackLength = 800; // length of the track in pixels
@@ -71,6 +81,9 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({ cars, laneLength,
           trackType="straight"
           distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
           laneOffset={car.lane * trackWidth}
+          isStopped={stoppedCars.has(car.id)}
+          onStopCar={onStopCar}
+          onResumeCar={onResumeCar}
         />
       ))}
     </div>

@@ -8,9 +8,19 @@ interface TrafficTrackProps {
   cars: Car[];
   laneLength: number;
   numLanes: number;
+  stoppedCars?: Set<number>;
+  onStopCar?: (carId: number) => void;
+  onResumeCar?: (carId: number) => void;
 }
 
-const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength, numLanes }) => {
+const TrafficTrack: React.FC<TrafficTrackProps> = ({ 
+  cars, 
+  laneLength, 
+  numLanes,
+  stoppedCars = new Set(),
+  onStopCar,
+  onResumeCar,
+}) => {
   const [activeView, setActiveView] = useState<"circular" | "straight">("circular");
   const trackRadius = 180; // radius in pixels
   const trackWidth = 30; // width of each lane in pixels
@@ -72,11 +82,14 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength, numLanes 
                 trackRadius={trackRadius}
                 trackType="circular"
                 distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
+                isStopped={stoppedCars.has(car.id)}
+                onStopCar={onStopCar}
+                onResumeCar={onResumeCar}
               />
             ))}
             
             {/* Center info */}
-            <div 
+            <div
               className="absolute bg-white rounded-full shadow-sm flex items-center justify-center"
               style={{
                 width: trackRadius,
@@ -93,7 +106,14 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({ cars, laneLength, numLanes 
           </div>
         </TabsContent>
         <TabsContent value="straight">
-          <StraightLineTrack cars={cars} laneLength={laneLength} numLanes={numLanes} />
+          <StraightLineTrack 
+            cars={cars} 
+            laneLength={laneLength} 
+            numLanes={numLanes}
+            stoppedCars={stoppedCars}
+            onStopCar={onStopCar}
+            onResumeCar={onResumeCar}
+          />
         </TabsContent>
       </Tabs>
     </div>
