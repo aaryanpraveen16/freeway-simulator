@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -205,7 +206,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <Label className="text-sm font-medium">Speed Settings</Label>
               
               <div className="space-y-2">
-                <Label className="text-xs">Mean Speed: {params.meanSpeed} mph</Label>
+                <Label className="text-xs">Desired Mean Speed: {params.meanSpeed} mph</Label>
                 <Slider
                   value={[params.meanSpeed]}
                   onValueChange={([value]) => onUpdateParams({ meanSpeed: value })}
@@ -255,6 +256,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   min={1}
                   max={5}
                   step={0.5}
+                  className="w-full"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-xs">Desired Distance: {params.desiredTrip} miles</Label>
+                <Slider
+                  value={[params.desiredTrip]}
+                  onValueChange={([value]) => onUpdateParams({ desiredTrip: value })}
+                  min={1}
+                  max={50}
+                  step={1}
                   className="w-full"
                 />
               </div>
