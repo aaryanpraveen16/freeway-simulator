@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
 import CarComponent from "./CarComponent";
@@ -25,20 +24,20 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   const trackLength = 800; // length of the track in pixels
   const totalTrackHeight = trackWidth * numLanes; // total height for all lanes
   
-  // Calculate cars per lane and density
-  const getLaneStats = (laneIndex: number) => {
+  // Calculate density per lane
+  const getLaneDensity = (laneIndex: number) => {
     const carsInLane = cars.filter(car => car.lane === laneIndex);
     const carCount = carsInLane.length;
     const density = laneLength > 0 ? (carCount / laneLength).toFixed(2) : "0.00";
-    return { carCount, density };
+    return density;
   };
   
   return (
     <div className="relative mx-auto flex items-center gap-4" style={{ width: trackLength + 120, height: totalTrackHeight + 50 }}>
-      {/* Lane labels and stats */}
+      {/* Lane labels and density */}
       <div className="flex flex-col justify-center" style={{ height: totalTrackHeight, marginTop: "25px" }}>
         {Array.from({ length: numLanes }, (_, i) => {
-          const { carCount, density } = getLaneStats(i);
+          const density = getLaneDensity(i);
           return (
             <div 
               key={i} 
@@ -46,7 +45,6 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
               style={{ height: trackWidth }}
             >
               <div className="font-semibold">Lane {i + 1}</div>
-              <div>{carCount} cars</div>
               <div>{density}/mi</div>
             </div>
           );
@@ -62,6 +60,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
           </span>
         </div>
         
+        {/* Track rendering with lanes, lane markings, and center lines */}
         <div className="relative" style={{ width: trackLength, height: totalTrackHeight }}>
           {/* Create lanes */}
           {Array.from({ length: numLanes }, (_, i) => (
