@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -254,10 +253,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
               
               <div className="space-y-2">
-                <Label className="text-xs">Desired Distance: {params.desiredTrip} miles</Label>
+                <Label className="text-xs">Desired Distance: {params.distTripPlanned} miles</Label>
                 <Slider
-                  value={[params.desiredTrip]}
-                  onValueChange={([value]) => onUpdateParams({ desiredTrip: value })}
+                  value={[params.distTripPlanned]}
+                  onValueChange={([value]) => onUpdateParams({ distTripPlanned: value })}
                   min={1}
                   max={50}
                   step={1}
