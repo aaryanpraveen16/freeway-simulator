@@ -1,33 +1,24 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
-import { Pause, Play, RotateCcw } from "lucide-react";
-import { SimulationParams, Car as CarType } from "@/utils/trafficSimulation";
+import { Button } from "@/components/ui/button";
+import { SimulationParams } from "@/utils/trafficSimulation";
 
 interface ControlPanelProps {
-  isRunning: boolean;
-  onToggleSimulation: () => void;
-  onReset: () => void;
   params: SimulationParams;
   onUpdateParams: (params: Partial<SimulationParams>) => void;
-  setSimulationSpeed: (speed: number) => void;
   trafficRule: 'american' | 'european';
   onTrafficRuleChange: (rule: 'american' | 'european') => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
-  isRunning,
-  onToggleSimulation,
-  onReset,
   params,
   onUpdateParams,
-  setSimulationSpeed,
   trafficRule,
   onTrafficRuleChange,
 }) => {
@@ -82,78 +73,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Sticky Controls */}
-      <div className="sticky top-0 z-10 bg-background pb-4">
-        <Card>
-          <CardContent className="p-4 space-y-4">
-            <div className="flex gap-2">
-              <Button
-                onClick={onToggleSimulation}
-                variant={isRunning ? "destructive" : "default"}
-                className="flex-1 flex items-center gap-2"
-              >
-                {isRunning ? (
-                  <>
-                    <Pause size={16} />
-                    Pause
-                  </>
-                ) : (
-                  <>
-                    <Play size={16} />
-                    Start
-                  </>
-                )}
-              </Button>
-              
-              <Button
-                onClick={onReset}
-                variant="outline"
-                className="flex-1 flex items-center gap-2"
-              >
-                <RotateCcw size={16} />
-                Reset
-              </Button>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                onClick={() => setSimulationSpeed(0.5)}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-              >
-                0.5x
-              </Button>
-              <Button
-                onClick={() => setSimulationSpeed(1)}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-              >
-                1x
-              </Button>
-              <Button
-                onClick={() => setSimulationSpeed(2)}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-              >
-                2x
-              </Button>
-              <Button
-                onClick={() => setSimulationSpeed(4)}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-              >
-                4x
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Scrollable Settings */}
       <div className="flex-1 overflow-y-auto">
         <Card>
           <CardHeader>
@@ -335,10 +254,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
               
               <div className="space-y-2">
-                <Label className="text-xs">Desired Distance: {params.meanDistTripPlanned} miles</Label>
+                <Label className="text-xs">Desired Distance: {params.desiredTrip} miles</Label>
                 <Slider
-                  value={[params.meanDistTripPlanned]}
-                  onValueChange={([value]) => onUpdateParams({ meanDistTripPlanned: value })}
+                  value={[params.desiredTrip]}
+                  onValueChange={([value]) => onUpdateParams({ desiredTrip: value })}
                   min={1}
                   max={50}
                   step={1}

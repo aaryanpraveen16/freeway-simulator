@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import TrafficTrack from "@/components/TrafficTrack";
 import ControlPanel from "@/components/ControlPanel";
+import StickyControlBar from "@/components/StickyControlBar";
 import StatsDisplay from "@/components/StatsDisplay";
 import CarStatsCard from "@/components/CarStatsCard";
 import SimulationInfo from "@/components/SimulationInfo";
@@ -19,8 +20,6 @@ import {
   type Car
 } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Pause, Play, RotateCcw } from "lucide-react";
 
 interface SimulationEvent {
   type: 'exit' | 'enter' | 'laneChange';
@@ -394,15 +393,23 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <Navbar />
       
+      {/* Sticky Control Bar */}
+      <StickyControlBar
+        isRunning={isRunning}
+        onToggleSimulation={toggleSimulation}
+        onReset={handleReset}
+        setSimulationSpeed={setSimulationSpeed}
+      />
+      
       {/* Visual Overlap Disclaimer */}
-      <div className="absolute top-20 right-4 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm p-3 z-10 max-w-xs">
+      <div className="absolute top-32 right-4 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm p-3 z-10 max-w-xs">
         <p className="text-xs text-yellow-800">
           <strong>Note:</strong> Cars may appear to overlap visually, but they maintain safe distances in the simulation logic.
         </p>
       </div>
       
       {/* Color Legend */}
-      <div className="absolute top-20 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border p-3 z-10">
+      <div className="absolute top-32 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border p-3 z-10">
         <h4 className="text-xs font-semibold text-gray-700 mb-2">Car Colors</h4>
         <div className="space-y-1 text-xs">
           <div className="flex items-center gap-2">
@@ -463,12 +470,8 @@ const Index = () => {
             />
             
             <ControlPanel
-              isRunning={isRunning}
-              onToggleSimulation={toggleSimulation}
-              onReset={handleReset}
               params={params}
               onUpdateParams={handleUpdateParams}
-              setSimulationSpeed={setSimulationSpeed}
               trafficRule={trafficRule}
               onTrafficRuleChange={setTrafficRule}
             />
