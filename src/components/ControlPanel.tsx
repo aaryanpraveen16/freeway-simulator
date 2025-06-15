@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     const newDensity = [...params.trafficDensity];
     newDensity[laneIndex] = parseFloat(value) || 0;
     onUpdateParams({ trafficDensity: newDensity });
+  };
+
+  const handleVehicleTypeDensityChange = (vehicleType: 'car' | 'truck' | 'motorcycle', value: number) => {
+    const newVehicleTypeDensity = { ...params.vehicleTypeDensity };
+    newVehicleTypeDensity[vehicleType] = value;
+    
+    // Ensure percentages add up to 100
+    const total = Object.values(newVehicleTypeDensity).reduce((sum, val) => sum + val, 0);
+    if (total !== 100) {
+      // Proportionally adjust other values
+      const others = Object.keys(newVehicleTypeDensity).filter(key => key !== vehicleType) as ('car' | 'truck' | 'motorcycle')[];
+      const remaining = 100 - value;
+      const otherTotal = others.reduce((sum, key) => sum + newVehicleTypeDensity[key], 0);
+      
+      if (otherTotal > 0) {
+        others.forEach(key => {
+          newVehicleTypeDensity[key] = Math.round((newVehicleTypeDensity[key] / otherTotal) * remaining);
+        });
+      }
+    }
+    
+    onUpdateParams({ vehicleTypeDensity: newVehicleTypeDensity });
   };
 
   const addLane = () => {
@@ -149,6 +172,58 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <SelectItem value="european">European</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <Separator />
+
+            {/* Vehicle Type Distribution */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Vehicle Type Distribution (%)</Label>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs w-20">Cars:</Label>
+                  <Input
+                    type="number"
+                    value={params.vehicleTypeDensity.car}
+                    onChange={(e) => handleVehicleTypeDensityChange('car', parseInt(e.target.value) || 0)}
+                    className="flex-1"
+                    min="0"
+                    max="100"
+                  />
+                  <span className="text-xs text-gray-500">%</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs w-20">Trucks:</Label>
+                  <Input
+                    type="number"
+                    value={params.vehicleTypeDensity.truck}
+                    onChange={(e) => handleVehicleTypeDensityChange('truck', parseInt(e.target.value) || 0)}
+                    className="flex-1"
+                    min="0"
+                    max="100"
+                  />
+                  <span className="text-xs text-gray-500">%</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs w-20">Motorcycles:</Label>
+                  <Input
+                    type="number"
+                    value={params.vehicleTypeDensity.motorcycle}
+                    onChange={(e) => handleVehicleTypeDensityChange('motorcycle', parseInt(e.target.value) || 0)}
+                    className="flex-1"
+                    min="0"
+                    max="100"
+                  />
+                  <span className="text-xs text-gray-500">%</span>
+                </div>
+                
+                <div className="text-xs text-gray-500">
+                  Total: {Object.values(params.vehicleTypeDensity).reduce((sum, val) => sum + val, 0)}%
+                </div>
+              </div>
             </div>
 
             <Separator />

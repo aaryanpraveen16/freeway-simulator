@@ -1,7 +1,8 @@
+
 import React from "react";
 import { Car } from "@/utils/trafficSimulation";
 import { cn } from "@/lib/utils";
-import { Car as CarIcon, StopCircle } from "lucide-react";
+import { Car as CarIcon, StopCircle, Truck, Bike } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CarComponentProps {
@@ -54,6 +55,53 @@ const CarComponent: React.FC<CarComponentProps> = ({
       onStopCar(car.id);
     }
   };
+
+  // Get the appropriate icon based on vehicle type
+  const getVehicleIcon = () => {
+    if (isStopped) {
+      return (
+        <StopCircle
+          size={carSize}
+          className="text-red-500"
+          strokeWidth={2}
+        />
+      );
+    }
+
+    switch (car.vehicleType) {
+      case "truck":
+        return (
+          <Truck
+            size={carSize}
+            className={cn("transition-colors", "hover:scale-110")}
+            style={{ color: car.color }}
+            fill={car.color}
+            stroke="#222"
+          />
+        );
+      case "motorcycle":
+        return (
+          <Bike
+            size={carSize}
+            className={cn("transition-colors", "hover:scale-110")}
+            style={{ color: car.color }}
+            fill={car.color}
+            stroke="#222"
+          />
+        );
+      case "car":
+      default:
+        return (
+          <CarIcon
+            size={carSize}
+            className={cn("transition-colors", "hover:scale-110")}
+            style={{ color: car.color }}
+            fill={car.color}
+            stroke="#222"
+          />
+        );
+    }
+  };
   
   return (
     <div
@@ -72,28 +120,11 @@ const CarComponent: React.FC<CarComponentProps> = ({
         )}
         onClick={handleClick}
       >
-        {isStopped ? (
-          <StopCircle
-            size={carSize}
-            className="text-red-500"
-            strokeWidth={2}
-          />
-        ) : (
-          <CarIcon
-            size={carSize}
-            className={cn(
-              "transition-colors",
-              "hover:scale-110"
-            )}
-            style={{ color: car.color }}
-            fill={car.color}
-            stroke="#222"
-          />
-        )}
+        {getVehicleIcon()}
         
         {/* Tooltip */}
         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-          <div>{car.name}</div>
+          <div>{car.name} ({car.vehicleType})</div>
           <div>Current Speed: {Math.round(car.speed)} mph</div>
           <div>Gap: {distanceToCarAhead.toFixed(3)} mi</div>
           <div>Lane: {car.lane + 1}</div>

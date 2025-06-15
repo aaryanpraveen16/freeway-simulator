@@ -14,10 +14,16 @@ export interface Car {
   laneChangeProbability: number; // probability of changing lanes (0-1)
   laneStickiness: number; // tendency to stay in current lane (0-1)
   lastLaneChange?: number; // timestamp of last lane change
+  vehicleType: "car" | "truck" | "motorcycle"; // vehicle type
 }
 
 export interface SimulationParams {
   trafficDensity: number[]; // cars per mile per lane
+  vehicleTypeDensity: {
+    car: number; // percentage of cars (0-100)
+    truck: number; // percentage of trucks (0-100)
+    motorcycle: number; // percentage of motorcycles (0-100)
+  };
   dt: number; // time step in seconds
   aMax: number; // max deceleration (mi/s^2)
   k: number; // speed adjustment sensitivity
@@ -44,6 +50,11 @@ export interface SimulationParams {
 // Default simulation parameters
 export const defaultParams: SimulationParams = {
   trafficDensity: [0.5, 0.5], // 3 cars per mile per lane (default for 2 lanes)
+  vehicleTypeDensity: {
+    car: 70,
+    truck: 20,
+    motorcycle: 10,
+  },
   dt: 0.1, // 100ms time step
   aMax: 10 / 5280, // 10 ft/s^2 converted to mi/s^2
   k: 0.3, // unitless
@@ -147,6 +158,45 @@ function generateDriverProperties(): {
   }
 }
 
+// Generate vehicle type based on density parameters
+function generateVehicleType(params: SimulationParams): "car" | "truck" | "motorcycle" {
+  const rand = Math.random() * 100;
+  const { car, truck, motorcycle } = params.vehicleTypeDensity;
+  
+  if (rand < car) {
+    return "car";
+  } else if (rand < car + truck) {
+    return "truck";
+  } else {
+    return "motorcycle";
+  }
+}
+
+// Get vehicle properties based on type
+function getVehicleProperties(vehicleType: "car" | "truck" | "motorcycle") {
+  switch (vehicleType) {
+    case "truck":
+      return {
+        lengthFeet: 25, // trucks are longer
+        speedModifier: 0.9, // trucks are slightly slower
+        accelerationModifier: 0.8, // trucks accelerate slower
+      };
+    case "motorcycle":
+      return {
+        lengthFeet: 8, // motorcycles are shorter
+        speedModifier: 1.1, // motorcycles can go faster
+        accelerationModifier: 1.3, // motorcycles accelerate faster
+      };
+    case "car":
+    default:
+      return {
+        lengthFeet: 15, // standard car length
+        speedModifier: 1.0, // normal speed
+        accelerationModifier: 1.0, // normal acceleration
+      };
+  }
+}
+
 // Initialize the simulation
 export function initializeSimulation(params: SimulationParams): {
   cars: Car[];
@@ -183,8 +233,12 @@ export function initializeSimulation(params: SimulationParams): {
     const carsInThisLane = Math.round(densityForLane * laneLength);
 
     for (let i = 0; i < carsInThisLane; i++) {
+      // Generate vehicle type first
+      const vehicleType = generateVehicleType(params);
+      const vehicleProps = getVehicleProperties(vehicleType);
+      
       const desiredSpeed = normalRandom(
-        params.meanSpeed,
+        params.meanSpeed * vehicleProps.speedModifier,
         params.stdSpeed,
         params.minSpeed,
         params.maxSpeed
@@ -193,8 +247,10 @@ export function initializeSimulation(params: SimulationParams): {
       // Initial speed is the desired speed
       const speed = desiredSpeed;
 
-      // Calculate virtual length based on initial speed (in miles)
-      const virtualLength = calculateVirtualLength(speed, params);
+      // Calculate virtual length based on vehicle type and initial speed (in miles)
+      const vehicleLengthMiles = vehicleProps.lengthFeet / 5280;
+      const modifiedParams = { ...params, lengthCar: vehicleLengthMiles };
+      const virtualLength = calculateVirtualLength(speed, modifiedParams);
 
       // Generate planned trip distance using log-normal distribution (miles)
       const distTripPlanned = logNormalRandom(
@@ -211,12 +267,13 @@ export function initializeSimulation(params: SimulationParams): {
         position: 0, // Will be set properly later (in miles)
         speed,
         desiredSpeed,
-        color: carColors[carId % carColors.length],
+        color: "hsl(142, 72%, 29%)", // Start all cars with green color
         virtualLength,
         distTripPlanned,
         distanceTraveled: 0,
         lane,
         lastLaneChange: 0,
+        vehicleType,
         ...driverProps,
       });
       carId++;
@@ -596,14 +653,24 @@ export function updateSimulation(
 
   for (let i = 0; i < carsToRemove.length; i++) {
     const newPosition = 0;
+    
+    // Generate vehicle type for new car
+    const vehicleType = generateVehicleType(params);
+    const vehicleProps = getVehicleProperties(vehicleType);
+    
     const desiredSpeed = normalRandom(
-      params.meanSpeed,
+      params.meanSpeed * vehicleProps.speedModifier,
       params.stdSpeed,
       params.minSpeed,
       params.maxSpeed
     );
     const speed = desiredSpeed;
-    const virtualLength = calculateVirtualLength(speed, params);
+    
+    // Calculate virtual length based on vehicle type
+    const vehicleLengthMiles = vehicleProps.lengthFeet / 5280;
+    const modifiedParams = { ...params, lengthCar: vehicleLengthMiles };
+    const virtualLength = calculateVirtualLength(speed, modifiedParams);
+    
     const distTripPlanned = logNormalRandom(
       params.meanDistTripPlanned,
       params.sigmaDistTripPlanned
@@ -626,12 +693,13 @@ export function updateSimulation(
       position: newPosition,
       speed,
       desiredSpeed,
-      color: carColors[newId % carColors.length],
+      color: "hsl(142, 72%, 29%)", // Start new cars with green color
       virtualLength,
       distTripPlanned,
       distanceTraveled: 0,
       lane,
       lastLaneChange: 0,
+      vehicleType,
       ...driverProps,
     };
     updatedCars.push(newCar);
