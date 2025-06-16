@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Car, calculateDistanceToCarAhead, getCarColor } from "@/utils/trafficSimulation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,6 +85,9 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
 
 const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
   const { packs, carPackMap } = identifyPacks(cars);
+  
+  // Filter packs to only show those with more than 1 car
+  const multiCarPacks = packs.filter(pack => pack.carCount > 1);
 
   return (
     <div className="space-y-4">
@@ -94,11 +98,11 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
         <CardContent>
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="font-semibold">Total Packs:</span>
-              <span>{packs.length}</span>
+              <span className="font-semibold">Multi-Car Packs:</span>
+              <span>{multiCarPacks.length}</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {packs.map((pack) => (
+              {multiCarPacks.map((pack) => (
                 <div key={pack.packId} className="p-3 border rounded-lg">
                   <div className="font-semibold mb-1">Pack #{pack.packId + 1}</div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
@@ -114,6 +118,11 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                 </div>
               ))}
             </div>
+            {multiCarPacks.length === 0 && (
+              <div className="text-center text-muted-foreground py-4">
+                No packs with multiple cars detected
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
