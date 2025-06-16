@@ -551,7 +551,7 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="flex gap-4 items-start">
+          {/* <div className="flex gap-4 items-start">
             <div className="flex-grow">
               <PackDensityChart packDensityData={packDensityData} />
             </div>
@@ -559,7 +559,7 @@ const Index = () => {
               <h4 className="font-semibold text-slate-700 mb-1">Pack Density Analysis</h4>
               <p>Visualizes car count, density (cars per 100ft of pack length), and average speed for each currently identified traffic pack.</p>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
