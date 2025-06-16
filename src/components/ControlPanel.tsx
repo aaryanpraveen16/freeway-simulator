@@ -253,10 +253,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
               
               <div className="space-y-2">
-                <Label className="text-xs">Desired Distance: {params.distTripPlanned} miles</Label>
+                <Label className="text-xs">Trip Distance: {params.meanDistTripPlanned} miles</Label>
                 <Slider
-                  value={[params.distTripPlanned]}
-                  onValueChange={([value]) => onUpdateParams({ distTripPlanned: value })}
+                  value={[params.meanDistTripPlanned]}
+                  onValueChange={([value]) => onUpdateParams({ meanDistTripPlanned: value })}
                   min={1}
                   max={50}
                   step={1}

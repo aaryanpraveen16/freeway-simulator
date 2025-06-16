@@ -454,6 +454,10 @@ export function updateSimulation(
       continue; // Skip all other processing for stopped cars
     }
 
+    // Check if car is about to exit (within 1 mile of trip completion)
+    const distanceToExit = car.distTripPlanned - car.distanceTraveled;
+    const shouldMoveToExitLane = distanceToExit <= 1 && distanceToExit > 0;
+    
     // Find the car ahead in the same lane
     let currentLane = car.lane;
     let sameLaneCars = updatedCars.filter((c) => c.lane === currentLane);
@@ -511,47 +515,11 @@ export function updateSimulation(
         carSpeed = Math.min(carSpeed, aheadCarSpeed * 0.9);
       }
     }
-    // Check for lane changing opportunities
-    // const adjacentLanes = findAdjacentCars(
-    //   car,
-    //   updatedCars,
-    //   laneLength,
-    //   params
-    // );
-    // const { shouldChange, targetLane } = shouldChangeLane(
-    //   car,
-    //   aheadCar,
-    //   adjacentLanes,
-    //   params,
-    //   laneLength,
-    //   currentTime,
-    //   trafficRule
-    // );
 
-    // // Apply lane change if beneficial
-    // if (shouldChange && targetLane !== null) {
-    //   updatedCars[carIndex].lane = targetLane;
-    //   updatedCars[carIndex].lastLaneChange = currentTime;
-    //   // After lane change, recalculate car ahead and gap in the new lane
-    //   currentLane = targetLane;
-    //   sameLaneCars = updatedCars.filter((c) => c.lane === currentLane);
-    //   sortedSameLaneCars = sameLaneCars.sort((a, b) => {
-    //     const distA = (a.position - car.position + laneLength) % laneLength;
-    //     const distB = (b.position - car.position + laneLength) % laneLength;
-    //     return distA - distB;
-    //   });
-    //   aheadCar = sortedSameLaneCars.find(
-    //     (c) => (c.position - car.position + laneLength) % laneLength > 0
-    //   );
-    //   gap = aheadCar
-    //     ? (aheadCar.position - car.position + laneLength) % laneLength
-    //     : laneLength;
-    // }
     // Convert speed from mph to miles per second
     const mphToMilesPerSec = 1 / 3600;
     const potentialMove = carSpeed * mphToMilesPerSec * effectiveDt;
 
-    // Final check: prevent moving too close to car ahead
     // Final check: prevent moving too close to car ahead
     if (gap - potentialMove < safeGap) {
       // Try lane change first
@@ -561,14 +529,17 @@ export function updateSimulation(
         laneLength,
         params
       );
-      const { shouldChange, targetLane } = shouldChangeLane(
+      
+      // Enhanced lane change logic for exit behavior
+      const { shouldChange, targetLane } = shouldChangeLaneWithExitBehavior(
         car,
         aheadCar,
         adjacentLanes,
         params,
         laneLength,
         currentTime,
-        trafficRule
+        trafficRule,
+        shouldMoveToExitLane
       );
 
       if (shouldChange && targetLane !== null) {
@@ -880,7 +851,6 @@ export function calculateLaneChangeIncentive(
   return incentive;
 }
 
-
 // Determine if lane change is possible and beneficial
 function shouldChangeLane(
   car: Car,
@@ -982,4 +952,86 @@ function shouldChangeLane(
   }
 
   return { shouldChange: false, targetLane: null };
+}
+
+// Enhanced lane change function with exit behavior
+function shouldChangeLaneWithExitBehavior(
+  car: Car,
+  currentLeader: Car | undefined,
+  adjacentLanes: {
+    leftLane: { leader?: Car; follower?: Car };
+    rightLane: { leader?: Car; follower?: Car };
+  },
+  params: SimulationParams,
+  laneLength: number,
+  currentTime: number,
+  trafficRule: "american" | "european",
+  shouldMoveToExitLane: boolean
+): { shouldChange: boolean; targetLane: number | null } {
+  if (currentTime - car.lastLaneChange < params.laneChangeCooldown) {
+    return { shouldChange: false, targetLane: null };
+  }
+
+  const numLanes = params.numLanes || 1;
+  const isInExitLane = car.lane === 0 || car.lane === numLanes - 1; // leftmost or rightmost lane
+
+  // If car needs to exit and is not in an exit lane, prioritize moving to exit lane
+  if (shouldMoveToExitLane && !isInExitLane) {
+    // Prefer rightmost lane for American traffic, leftmost for European
+    const preferredExitLane = trafficRule === "american" ? numLanes - 1 : 0;
+    const alternativeExitLane = trafficRule === "american" ? 0 : numLanes - 1;
+    
+    // Try preferred exit lane first
+    if (car.lane < preferredExitLane && adjacentLanes.rightLane.leader) {
+      const rightIncentive = calculateLaneChangeIncentive(
+        car,
+        currentLeader,
+        adjacentLanes.rightLane,
+        params,
+        laneLength
+      );
+      if (rightIncentive > -0.5) { // Lower threshold for exit lane changes
+        return { shouldChange: true, targetLane: car.lane + 1 };
+      }
+    } else if (car.lane > preferredExitLane && adjacentLanes.leftLane.leader) {
+      const leftIncentive = calculateLaneChangeIncentive(
+        car,
+        currentLeader,
+        adjacentLanes.leftLane,
+        params,
+        laneLength
+      );
+      if (leftIncentive > -0.5) { // Lower threshold for exit lane changes
+        return { shouldChange: true, targetLane: car.lane - 1 };
+      }
+    }
+    
+    // Try alternative exit lane if preferred is not accessible
+    if (car.lane < alternativeExitLane && adjacentLanes.rightLane.leader) {
+      const rightIncentive = calculateLaneChangeIncentive(
+        car,
+        currentLeader,
+        adjacentLanes.rightLane,
+        params,
+        laneLength
+      );
+      if (rightIncentive > -0.3) {
+        return { shouldChange: true, targetLane: car.lane + 1 };
+      }
+    } else if (car.lane > alternativeExitLane && adjacentLanes.leftLane.leader) {
+      const leftIncentive = calculateLaneChangeIncentive(
+        car,
+        currentLeader,
+        adjacentLanes.leftLane,
+        params,
+        laneLength
+      );
+      if (leftIncentive > -0.3) {
+        return { shouldChange: true, targetLane: car.lane - 1 };
+      }
+    }
+  }
+
+  // Regular lane change logic for non-exiting cars
+  return shouldChangeLane(car, currentLeader, adjacentLanes, params, laneLength, currentTime, trafficRule);
 }
