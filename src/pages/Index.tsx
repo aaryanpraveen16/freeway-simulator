@@ -10,7 +10,6 @@ import PackFormationChart, { identifyPacks, PackHistoryItem } from "@/components
 import AveragePackLengthChart, { calculateAveragePackLength, PackLengthHistoryItem } from "@/components/AveragePackLengthChart";
 import PackDensityChart, { calculatePackDensityMetrics, PackDensityItem } from "@/components/PackDensityChart";
 import DensityThroughputChart from "@/components/DensityThroughputChart";
-import PackFormationHeatMap from "@/components/PackFormationHeatMap";
 import LaneUtilizationChart from "@/components/LaneUtilizationChart";
 import { 
   initializeSimulation, 
@@ -492,7 +491,7 @@ const Index = () => {
                 />
               </div>
             </div>
-            <div className="flex gap-4 items-start">
+            {/* <div className="flex gap-4 items-start">
               <div className="flex-grow">
                 <PackFormationHeatMap 
                   cars={cars}
@@ -501,7 +500,7 @@ const Index = () => {
                   dataHistory={packFormationHistory}
                 />
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Lane Utilization Chart */}
