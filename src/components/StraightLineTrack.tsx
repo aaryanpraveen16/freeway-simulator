@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
 import CarComponent from "./CarComponent";
@@ -19,9 +20,9 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   onStopCar,
   onResumeCar,
 }) => {
-  const trackWidth = 30; // width of each lane in pixels
+  const trackWidth = 40; // increased width of each lane in pixels
   const trackHeight = 100; // height of the track in pixels
-  const trackLength = 800; // length of the track in pixels
+  const trackLength = window.innerWidth - 200; // full width minus margins
   const totalTrackHeight = trackWidth * numLanes; // total height for all lanes
   
   // Calculate density per lane
@@ -30,6 +31,17 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
     const carCount = carsInLane.length;
     const density = laneLength > 0 ? (carCount / laneLength).toFixed(2) : "0.00";
     return density;
+  };
+
+  // Get lane color based on index
+  const getLaneColor = (laneIndex: number) => {
+    const colors = [
+      "bg-slate-200", // Lane 1
+      "bg-gray-200",  // Lane 2
+      "bg-stone-200", // Lane 3
+      "bg-neutral-200", // Lane 4
+    ];
+    return colors[laneIndex % colors.length];
   };
   
   return (
@@ -41,11 +53,11 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
           return (
             <div 
               key={i} 
-              className="flex flex-col justify-center text-xs text-gray-600"
+              className="flex flex-col justify-center text-xs text-gray-700 font-medium"
               style={{ height: trackWidth }}
             >
-              <div className="font-semibold">Lane {i + 1}</div>
-              <div>{density}/mi</div>
+              <div className="font-bold">Lane {i + 1}</div>
+              <div className="text-gray-600">{density}/mi</div>
             </div>
           );
         })}
@@ -55,19 +67,19 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
       <div className="relative">
         {/* Info display - moved above the track */}
         <div className="mb-2 flex items-center justify-center">
-          <span className="text-sm font-medium text-gray-500">
+          <span className="text-sm font-medium text-gray-600">
             {cars.length} Cars • {numLanes} Lanes
           </span>
         </div>
         
-        {/* Track rendering with lanes, lane markings, and center lines */}
-        <div className="relative" style={{ width: trackLength, height: totalTrackHeight }}>
-          {/* Create lanes */}
+        {/* Track rendering with distinct lanes */}
+        <div className="relative border-2 border-gray-800 rounded-lg overflow-hidden" style={{ width: trackLength, height: totalTrackHeight }}>
+          {/* Create lanes with distinct styling */}
           {Array.from({ length: numLanes }, (_, i) => (
             <div key={i} className="absolute" style={{ width: trackLength, height: trackWidth, top: i * trackWidth }}>
-              {/* Lane background */}
+              {/* Lane background with alternating colors */}
               <div 
-                className="absolute border-8 border-gray-300 bg-gray-100"
+                className={`absolute ${getLaneColor(i)} border-b-2 ${i === numLanes - 1 ? 'border-b-gray-800' : 'border-b-yellow-400'}`}
                 style={{
                   width: trackLength,
                   height: trackWidth,
@@ -75,26 +87,44 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
                 }}
               />
               
-              {/* Lane markings */}
+              {/* Dashed center line for each lane */}
               <div 
-                className="absolute border-dashed border-2 border-gray-400"
+                className="absolute"
                 style={{
                   width: trackLength,
-                  height: trackWidth,
+                  height: 2,
                   left: "0",
+                  top: trackWidth / 2 - 1,
+                  backgroundImage: `repeating-linear-gradient(to right, #facc15 0, #facc15 20px, transparent 20px, transparent 40px)`,
                 }}
               />
               
-              {/* Center line */}
+              {/* Lane number indicator on the left */}
               <div 
-                className="absolute border-dashed border-2 border-gray-400"
+                className="absolute bg-blue-600 text-white text-xs font-bold rounded-r px-2 py-1 flex items-center justify-center"
                 style={{
-                  width: trackLength,
-                  height: 0,
-                  left: "0",
-                  top: trackWidth / 2,
+                  left: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  height: "20px",
+                  minWidth: "25px",
                 }}
-              />
+              >
+                {i + 1}
+              </div>
+              
+              {/* Speed indicators on the right */}
+              <div 
+                className="absolute bg-green-600 text-white text-xs font-medium rounded-l px-2 py-1 flex items-center justify-center"
+                style={{
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  height: "16px",
+                }}
+              >
+                {65 + i * 5} mph
+              </div>
             </div>
           ))}
         </div>
