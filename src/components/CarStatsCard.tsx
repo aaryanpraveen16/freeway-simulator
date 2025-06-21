@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Car, calculateDistanceToCarAhead, getCarColor } from "@/utils/trafficSimulation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,12 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 interface CarStatsCardProps {
   cars: Car[];
   laneLength: number;
-}
-
-interface PackInfo {
-  packId: number;
-  speed: number;
-  carCount: number;
+  showPackInfo?: boolean;
 }
 
 // Function to identify packs of cars with similar speeds
@@ -83,7 +77,7 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
   return { packs, carPackMap };
 };
 
-const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
+const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, showPackInfo = true }) => {
   const { packs, carPackMap } = identifyPacks(cars);
   
   // Filter packs to only show those with more than 1 car
@@ -91,41 +85,43 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Pack Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="font-semibold">Multi-Car Packs:</span>
-              <span>{multiCarPacks.length}</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {multiCarPacks.map((pack) => (
-                <div key={pack.packId} className="p-3 border rounded-lg">
-                  <div className="font-semibold mb-1">Pack #{pack.packId + 1}</div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Cars:</span>
-                      <span className="font-medium ml-1">{pack.carCount}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Speed:</span>
-                      <span className="font-medium ml-1">{pack.speed} mph</span>
+      {showPackInfo && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Pack Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="font-semibold">Multi-Car Packs:</span>
+                <span>{multiCarPacks.length}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {multiCarPacks.map((pack) => (
+                  <div key={pack.packId} className="p-3 border rounded-lg">
+                    <div className="font-semibold mb-1">Pack #{pack.packId + 1}</div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Cars:</span>
+                        <span className="font-medium ml-1">{pack.carCount}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Speed:</span>
+                        <span className="font-medium ml-1">{pack.speed} mph</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            {multiCarPacks.length === 0 && (
-              <div className="text-center text-muted-foreground py-4">
-                No packs with multiple cars detected
+                ))}
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              {multiCarPacks.length === 0 && (
+                <div className="text-center text-muted-foreground py-4">
+                  No packs with multiple cars detected
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-2">
@@ -160,9 +156,11 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength }) => {
                       style={{ backgroundColor: getCarColor(car) }}
                     />
                     <span className="font-semibold">{car.name}</span>
-                    <span className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-                      Pack #{packId + 1}
-                    </span>
+                    {showPackInfo && (
+                      <span className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                        Pack #{packId + 1}
+                      </span>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
