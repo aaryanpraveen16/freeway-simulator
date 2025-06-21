@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Car, calculateDistanceToCarAhead, getCarColor } from "@/utils/trafficSimulation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +7,12 @@ interface CarStatsCardProps {
   cars: Car[];
   laneLength: number;
   showPackInfo?: boolean;
+}
+
+interface PackInfo {
+  packId: number;
+  speed: number;
+  carCount: number;
 }
 
 // Function to identify packs of cars with similar speeds
