@@ -40,7 +40,7 @@ const CarComponent: React.FC<CarComponentProps> = ({
       }
     : {
         x: (car.position / laneLength) * (trackLength || 0),
-        y: laneOffset + (trackType === "straight" ? 15 : 0), // Center in lane for straight track
+        y: laneOffset, // Use the lane offset directly for proper centering
       };
   
   // Calculate rotation for circular track

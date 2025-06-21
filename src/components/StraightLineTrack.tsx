@@ -87,18 +87,6 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
                 }}
               />
               
-              {/* Dashed center line for each lane */}
-              <div 
-                className="absolute"
-                style={{
-                  width: trackLength,
-                  height: 2,
-                  left: "0",
-                  top: trackWidth / 2 - 1,
-                  backgroundImage: `repeating-linear-gradient(to right, #facc15 0, #facc15 20px, transparent 20px, transparent 40px)`,
-                }}
-              />
-              
               {/* Lane number indicator on the left */}
               <div 
                 className="absolute bg-blue-600 text-white text-xs font-bold rounded-r px-2 py-1 flex items-center justify-center"
@@ -138,7 +126,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
             trackLength={trackLength}
             trackType="straight"
             distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
-            laneOffset={car.lane * trackWidth}
+            laneOffset={car.lane * trackWidth + trackWidth / 2}
             isStopped={stoppedCars.has(car.id)}
             onStopCar={onStopCar}
             onResumeCar={onResumeCar}
