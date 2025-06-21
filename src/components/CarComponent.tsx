@@ -108,7 +108,7 @@ const CarComponent: React.FC<CarComponentProps> = ({
       className="absolute transition-all duration-100 ease-linear"
       style={{
         left: position.x - carSize / 2,
-        top: position.y - carSize / 2,
+        top: trackType === "straight" ? position.y - carSize / 2 : position.y - carSize / 2,
         transform: `rotate(${rotation}deg)`,
       }}
     >
