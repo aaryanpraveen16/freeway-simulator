@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,12 +22,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   trafficRule,
   onTrafficRuleChange,
 }) => {
-  const handleTrafficDensityChange = (laneIndex: number, value: string) => {
-    const newDensity = [...params.trafficDensity];
-    newDensity[laneIndex] = parseFloat(value) || 0;
-    onUpdateParams({ trafficDensity: newDensity });
-  };
-
   const handleVehicleTypeDensityChange = (vehicleType: 'car' | 'truck' | 'motorcycle', value: number) => {
     const newVehicleTypeDensity = { ...params.vehicleTypeDensity };
     newVehicleTypeDensity[vehicleType] = value;
@@ -68,6 +63,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         trafficDensity: newDensity
       });
     }
+  };
+
+  // Calculate overall freeway density as average of all lanes
+  const overallDensity = params.trafficDensity.length > 0 
+    ? params.trafficDensity.reduce((sum, density) => sum + density, 0) / params.trafficDensity.length 
+    : 3;
+
+  const handleOverallDensityChange = (value: string) => {
+    const newDensity = parseFloat(value) || 3;
+    // Update all lanes to have the same density
+    const newTrafficDensity = Array(params.numLanes).fill(newDensity);
+    onUpdateParams({ trafficDensity: newTrafficDensity });
   };
 
   return (
@@ -171,23 +178,24 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
               </div>
               
-              {/* Traffic Density per Lane */}
+              {/* Overall Freeway Traffic Density */}
               <div className="space-y-2">
-                <Label className="text-sm">Traffic Density (cars/mile/lane)</Label>
-                {Array.from({ length: params.numLanes }, (_, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Label className="text-xs w-16">Lane {i + 1}:</Label>
-                    <Input
-                      type="number"
-                      value={params.trafficDensity[i] || 3}
-                      onChange={(e) => handleTrafficDensityChange(i, e.target.value)}
-                      className="flex-1"
-                      min="0"
-                      max="20"
-                      step="0.5"
-                    />
-                  </div>
-                ))}
+                <Label className="text-sm">Overall Freeway Traffic Density (cars/mile)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={overallDensity.toFixed(1)}
+                    onChange={(e) => handleOverallDensityChange(e.target.value)}
+                    className="flex-1"
+                    min="0"
+                    max="20"
+                    step="0.5"
+                  />
+                  <span className="text-xs text-gray-500">cars/mile</span>
+                </div>
+                <div className="text-xs text-gray-500">
+                  This density will be applied uniformly across all {params.numLanes} lane(s)
+                </div>
               </div>
             </div>
 
