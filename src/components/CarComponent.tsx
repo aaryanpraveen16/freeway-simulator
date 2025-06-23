@@ -33,14 +33,17 @@ const CarComponent: React.FC<CarComponentProps> = ({
   const carSize = 24; // size of car icon in pixels
   
   // Calculate position based on track type
+  // Add a small vertical offset to position cars lower in their lanes
+  const verticalOffset = 10; // pixels to offset the car downward
+  
   const position = trackType === "circular" && trackRadius
     ? {
         x: trackRadius + trackRadius * Math.cos((car.position / laneLength) * 2 * Math.PI),
-        y: trackRadius + trackRadius * Math.sin((car.position / laneLength) * 2 * Math.PI),
+        y: trackRadius + trackRadius * Math.sin((car.position / laneLength) * 2 * Math.PI) + verticalOffset,
       }
     : {
         x: (car.position / laneLength) * (trackLength || 0),
-        y: laneOffset, // Use the lane offset directly for proper centering
+        y: (laneOffset || 0) + verticalOffset, // Add vertical offset to position lower in the lane
       };
   
   // Calculate rotation for circular track

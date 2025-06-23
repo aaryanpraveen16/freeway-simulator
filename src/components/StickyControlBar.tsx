@@ -94,7 +94,7 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
 
             <div className="flex items-center justify-center gap-3 pt-2 border-t">
               <Label htmlFor="pack-formation-toggle" className="text-sm">
-                Show Pack Formation Charts
+                Show Pack Information
               </Label>
               <Switch
                 id="pack-formation-toggle"

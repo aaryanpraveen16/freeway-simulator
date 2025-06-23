@@ -546,7 +546,7 @@ const Index = () => {
 
         {/* Full width track */}
         <div className="mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="p-6">
             <TrafficTrack 
               cars={cars} 
               laneLength={laneLength} 

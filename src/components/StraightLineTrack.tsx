@@ -20,10 +20,12 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   onStopCar,
   onResumeCar,
 }) => {
-  const trackWidth = 40; // increased width of each lane in pixels
-  const trackHeight = 100; // height of the track in pixels
+  const trackWidth = 60; // width of each lane in pixels (increased for better visibility)
+  const trackHeight = 100; // height of the track in pixels (not currently used)
   const trackLength = window.innerWidth - 200; // full width minus margins
   const totalTrackHeight = trackWidth * numLanes; // total height for all lanes
+  const laneCenterOffset = trackWidth * 0.6; // Position cars lower in the lane (60% from top)
+  const carHeight = 16; // height of car for vertical centering
   
   // Calculate density per lane
   const getLaneDensity = (laneIndex: number) => {
@@ -79,13 +81,26 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
             <div key={i} className="absolute" style={{ width: trackLength, height: trackWidth, top: i * trackWidth }}>
               {/* Lane background with alternating colors */}
               <div 
-                className={`absolute ${getLaneColor(i)} border-b-2 ${i === numLanes - 1 ? 'border-b-gray-800' : 'border-b-yellow-400'}`}
+                className={`absolute ${getLaneColor(i)} ${i === numLanes - 1 ? 'border-b-2 border-gray-800' : 'border-b-2 border-yellow-400'}`}
                 style={{
                   width: trackLength,
                   height: trackWidth,
-                  left: "0",
+                  left: 0,
+                  top: 0,
                 }}
               />
+              
+              {/* Center line for the lane */}
+              {i > 0 && (
+                <div 
+                  className="absolute border-t-2 border-dashed border-gray-400"
+                  style={{
+                    width: trackLength,
+                    top: 0,
+                    left: 0,
+                  }}
+                />
+              )}
               
               {/* Lane number indicator on the left */}
               <div 
@@ -126,7 +141,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
             trackLength={trackLength}
             trackType="straight"
             distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
-            laneOffset={car.lane * trackWidth + trackWidth / 2}
+            laneOffset={car.lane * trackWidth + laneCenterOffset + carHeight / 2}
             isStopped={stoppedCars.has(car.id)}
             onStopCar={onStopCar}
             onResumeCar={onResumeCar}

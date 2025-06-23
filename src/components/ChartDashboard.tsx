@@ -1,6 +1,7 @@
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import SpeedByLaneChart from "./SpeedByLaneChart";
 import DensityOfCarPacksChart from "./DensityOfCarPacksChart";
 import PercentageOfCarsByLaneChart from "./PercentageOfCarsByLaneChart";
@@ -74,11 +75,21 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
 
         <TabsContent value="performance" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Performance & Flow Analysis</CardTitle>
-              <CardDescription>
-                Key metrics for traffic flow efficiency and throughput analysis
-              </CardDescription>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-lg">Performance & Flow Analysis</CardTitle>
+                  <CardDescription>Key metrics for traffic flow efficiency and throughput analysis</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="outline" className="capitalize">
+                    {trafficRule} Rules
+                  </Badge>
+                  <Badge variant="outline">
+                    {params.numLanes} {params.numLanes === 1 ? 'Lane' : 'Lanes'}
+                  </Badge>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -115,11 +126,21 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
 
         <TabsContent value="distribution" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Traffic Distribution Analysis</CardTitle>
-              <CardDescription>
-                How vehicles distribute across lanes over time
-              </CardDescription>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-lg">Traffic Distribution Analysis</CardTitle>
+                  <CardDescription>How vehicles distribute across lanes over time</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="outline" className="capitalize">
+                    {trafficRule} Rules
+                  </Badge>
+                  <Badge variant="outline">
+                    {params.numLanes} {params.numLanes === 1 ? 'Lane' : 'Lanes'}
+                  </Badge>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
@@ -143,11 +164,23 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
 
         <TabsContent value="behavior" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Traffic Behavior & Density</CardTitle>
-              <CardDescription>
-                Analysis of overall freeway density and pack formation patterns
-              </CardDescription>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-lg">Traffic Behavior & Density</CardTitle>
+                  <CardDescription>
+                    Analysis of overall freeway density and pack formation patterns
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="outline" className="capitalize">
+                    {trafficRule} Rules
+                  </Badge>
+                  <Badge variant="outline">
+                    {params.numLanes} {params.numLanes === 1 ? 'Lane' : 'Lanes'}
+                  </Badge>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
@@ -174,11 +207,21 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
         <TabsContent value="packs" className="space-y-6">
           {showPackFormation ? (
             <Card>
-              <CardHeader>
-                <CardTitle>Advanced Pack Formation Analysis</CardTitle>
-                <CardDescription>
-                  Deep dive into traffic pack formation, evolution, and comparison across simulation runs
-                </CardDescription>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-lg">Advanced Pack Formation Analysis</CardTitle>
+                    <CardDescription>Deep dive into traffic pack formation, evolution, and comparison across simulation runs</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Badge variant="outline" className="capitalize">
+                      {trafficRule} Rules
+                    </Badge>
+                    <Badge variant="outline">
+                      {params.numLanes} {params.numLanes === 1 ? 'Lane' : 'Lanes'}
+                    </Badge>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

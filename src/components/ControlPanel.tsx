@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SimulationParams } from "@/utils/trafficSimulation";
 
 interface ControlPanelProps {
@@ -218,15 +219,42 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
               
               <div className="space-y-2">
-                <Label className="text-xs">Speed Limit: {params.speedLimit} mph</Label>
-                <Slider
-                  value={[params.speedLimit]}
-                  onValueChange={([value]) => onUpdateParams({ speedLimit: value })}
-                  min={50}
-                  max={90}
-                  step={5}
-                  className="w-full"
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="speedLimit">Speed Limit (mph)</Label>
+                  <div className="text-xs text-muted-foreground">
+                    {params.speedLimit} mph ({params.speedLimit / params.meanSpeed * 100}% of desired speed)
+                  </div>
+                </div>
+                <Input
+                  id="speedLimit"
+                  type="number"
+                  value={params.speedLimit}
+                  onChange={(e) => onUpdateParams({ speedLimit: Number(e.target.value) })}
+                  min="0"
+                  step="5"
                 />
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <span className="text-xs text-muted-foreground">Presets:</span>
+                  <ToggleGroup type="single" size="sm" className="gap-1">
+                    {[0.5, 0.75, 1, 1.5].map((ratio) => (
+                      <ToggleGroupItem 
+                        key={ratio}
+                        value={ratio.toString()}
+                        onClick={() => onUpdateParams({ speedLimit: Math.round(params.meanSpeed * ratio) })}
+                        className="h-6 px-2 text-xs"
+                      >
+                        {ratio}x
+                      </ToggleGroupItem>
+                    ))}
+                    <ToggleGroupItem 
+                      value="none"
+                      onClick={() => onUpdateParams({ speedLimit: 1000 })} // Effectively no limit
+                      className="h-6 px-2 text-xs"
+                    >
+                      No Limit
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
               </div>
             </div>
 
