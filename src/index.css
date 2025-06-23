@@ -41,6 +41,23 @@
     --car-yellow: 48 96% 53%;
     --car-purple: 270 91% 65%;
     --car-orange: 20 90% 55%;
+
+    /* Chart colors for light theme */
+    --chart-1: 221 83% 53%; /* Primary blue */
+    --chart-1-darker: 221 83% 43%;
+    --chart-1-darkest: 221 83% 33%;
+    --chart-2: 0 84.2% 60.2%; /* Destructive red */
+    --chart-2-darker: 0 84.2% 50.2%;
+    --chart-2-darkest: 0 84.2% 40.2%;
+    --chart-3: 142 72% 29%; /* Car green */
+    --chart-3-darker: 142 72% 19%;
+    --chart-3-darkest: 142 72% 9%;
+    --chart-4: 48 96% 53%; /* Car yellow */
+    --chart-4-darker: 48 96% 43%;
+    --chart-4-darkest: 48 96% 33%;
+    --chart-5: 270 91% 65%; /* Car purple */
+    --chart-5-darker: 270 91% 55%;
+    --chart-5-darkest: 270 91% 45%;
   }
 
   .dark {
@@ -71,6 +88,23 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
+
+    /* Chart colors for dark theme (can be same or adjusted) */
+    --chart-1: 217.2 91.2% 59.8%; /* Primary blue (dark theme) */
+    --chart-1-darker: 217.2 91.2% 49.8%;
+    --chart-1-darkest: 217.2 91.2% 39.8%;
+    --chart-2: 0 72% 51%; /* Destructive red (dark theme, adjusted from light's destructive) */
+    --chart-2-darker: 0 72% 41%;
+    --chart-2-darkest: 0 72% 31%;
+    --chart-3: 142 72% 39%; /* Car green (adjusted for dark) */
+    --chart-3-darker: 142 72% 29%;
+    --chart-3-darkest: 142 72% 19%;
+    --chart-4: 48 96% 63%; /* Car yellow (adjusted for dark) */
+    --chart-4-darker: 48 96% 53%;
+    --chart-4-darkest: 48 96% 43%;
+    --chart-5: 270 91% 75%; /* Car purple (adjusted for dark) */
+    --chart-5-darker: 270 91% 65%;
+    --chart-5-darkest: 270 91% 55%;
   }
 }
 
