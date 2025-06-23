@@ -2,7 +2,7 @@
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { Car } from "@/utils/trafficSimulation";
 
 interface PercentageOfCarsByLaneDataPoint {
@@ -96,7 +96,7 @@ const PercentageOfCarsByLaneChart: React.FC<PercentageOfCarsByLaneChartProps> = 
                   stroke={laneColors[i] || "#666"}
                   strokeWidth={2}
                   dot={false}
-                  name={`Lane ${i + 1}`
+                  name={`Lane ${i + 1}`}
                 />
               ))}
             </LineChart>
