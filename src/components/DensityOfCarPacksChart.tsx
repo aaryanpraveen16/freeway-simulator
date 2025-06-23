@@ -9,7 +9,7 @@ interface DensityOfCarPacksDataPoint {
   time: number;
   overallDensity: number;
   averagePackSize: number;
-  [key: string]: number; // For lane-specific densities
+  totalPacks: number;
 }
 
 interface DensityOfCarPacksChartProps {
@@ -21,30 +21,45 @@ interface DensityOfCarPacksChartProps {
   trafficRule: 'american' | 'european';
 }
 
-// Helper function to identify packs in a specific lane
-const identifyPacksInLane = (carsInLane: Car[], laneLength: number) => {
-  if (carsInLane.length === 0) return { packCount: 0, totalPackSize: 0 };
+// Helper function to identify packs across all lanes
+const identifyPacksInFreeway = (cars: Car[], laneLength: number) => {
+  if (cars.length === 0) return { packCount: 0, totalPackSize: 0 };
   
-  const sortedCars = [...carsInLane].sort((a, b) => a.position - b.position);
-  let packCount = 1;
-  let totalPackSize = 1;
-  let currentPackSize = 1;
+  // Group cars by lane first
+  const carsByLane: { [key: number]: Car[] } = {};
+  cars.forEach(car => {
+    if (!carsByLane[car.lane]) carsByLane[car.lane] = [];
+    carsByLane[car.lane].push(car);
+  });
   
-  for (let i = 1; i < sortedCars.length; i++) {
-    const distance = Math.abs(sortedCars[i].position - sortedCars[i-1].position);
-    const relativeDistance = distance / laneLength;
+  let totalPacks = 0;
+  let totalPackSize = 0;
+  
+  // Identify packs in each lane
+  Object.values(carsByLane).forEach(carsInLane => {
+    const sortedCars = [...carsInLane].sort((a, b) => a.position - b.position);
+    let packCount = 1;
+    let currentPackSize = 1;
     
-    // If cars are close together (within 0.02 of track length), they're in the same pack
-    if (relativeDistance < 0.02) {
-      currentPackSize++;
-    } else {
-      totalPackSize += currentPackSize;
-      packCount++;
-      currentPackSize = 1;
+    for (let i = 1; i < sortedCars.length; i++) {
+      const distance = Math.abs(sortedCars[i].position - sortedCars[i-1].position);
+      const relativeDistance = distance / laneLength;
+      
+      // If cars are close together (within 0.02 of track length), they're in the same pack
+      if (relativeDistance < 0.02) {
+        currentPackSize++;
+      } else {
+        totalPackSize += currentPackSize;
+        packCount++;
+        currentPackSize = 1;
+      }
     }
-  }
+    
+    totalPackSize += currentPackSize; // Add the last pack
+    totalPacks += packCount;
+  });
   
-  return { packCount, totalPackSize };
+  return { packCount: totalPacks, totalPackSize };
 };
 
 const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
@@ -58,33 +73,18 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
   const currentPoint = useMemo(() => {
     if (cars.length === 0) return null;
     
-    // Overall density (cars per mile)
+    // Overall freeway density (cars per mile)
     const overallDensity = cars.length / laneLength;
     
-    // Calculate pack information for all cars
-    let totalPacks = 0;
-    let totalPackSize = 0;
+    // Calculate pack information for the entire freeway
+    const { packCount, totalPackSize } = identifyPacksInFreeway(cars, laneLength);
     
     const point: DensityOfCarPacksDataPoint = {
       time: parseFloat(elapsedTime.toFixed(1)),
       overallDensity: parseFloat(overallDensity.toFixed(2)),
-      averagePackSize: 0
+      totalPacks: packCount,
+      averagePackSize: packCount > 0 ? parseFloat((totalPackSize / packCount).toFixed(1)) : 0
     };
-    
-    // Calculate density and pack info per lane
-    for (let i = 0; i < numLanes; i++) {
-      const carsInLane = cars.filter(car => car.lane === i);
-      const laneDensity = carsInLane.length / laneLength;
-      const { packCount, totalPackSize: lanePackSize } = identifyPacksInLane(carsInLane, laneLength);
-      
-      point[`lane${i}Density`] = parseFloat(laneDensity.toFixed(2));
-      point[`lane${i}Packs`] = packCount;
-      
-      totalPacks += packCount;
-      totalPackSize += lanePackSize;
-    }
-    
-    point.averagePackSize = totalPacks > 0 ? parseFloat((totalPackSize / totalPacks).toFixed(1)) : 0;
     
     return point;
   }, [cars, elapsedTime, laneLength, numLanes]);
@@ -97,14 +97,12 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
     return data.slice(-50); // Keep last 50 points
   }, [dataHistory, currentPoint]);
 
-  const laneColors = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
-
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Density of Car Packs</CardTitle>
+        <CardTitle className="text-lg">Freeway Traffic Density</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Overall density of car packs (# per mile) and average size of packs ({trafficRule} rules)
+          Overall freeway traffic density and pack formation ({trafficRule} rules)
         </p>
       </CardHeader>
       <CardContent>
@@ -113,22 +111,17 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
             className="h-full"
             config={{
               overallDensity: {
-                label: "Overall Density",
+                label: "Traffic Density",
                 color: "#000"
               },
               averagePackSize: {
                 label: "Average Pack Size",
                 color: "#dc2626"
               },
-              ...Object.fromEntries(
-                Array.from({ length: numLanes }, (_, i) => [
-                  `lane${i}Density`,
-                  {
-                    label: `Lane ${i + 1} Density`,
-                    color: laneColors[i] || "#666"
-                  }
-                ])
-              )
+              totalPacks: {
+                label: "Total Packs",
+                color: "#059669"
+              }
             }}
           >
             <LineChart data={chartData}>
@@ -138,7 +131,7 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
                 label={{ value: "Time (seconds)", position: "insideBottom", offset: -5 }}
               />
               <YAxis
-                label={{ value: "Density (packs/mile)", angle: -90, position: "insideLeft" }}
+                label={{ value: "Density / Pack Metrics", angle: -90, position: "insideLeft" }}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Legend />
@@ -148,7 +141,7 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
                 stroke="#000"
                 strokeWidth={3}
                 dot={false}
-                name="Overall Density"
+                name="Traffic Density (cars/mile)"
               />
               
               <Line
@@ -156,20 +149,18 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
                 stroke="#dc2626"
                 strokeWidth={2}
                 dot={false}
-                name="Avg Pack Size"
+                name="Avg Pack Size (cars)"
                 strokeDasharray="5 5"
               />
               
-              {Array.from({ length: numLanes }, (_, i) => (
-                <Line
-                  key={i}
-                  dataKey={`lane${i}Density`}
-                  stroke={laneColors[i] || "#666"}
-                  strokeWidth={1.5}
-                  dot={false}
-                  name={`Lane ${i + 1}`}
-                />
-              ))}
+              <Line
+                dataKey="totalPacks"
+                stroke="#059669"
+                strokeWidth={2}
+                dot={false}
+                name="Total Packs"
+                strokeDasharray="3 3"
+              />
             </LineChart>
           </ChartContainer>
         </div>

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -119,11 +118,11 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
             <CardHeader>
               <CardTitle>Traffic Distribution Analysis</CardTitle>
               <CardDescription>
-                How vehicles distribute across lanes and utilize available road capacity
+                How vehicles distribute across lanes over time
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="space-y-6">
                 <div className="space-y-4">
                   <PercentageOfCarsByLaneChart 
                     cars={cars}
@@ -137,19 +136,6 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                     Shows lane preference patterns under {trafficRule} traffic rules.
                   </div>
                 </div>
-                
-                <div className="space-y-4">
-                  <LaneUtilizationChart 
-                    cars={cars}
-                    elapsedTime={elapsedTime}
-                    dataHistory={laneUtilizationHistory}
-                    numLanes={params.numLanes}
-                  />
-                  <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
-                    <strong>Utilization Patterns:</strong> Real-time lane utilization showing how effectively 
-                    each lane is being used for traffic flow.
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -160,7 +146,7 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
             <CardHeader>
               <CardTitle>Traffic Behavior & Density</CardTitle>
               <CardDescription>
-                Analysis of vehicle clustering, pack formation, and density patterns
+                Analysis of overall freeway density and pack formation patterns
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -175,8 +161,8 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                     trafficRule={trafficRule}
                   />
                   <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
-                    <strong>Pack Density Analysis:</strong> Shows overall traffic density (black line), 
-                    average pack size (red dashed), and individual lane densities. 
+                    <strong>Freeway Density Analysis:</strong> Shows overall traffic density (black line), 
+                    average pack size (red dashed), and total number of packs (green dashed). 
                     Higher pack density indicates more clustering and potential congestion.
                   </div>
                 </div>
