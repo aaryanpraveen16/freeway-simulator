@@ -6,6 +6,7 @@ import StatsDisplay from "@/components/StatsDisplay";
 import CarStatsCard from "@/components/CarStatsCard";
 import SimulationInfo from "@/components/SimulationInfo";
 import Navbar from "@/components/Navbar";
+import ChartDashboard from "@/components/ChartDashboard";
 import PackFormationChart, { identifyPacks, PackHistoryItem } from "@/components/PackFormationChart";
 import AveragePackLengthChart, { calculateAveragePackLength, PackLengthHistoryItem } from "@/components/AveragePackLengthChart";
 import PackDensityChart, { calculatePackDensityMetrics, PackDensityItem } from "@/components/PackDensityChart";
@@ -586,127 +587,27 @@ const Index = () => {
           </div>
         </div>
         
-        {/* Charts in vertical layout with descriptions */}
-        <div className="mt-8 space-y-12">
-          {/* New Research Charts based on the specification */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="flex gap-4 items-start">
-              <div className="flex-grow">
-                <SpeedByLaneChart 
-                  cars={cars}
-                  elapsedTime={elapsedTime}
-                  dataHistory={speedByLaneHistory}
-                  numLanes={params.numLanes}
-                  trafficRule={trafficRule}
-                />
-              </div>
-              <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
-                <h4 className="font-semibold text-slate-700 mb-1">Speed by Lane</h4>
-                <p>Shows average speed by lane and overall freeway speed. Compares American and European traffic rules across different lane configurations.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4 items-start">
-              <div className="flex-grow">
-                <DensityOfCarPacksChart 
-                  cars={cars}
-                  elapsedTime={elapsedTime}
-                  laneLength={laneLength}
-                  dataHistory={densityOfCarPacksHistory}
-                  numLanes={params.numLanes}
-                  trafficRule={trafficRule}
-                />
-              </div>
-              <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
-                <h4 className="font-semibold text-slate-700 mb-1">Density of Car Packs</h4>
-                <p>Overall density of car packs (# per mile) and average size of packs per mile by lane. Analyzes pack formation patterns.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-4 items-start">
-            <div className="flex-grow">
-              <PercentageOfCarsByLaneChart 
-                cars={cars}
-                elapsedTime={elapsedTime}
-                dataHistory={percentageByLaneHistory}
-                numLanes={params.numLanes}
-                trafficRule={trafficRule}
-              />
-            </div>
-            <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
-              <h4 className="font-semibold text-slate-700 mb-1">Percentage of Cars by Lane</h4>
-              <p>Shows percentage distribution of cars across lanes. Helps analyze lane preference patterns under different traffic rules.</p>
-            </div>
-          </div>
-
-          {/* Research Visualizations */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="flex gap-4 items-start">
-              <div className="flex-grow">
-                <DensityThroughputChart 
-                  cars={cars}
-                  laneLength={laneLength}
-                  elapsedTime={elapsedTime}
-                  dataHistory={densityThroughputHistory}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Lane Utilization Chart */}
-          <div className="flex gap-4 items-start">
-            <div className="flex-grow">
-              <LaneUtilizationChart 
-                cars={cars}
-                elapsedTime={elapsedTime}
-                dataHistory={laneUtilizationHistory}
-                numLanes={params.numLanes}
-              />
-            </div>
-            <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
-              <h4 className="font-semibold text-slate-700 mb-1">Lane Utilization</h4>
-              <p>Shows how cars distribute across different lanes over time. Helps identify lane preferences and traffic patterns.</p>
-            </div>
-          </div>
-
-          {/* Pack Formation Charts - only show if pack formation is enabled */}
-          {showPackFormation && (
-            <>
-              <div className="flex gap-4 items-start">
-                <div className="flex-grow">
-                  <PackFormationChart 
-                    packHistory={packHistory} 
-                    previousRunsData={showPreviousRuns ? getPreviousRunsPackHistories() : []}
-                    onSaveCurrentRun={handleSaveCurrentRun}
-                    onTogglePreviousRuns={savedRuns.length > 0 ? togglePreviousRuns : undefined}
-                    showPreviousRuns={showPreviousRuns}
-                  />
-                </div>
-                <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
-                  <h4 className="font-semibold text-slate-700 mb-1">Pack Formation</h4>
-                  <p>Tracks the number of distinct traffic packs over time. Helps identify when and how traffic jams form or dissipate.</p>
-                </div>
-              </div>
-
-              <div className="flex gap-4 items-start">
-                <div className="flex-grow">
-                  <AveragePackLengthChart 
-                    packLengthHistory={packLengthHistory} 
-                    previousRunsData={showPreviousRuns ? getPreviousRunsPackLengthHistories() : []}
-                    onSaveCurrentRun={handleSaveCurrentRun}
-                    onTogglePreviousRuns={savedRuns.length > 0 ? togglePreviousRuns : undefined}
-                    showPreviousRuns={showPreviousRuns}
-                  />
-                </div>
-                <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
-                  <h4 className="font-semibold text-slate-700 mb-1">Average Pack Length</h4>
-                  <p>Shows the average length of traffic packs over time (in cars). Longer average pack lengths can indicate more severe congestion.</p>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        {/* New Chart Dashboard replacing individual charts */}
+        <ChartDashboard
+          cars={cars}
+          elapsedTime={elapsedTime}
+          laneLength={laneLength}
+          params={params}
+          trafficRule={trafficRule}
+          speedByLaneHistory={speedByLaneHistory}
+          densityOfCarPacksHistory={densityOfCarPacksHistory}
+          percentageByLaneHistory={percentageByLaneHistory}
+          densityThroughputHistory={densityThroughputHistory}
+          laneUtilizationHistory={laneUtilizationHistory}
+          packHistory={packHistory}
+          packLengthHistory={packLengthHistory}
+          showPackFormation={showPackFormation}
+          previousRunsData={showPreviousRuns ? getPreviousRunsPackHistories() : []}
+          previousRunsPackLengthData={showPreviousRuns ? getPreviousRunsPackLengthHistories() : []}
+          onSaveCurrentRun={handleSaveCurrentRun}
+          onTogglePreviousRuns={savedRuns.length > 0 ? togglePreviousRuns : undefined}
+          showPreviousRuns={showPreviousRuns}
+        />
       </div>
     </div>
   );
