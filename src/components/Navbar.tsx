@@ -1,5 +1,6 @@
 
 import React, { useState } from "react";
+import { Link } from "react-router-dom"; // Import Link for navigation
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -38,6 +39,15 @@ const Navbar = () => {
           <Alert variant="default" className="bg-yellow-100 text-yellow-800 border-yellow-300 p-2 text-sm">
             <span className="font-bold">⚠️ Work in Progress:</span> This simulation is still in development and may contain bugs.
           </Alert>
+          <Link to="/analysis">
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-white text-primary hover:bg-gray-100"
+            >
+              Analysis Charts
+            </Button>
+          </Link>
           <Button 
             variant="outline" 
             size="sm"
