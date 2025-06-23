@@ -11,6 +11,9 @@ import AveragePackLengthChart, { calculateAveragePackLength, PackLengthHistoryIt
 import PackDensityChart, { calculatePackDensityMetrics, PackDensityItem } from "@/components/PackDensityChart";
 import DensityThroughputChart from "@/components/DensityThroughputChart";
 import LaneUtilizationChart from "@/components/LaneUtilizationChart";
+import SpeedByLaneChart from "@/components/SpeedByLaneChart";
+import DensityOfCarPacksChart from "@/components/DensityOfCarPacksChart";
+import PercentageOfCarsByLaneChart from "@/components/PercentageOfCarsByLaneChart";
 import { 
   initializeSimulation, 
   updateSimulation, 
@@ -53,6 +56,24 @@ interface PackFormationDataPoint {
 interface LaneUtilizationDataPoint {
   time: number;
   [key: string]: number; // Dynamic lane keys like "lane0", "lane1", etc.
+}
+
+interface SpeedByLaneDataPoint {
+  time: number;
+  overallAvgSpeed: number;
+  [key: string]: number;
+}
+
+interface DensityOfCarPacksDataPoint {
+  time: number;
+  overallDensity: number;
+  averagePackSize: number;
+  [key: string]: number;
+}
+
+interface PercentageOfCarsByLaneDataPoint {
+  time: number;
+  [key: string]: number;
 }
 
 const Index = () => {
@@ -148,6 +169,9 @@ const Index = () => {
     setPackHistory([]);
     setPackLengthHistory([]);
     setPackDensityData([]);
+    setSpeedByLaneHistory([]);
+    setDensityOfCarPacksHistory([]);
+    setPercentageByLaneHistory([]);
     lastPackRecordTimeRef.current = 0;
     lastDensityUpdateTimeRef.current = 0;
   }, [params]);
@@ -171,6 +195,9 @@ const Index = () => {
     setDensityThroughputHistory([]);
     setPackFormationHistory([]);
     setLaneUtilizationHistory([]);
+    setSpeedByLaneHistory([]);
+    setDensityOfCarPacksHistory([]);
+    setPercentageByLaneHistory([]);
     initSimulation();
   }, [initSimulation]);
 
@@ -249,6 +276,75 @@ const Index = () => {
           }];
           if (newHistory.length > 100) {
             return newHistory.slice(-100);
+          }
+          return newHistory;
+        });
+
+        // Record speed by lane data
+        const overallAvgSpeed = avgSpeed;
+        const speedByLanePoint: SpeedByLaneDataPoint = {
+          time: parseFloat(time.toFixed(1)),
+          overallAvgSpeed: parseFloat(overallAvgSpeed.toFixed(1))
+        };
+        
+        for (let i = 0; i < params.numLanes; i++) {
+          const carsInLane = newCars.filter(car => car.lane === i);
+          const laneAvgSpeed = carsInLane.length > 0 
+            ? carsInLane.reduce((sum, car) => sum + car.speed, 0) / carsInLane.length 
+            : 0;
+          speedByLanePoint[`lane${i}`] = parseFloat(laneAvgSpeed.toFixed(1));
+        }
+        
+        setSpeedByLaneHistory(prev => {
+          const newHistory = [...prev, speedByLanePoint];
+          if (newHistory.length > 50) {
+            return newHistory.slice(-50);
+          }
+          return newHistory;
+        });
+
+        // Record density of car packs data
+        let totalPacks = 0;
+        let totalPackSize = 0;
+        const densityPacksPoint: DensityOfCarPacksDataPoint = {
+          time: parseFloat(time.toFixed(1)),
+          overallDensity: parseFloat(density.toFixed(2)),
+          averagePackSize: 0
+        };
+        
+        for (let i = 0; i < params.numLanes; i++) {
+          const carsInLane = newCars.filter(car => car.lane === i);
+          const laneDensity = carsInLane.length / currentLaneLength;
+          densityPacksPoint[`lane${i}Density`] = parseFloat(laneDensity.toFixed(2));
+          totalPacks += 1; // Simplified for now
+        }
+        
+        densityPacksPoint.averagePackSize = packCount > 0 ? parseFloat((newCars.length / packCount).toFixed(1)) : 0;
+        
+        setDensityOfCarPacksHistory(prev => {
+          const newHistory = [...prev, densityPacksPoint];
+          if (newHistory.length > 50) {
+            return newHistory.slice(-50);
+          }
+          return newHistory;
+        });
+
+        // Record percentage by lane data
+        const totalCars = newCars.length;
+        const percentagePoint: PercentageOfCarsByLaneDataPoint = {
+          time: parseFloat(time.toFixed(1))
+        };
+        
+        for (let i = 0; i < params.numLanes; i++) {
+          const carsInLane = newCars.filter(car => car.lane === i).length;
+          const percentage = totalCars > 0 ? (carsInLane / totalCars) * 100 : 0;
+          percentagePoint[`lane${i}`] = parseFloat(percentage.toFixed(1));
+        }
+        
+        setPercentageByLaneHistory(prev => {
+          const newHistory = [...prev, percentagePoint];
+          if (newHistory.length > 50) {
+            return newHistory.slice(-50);
           }
           return newHistory;
         });
@@ -388,6 +484,9 @@ const Index = () => {
   const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
   const [packFormationHistory, setPackFormationHistory] = useState<PackFormationDataPoint[]>([]);
   const [laneUtilizationHistory, setLaneUtilizationHistory] = useState<LaneUtilizationDataPoint[]>([]);
+  const [speedByLaneHistory, setSpeedByLaneHistory] = useState<SpeedByLaneDataPoint[]>([]);
+  const [densityOfCarPacksHistory, setDensityOfCarPacksHistory] = useState<DensityOfCarPacksDataPoint[]>([]);
+  const [percentageByLaneHistory, setPercentageByLaneHistory] = useState<PercentageOfCarsByLaneDataPoint[]>([]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -489,6 +588,58 @@ const Index = () => {
         
         {/* Charts in vertical layout with descriptions */}
         <div className="mt-8 space-y-12">
+          {/* New Research Charts based on the specification */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="flex gap-4 items-start">
+              <div className="flex-grow">
+                <SpeedByLaneChart 
+                  cars={cars}
+                  elapsedTime={elapsedTime}
+                  dataHistory={speedByLaneHistory}
+                  numLanes={params.numLanes}
+                  trafficRule={trafficRule}
+                />
+              </div>
+              <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
+                <h4 className="font-semibold text-slate-700 mb-1">Speed by Lane</h4>
+                <p>Shows average speed by lane and overall freeway speed. Compares American and European traffic rules across different lane configurations.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4 items-start">
+              <div className="flex-grow">
+                <DensityOfCarPacksChart 
+                  cars={cars}
+                  elapsedTime={elapsedTime}
+                  laneLength={laneLength}
+                  dataHistory={densityOfCarPacksHistory}
+                  numLanes={params.numLanes}
+                  trafficRule={trafficRule}
+                />
+              </div>
+              <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
+                <h4 className="font-semibold text-slate-700 mb-1">Density of Car Packs</h4>
+                <p>Overall density of car packs (# per mile) and average size of packs per mile by lane. Analyzes pack formation patterns.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-4 items-start">
+            <div className="flex-grow">
+              <PercentageOfCarsByLaneChart 
+                cars={cars}
+                elapsedTime={elapsedTime}
+                dataHistory={percentageByLaneHistory}
+                numLanes={params.numLanes}
+                trafficRule={trafficRule}
+              />
+            </div>
+            <div className="w-1/4 p-4 bg-slate-50 rounded-lg shadow-sm text-sm text-slate-600">
+              <h4 className="font-semibold text-slate-700 mb-1">Percentage of Cars by Lane</h4>
+              <p>Shows percentage distribution of cars across lanes. Helps analyze lane preference patterns under different traffic rules.</p>
+            </div>
+          </div>
+
           {/* Research Visualizations */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="flex gap-4 items-start">
