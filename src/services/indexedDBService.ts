@@ -1,33 +1,11 @@
+import { SimulationParams } from "@/utils/trafficSimulation";
 
 export interface SavedSimulation {
   id: string;
   name: string;
   timestamp: number;
   simulationNumber: number;
-  params: {
-    numLanes: number;
-    numCars: number;
-    maxSpeed: number;
-    trafficRule: 'american' | 'european';
-    density: number;
-    trafficDensity: number;
-    vehicleTypeDensity: number;
-    dt: number;
-    aMax: number;
-    bMax: number;
-    vMax: number;
-    s0: number;
-    T: number;
-    laneChangeThreshold: number;
-    aggressiveness: number;
-    reactionTime: number;
-    laneChangeFrequency: number;
-    maxLaneChangesPerSecond: number;
-    minGap: number;
-    maxGap: number;
-    safetyFactor: number;
-    exitProbability: number;
-  };
+  params: SimulationParams;
   chartData: {
     speedByLaneHistory: any[];
     densityOfCarPacksHistory: any[];

@@ -93,7 +93,15 @@ const Index = () => {
   const [trafficRule, setTrafficRule] = useState<'american' | 'european'>('american');
   const [stoppedCars, setStoppedCars] = useState<Set<number>>(new Set());
   const [showPackFormation, setShowPackFormation] = useState<boolean>(true);
-  
+
+  // Chart history state variables - moved here to be declared before use
+  const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
+  const [packFormationHistory, setPackFormationHistory] = useState<PackFormationDataPoint[]>([]);
+  const [laneUtilizationHistory, setLaneUtilizationHistory] = useState<LaneUtilizationDataPoint[]>([]);
+  const [speedByLaneHistory, setSpeedByLaneHistory] = useState<SpeedByLaneDataPoint[]>([]);
+  const [densityOfCarPacksHistory, setDensityOfCarPacksHistory] = useState<DensityOfCarPacksDataPoint[]>([]);
+  const [percentageByLaneHistory, setPercentageByLaneHistory] = useState<PercentageOfCarsByLaneDataPoint[]>([]);
+
   const animationFrameRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
   const lastPackRecordTimeRef = useRef<number>(0);
@@ -539,13 +547,6 @@ const Index = () => {
   const getPreviousRunsPackLengthHistories = () => {
     return savedRuns.map(run => run.packLengthHistory);
   };
-
-  const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
-  const [packFormationHistory, setPackFormationHistory] = useState<PackFormationDataPoint[]>([]);
-  const [laneUtilizationHistory, setLaneUtilizationHistory] = useState<LaneUtilizationDataPoint[]>([]);
-  const [speedByLaneHistory, setSpeedByLaneHistory] = useState<SpeedByLaneDataPoint[]>([]);
-  const [densityOfCarPacksHistory, setDensityOfCarPacksHistory] = useState<DensityOfCarPacksDataPoint[]>([]);
-  const [percentageByLaneHistory, setPercentageByLaneHistory] = useState<PercentageOfCarsByLaneDataPoint[]>([]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
