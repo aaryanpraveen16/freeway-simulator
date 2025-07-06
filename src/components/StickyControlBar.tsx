@@ -4,7 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { Pause, Play, RotateCcw, Save, Archive } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface StickyControlBarProps {
   isRunning: boolean;
@@ -13,6 +14,8 @@ interface StickyControlBarProps {
   setSimulationSpeed: (speed: number) => void;
   showPackFormation: boolean;
   onTogglePackFormation: (show: boolean) => void;
+  onSaveSimulation?: () => void;
+  canSave?: boolean;
 }
 
 const StickyControlBar: React.FC<StickyControlBarProps> = ({
@@ -22,6 +25,8 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
   setSimulationSpeed,
   showPackFormation,
   onTogglePackFormation,
+  onSaveSimulation,
+  canSave = false,
 }) => {
   return (
     <div className="sticky top-0 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm max-w-2xl">
@@ -90,6 +95,27 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
               >
                 4x
               </Button>
+            </div>
+
+            <div className="flex gap-2">
+              {onSaveSimulation && (
+                <Button
+                  onClick={onSaveSimulation}
+                  variant="outline"
+                  className="flex-1 flex items-center gap-2"
+                  disabled={!canSave}
+                >
+                  <Save size={16} />
+                  Save Simulation
+                </Button>
+              )}
+              
+              <Link to="/saved-simulations" className="flex-1">
+                <Button variant="outline" className="w-full flex items-center gap-2">
+                  <Archive size={16} />
+                  View Saved
+                </Button>
+              </Link>
             </div>
 
             <div className="flex items-center justify-center gap-3 pt-2 border-t">
