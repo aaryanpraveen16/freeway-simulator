@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -181,6 +180,16 @@ const SavedSimulations: React.FC = () => {
       );
     }
 
+    // Create chart config properly
+    const chartConfig: Record<string, any> = {};
+    savedSimulations.forEach(sim => {
+      const key = `sim${sim.simulationNumber}_overall`;
+      chartConfig[key] = {
+        label: `Simulation #${sim.simulationNumber}`,
+        color: colors[sim.simulationNumber]
+      };
+    });
+
     return (
       <Card>
         <CardHeader>
@@ -193,15 +202,7 @@ const SavedSimulations: React.FC = () => {
           <div className="h-[500px]">
             <ChartContainer
               className="h-full"
-              config={Object.fromEntries(
-                savedSimulations.map(sim => [
-                  `sim${sim.simulationNumber}_overall`,
-                  {
-                    label: `Simulation #${sim.simulationNumber}`,
-                    color: colors[sim.simulationNumber]
-                  }
-                ])
-              )}
+              config={chartConfig}
             >
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -253,6 +254,16 @@ const SavedSimulations: React.FC = () => {
       );
     }
 
+    // Create chart config properly
+    const chartConfig: Record<string, any> = {};
+    savedSimulations.forEach(sim => {
+      const key = `sim${sim.simulationNumber}_density`;
+      chartConfig[key] = {
+        label: `Simulation #${sim.simulationNumber}`,
+        color: colors[sim.simulationNumber]
+      };
+    });
+
     return (
       <Card>
         <CardHeader>
@@ -265,15 +276,7 @@ const SavedSimulations: React.FC = () => {
           <div className="h-[500px]">
             <ChartContainer
               className="h-full"
-              config={Object.fromEntries(
-                savedSimulations.map(sim => [
-                  `sim${sim.simulationNumber}_density`,
-                  {
-                    label: `Simulation #${sim.simulationNumber}`,
-                    color: colors[sim.simulationNumber]
-                  }
-                ])
-              )}
+              config={chartConfig}
             >
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -325,6 +328,18 @@ const SavedSimulations: React.FC = () => {
       );
     }
 
+    // Create chart config properly
+    const chartConfig: Record<string, any> = {};
+    savedSimulations.forEach(sim => {
+      for (let i = 0; i < (sim.params.numLanes || 2); i++) {
+        const key = `sim${sim.simulationNumber}_lane${i}`;
+        chartConfig[key] = {
+          label: `Sim #${sim.simulationNumber} Lane ${i + 1}`,
+          color: colors[sim.simulationNumber]
+        };
+      }
+    });
+
     return (
       <Card>
         <CardHeader>
@@ -337,17 +352,7 @@ const SavedSimulations: React.FC = () => {
           <div className="h-[500px]">
             <ChartContainer
               className="h-full"
-              config={Object.fromEntries(
-                savedSimulations.flatMap(sim => 
-                  Array.from({ length: sim.params.numLanes || 2 }, (_, i) => [
-                    `sim${sim.simulationNumber}_lane${i}`,
-                    {
-                      label: `Sim #${sim.simulationNumber} Lane ${i + 1}`,
-                      color: colors[sim.simulationNumber]
-                    }
-                  ])
-                ).reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {})
-              )}
+              config={chartConfig}
             >
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
