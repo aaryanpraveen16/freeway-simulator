@@ -22,6 +22,7 @@ import {
   type SimulationParams,
   type Car
 } from "@/utils/trafficSimulation";
+import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
 import { useToast } from "@/hooks/use-toast";
 
 interface SimulationEvent {
@@ -453,6 +454,63 @@ const Index = () => {
     animationFrameRef.current = requestAnimationFrame(animationLoop);
   }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents, simulationSpeed, trafficRule, stoppedCars]);
 
+  const handleSaveSimulation = useCallback(async () => {
+    if (elapsedTime === 0 || cars.length === 0) {
+      toast({
+        title: "Nothing to Save",
+        description: "Run the simulation first to generate data.",
+        variant: "default",
+      });
+      return;
+    }
+
+    try {
+      const simulationNumber = await indexedDBService.getNextSimulationNumber();
+      const speeds = cars.map(car => car.speed);
+      const avgSpeed = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
+      const maxSpeed = Math.max(...speeds);
+      const minSpeed = Math.min(...speeds);
+
+      const savedSimulation: SavedSimulation = {
+        id: `simulation-${Date.now()}`,
+        name: `Traffic Simulation #${simulationNumber}`,
+        timestamp: Date.now(),
+        simulationNumber,
+        params: { ...params },
+        chartData: {
+          speedByLaneHistory: [...speedByLaneHistory],
+          densityOfCarPacksHistory: [...densityOfCarPacksHistory],
+          percentageByLaneHistory: [...percentageByLaneHistory],
+          densityThroughputHistory: [...densityThroughputHistory],
+          packHistory: [...packHistory],
+          packLengthHistory: [...packLengthHistory],
+        },
+        duration: elapsedTime,
+        finalStats: {
+          totalCars: cars.length,
+          averageSpeed: parseFloat(avgSpeed.toFixed(1)),
+          maxSpeed: parseFloat(maxSpeed.toFixed(1)),
+          minSpeed: parseFloat(minSpeed.toFixed(1)),
+        },
+      };
+
+      await indexedDBService.saveSimulation(savedSimulation);
+      
+      toast({
+        title: "Simulation Saved",
+        description: `Simulation #${simulationNumber} has been saved successfully.`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error saving simulation:', error);
+      toast({
+        title: "Save Failed",
+        description: "Could not save the simulation. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [elapsedTime, cars, params, speedByLaneHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast]);
+
   useEffect(() => {
     initSimulation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -501,6 +559,8 @@ const Index = () => {
         setSimulationSpeed={setSimulationSpeed}
         showPackFormation={showPackFormation}
         onTogglePackFormation={setShowPackFormation}
+        onSaveSimulation={handleSaveSimulation}
+        canSave={elapsedTime > 0 && cars.length > 0}
       />
       
       {/* Color Legend - moved down to avoid overlap */}
