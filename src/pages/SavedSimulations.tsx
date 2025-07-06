@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,20 @@ const SavedSimulations: React.FC = () => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}m ${secs}s`;
+  };
+
+  const calculateNumCars = (simulation: SavedSimulation) => {
+    // Calculate total cars based on traffic density and freeway length
+    const numLanes = simulation.params.numLanes || 2;
+    const freewayLength = simulation.params.freewayLength || 10;
+    let totalCars = 0;
+    
+    for (let lane = 0; lane < numLanes; lane++) {
+      const densityForLane = simulation.params.trafficDensity[lane] || simulation.params.trafficDensity[0] || 3;
+      totalCars += Math.round(densityForLane * freewayLength);
+    }
+    
+    return totalCars;
   };
 
   const generateComparisonData = (chartType: 'speed' | 'density' | 'percentage') => {
@@ -258,7 +273,7 @@ const SavedSimulations: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <Users size={16} className="text-blue-500" />
-                        <span>{simulation.params.numCars} cars</span>
+                        <span>{calculateNumCars(simulation)} cars</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 bg-gray-400 rounded"></div>
@@ -276,7 +291,7 @@ const SavedSimulations: React.FC = () => {
 
                     <div className="flex items-center justify-between pt-2 border-t">
                       <Badge variant="outline" className="capitalize">
-                        {simulation.params.trafficRule}
+                        {simulation.trafficRule}
                       </Badge>
                       <div className="flex gap-2">
                         <Dialog>
@@ -301,7 +316,7 @@ const SavedSimulations: React.FC = () => {
                                 elapsedTime={simulation.duration}
                                 laneLength={1000}
                                 params={simulation.params}
-                                trafficRule={simulation.params.trafficRule}
+                                trafficRule={simulation.trafficRule}
                                 speedByLaneHistory={simulation.chartData.speedByLaneHistory}
                                 densityOfCarPacksHistory={simulation.chartData.densityOfCarPacksHistory}
                                 percentageByLaneHistory={simulation.chartData.percentageByLaneHistory}
