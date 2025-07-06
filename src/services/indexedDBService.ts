@@ -1,3 +1,4 @@
+
 import { SimulationParams } from "@/utils/trafficSimulation";
 
 export interface SavedSimulation {
@@ -6,6 +7,7 @@ export interface SavedSimulation {
   timestamp: number;
   simulationNumber: number;
   params: SimulationParams;
+  trafficRule: "american" | "european";
   chartData: {
     speedByLaneHistory: any[];
     densityOfCarPacksHistory: any[];
