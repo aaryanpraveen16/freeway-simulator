@@ -485,6 +485,7 @@ const Index = () => {
         timestamp: Date.now(),
         simulationNumber,
         params: { ...params },
+        trafficRule: trafficRule,
         chartData: {
           speedByLaneHistory: [...speedByLaneHistory],
           densityOfCarPacksHistory: [...densityOfCarPacksHistory],
@@ -517,7 +518,7 @@ const Index = () => {
         variant: "destructive",
       });
     }
-  }, [elapsedTime, cars, params, speedByLaneHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast]);
+  }, [elapsedTime, cars, params, trafficRule, speedByLaneHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast]);
 
   useEffect(() => {
     initSimulation();
