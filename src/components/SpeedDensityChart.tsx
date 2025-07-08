@@ -1,3 +1,4 @@
+
 import React, { useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,26 +9,28 @@ import { Car } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
-interface DensityThroughputDataPoint {
+interface SpeedDensityDataPoint {
   density: number;
-  throughput: number;
+  speed: number;
   time: number;
 }
 
-interface DensityThroughputChartProps {
+interface SpeedDensityChartProps {
   cars: Car[];
-  laneLength: number;
   elapsedTime: number;
-  dataHistory: DensityThroughputDataPoint[];
+  dataHistory: SpeedDensityDataPoint[];
   numLanes: number;
+  trafficRule: 'american' | 'european';
+  laneLength: number;
 }
 
-const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
+const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
   cars,
-  laneLength,
   elapsedTime,
   dataHistory,
-  numLanes
+  numLanes,
+  trafficRule,
+  laneLength
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -36,17 +39,16 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
     if (cars.length === 0) return null;
     
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
-    // Fix density calculation: cars per mile per lane (normalized density)
+    // Calculate density properly: total cars divided by total road capacity
     const totalRoadLength = laneLength * numLanes;
     const density = cars.length / totalRoadLength; // cars per mile per lane
-    const throughput = avgSpeed * density * numLanes; // total throughput across all lanes
     
     return {
       density: parseFloat(density.toFixed(3)),
-      throughput: parseFloat(throughput.toFixed(0)),
+      speed: parseFloat(avgSpeed.toFixed(1)),
       time: parseFloat(elapsedTime.toFixed(1))
     };
-  }, [cars, laneLength, elapsedTime, numLanes]);
+  }, [cars, elapsedTime, laneLength, numLanes]);
 
   const chartData = useMemo(() => {
     const historicalData = dataHistory.map(point => ({
@@ -61,14 +63,14 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
     return historicalData;
   }, [dataHistory, currentPoint]);
 
-  // Calculate stabilized values for density and throughput
+  // Calculate stabilized values
   const stabilizedValues = useMemo(() => {
     const densityData = extractDataValues(dataHistory, 'density');
-    const throughputData = extractDataValues(dataHistory, 'throughput');
+    const speedData = extractDataValues(dataHistory, 'speed');
     
     return {
       density: calculateStabilizedValue(densityData),
-      throughput: calculateStabilizedValue(throughputData)
+      speed: calculateStabilizedValue(speedData)
     };
   }, [dataHistory]);
 
@@ -84,14 +86,6 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
       const clonedSvg = svgElement.cloneNode(true) as SVGElement;
       clonedSvg.setAttribute("style", "background-color: white;");
       
-      const allPaths = clonedSvg.querySelectorAll("path");
-      allPaths.forEach(path => {
-        const currentWidth = path.getAttribute("stroke-width") || "1";
-        if (parseFloat(currentWidth) <= 1) {
-          path.setAttribute("stroke-width", "2");
-        }
-      });
-      
       const allCircles = clonedSvg.querySelectorAll("circle");
       allCircles.forEach(circle => {
         circle.setAttribute("r", "4");
@@ -103,14 +97,14 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
       
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(svgBlob);
-      downloadLink.download = "density-throughput-chart.svg";
+      downloadLink.download = "speed-density-chart.svg";
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
       
       toast({
         title: "Chart exported",
-        description: "Density-throughput chart has been exported successfully",
+        description: "Speed-density chart has been exported successfully",
         duration: 3000,
       });
     } catch (error) {
@@ -128,7 +122,7 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
     <Card>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-lg">Density-Throughput Fundamental Diagram</CardTitle>
+          <CardTitle className="text-lg">Speed-Density Relationship</CardTitle>
           <Button 
             variant="outline" 
             size="sm" 
@@ -140,16 +134,16 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          Classic traffic engineering relationship between density and throughput
+          Fundamental relationship between traffic density and average speed ({trafficRule} rules)
         </p>
       </CardHeader>
       <CardContent>
-        <div className="h-[400px]" ref={chartRef}>
+        <div className="h-[300px]" ref={chartRef}>
           <ChartContainer
             className="h-full"
             config={{
-              throughput: {
-                label: "Throughput (cars/hr)",
+              speed: {
+                label: "Speed (mph)",
                 color: "hsl(var(--primary))"
               },
               current: {
@@ -179,19 +173,19 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
                 domain={['dataMin - 0.01', 'dataMax + 0.01']}
               />
               <YAxis
-                dataKey="throughput"
-                name="Throughput"
+                dataKey="speed"
+                name="Speed"
                 label={{ 
-                  value: "Throughput (cars/hr)", 
+                  value: "Average Speed (mph)", 
                   angle: -90, 
                   position: "insideLeft" 
                 }}
-                domain={['dataMin - 100', 'dataMax + 100']}
+                domain={['dataMin - 5', 'dataMax + 5']}
               />
               <Tooltip 
                 formatter={(value, name) => [
                   `${value}`, 
-                  name === 'throughput' ? 'Throughput (cars/hr)' : name
+                  name === 'speed' ? 'Speed (mph)' : name
                 ]}
                 labelFormatter={(label, payload) => {
                   if (payload && payload[0]) {
@@ -229,26 +223,26 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Throughput:</span>
-              <span className={`font-mono ${stabilizedValues.throughput?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.throughput?.value?.toFixed(0) || 'N/A'} cars/hr
-                {stabilizedValues.throughput?.isStabilized && ' ✓'}
+              <span>Speed:</span>
+              <span className={`font-mono ${stabilizedValues.speed?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
+                {stabilizedValues.speed?.value?.toFixed(1) || 'N/A'} mph
+                {stabilizedValues.speed?.isStabilized && ' ✓'}
               </span>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            ✓ indicates stabilized operating conditions. This shows the steady-state flow characteristics.
+            ✓ indicates stabilized values. Higher density typically leads to lower speeds.
           </p>
         </div>
         
         <div className="mt-4 text-xs text-muted-foreground">
           <p>• Blue dots: Historical data points</p>
           <p>• Red dot: Current simulation state</p>
-          <p>• Optimal throughput typically occurs at moderate densities</p>
+          <p>• Typical pattern: Speed decreases as density increases (congestion)</p>
         </div>
       </CardContent>
     </Card>
   );
 };
 
-export default DensityThroughputChart;
+export default SpeedDensityChart;

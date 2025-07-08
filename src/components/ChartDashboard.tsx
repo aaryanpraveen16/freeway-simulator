@@ -1,8 +1,9 @@
+
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import SpeedByLaneChart from "./SpeedByLaneChart";
+import SpeedDensityChart from "./SpeedDensityChart";
 import DensityOfCarPacksChart from "./DensityOfCarPacksChart";
 import PercentageOfCarsByLaneChart from "./PercentageOfCarsByLaneChart";
 import DensityThroughputChart from "./DensityThroughputChart";
@@ -21,7 +22,7 @@ interface ChartDashboardProps {
   trafficRule: 'american' | 'european';
   
   // Chart-specific data histories
-  speedByLaneHistory: any[];
+  speedDensityHistory: any[];
   densityOfCarPacksHistory: any[];
   percentageByLaneHistory: any[];
   densityThroughputHistory: any[];
@@ -44,7 +45,7 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
   laneLength,
   params,
   trafficRule,
-  speedByLaneHistory,
+  speedDensityHistory,
   densityOfCarPacksHistory,
   percentageByLaneHistory,
   densityThroughputHistory,
@@ -94,16 +95,17 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
             <CardContent>
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <SpeedByLaneChart 
+                  <SpeedDensityChart 
                     cars={cars}
                     elapsedTime={elapsedTime}
-                    dataHistory={speedByLaneHistory}
+                    dataHistory={speedDensityHistory}
                     numLanes={params.numLanes}
                     trafficRule={trafficRule}
+                    laneLength={laneLength}
                   />
                   <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
-                    <strong>Speed Analysis:</strong> Tracks average speeds by lane and overall freeway speed. 
-                    Black line shows overall average, colored lines show individual lane performance.
+                    <strong>Speed-Density Relationship:</strong> Shows the fundamental traffic engineering relationship. 
+                    As density increases, speed typically decreases due to congestion effects.
                   </div>
                 </div>
                 
@@ -113,6 +115,7 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                     laneLength={laneLength}
                     elapsedTime={elapsedTime}
                     dataHistory={densityThroughputHistory}
+                    numLanes={params.numLanes}
                   />
                   <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
                     <strong>Flow Efficiency:</strong> Relationship between traffic density and throughput. 
