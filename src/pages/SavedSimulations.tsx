@@ -499,7 +499,7 @@ const SavedSimulations: React.FC = () => {
                                 laneLength={1000}
                                 params={simulation.params}
                                 trafficRule={simulation.trafficRule}
-                                speedByLaneHistory={simulation.chartData.speedByLaneHistory}
+                                speedDensityHistory={simulation.chartData.speedByLaneHistory}
                                 densityOfCarPacksHistory={simulation.chartData.densityOfCarPacksHistory}
                                 percentageByLaneHistory={simulation.chartData.percentageByLaneHistory}
                                 densityThroughputHistory={simulation.chartData.densityThroughputHistory}

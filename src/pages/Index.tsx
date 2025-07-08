@@ -98,7 +98,7 @@ const Index = () => {
   const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
   const [packFormationHistory, setPackFormationHistory] = useState<PackFormationDataPoint[]>([]);
   const [laneUtilizationHistory, setLaneUtilizationHistory] = useState<LaneUtilizationDataPoint[]>([]);
-  const [speedByLaneHistory, setSpeedByLaneHistory] = useState<SpeedByLaneDataPoint[]>([]);
+  const [speedDensityHistory, setSpeedDensityHistory] = useState<any[]>([]);
   const [densityOfCarPacksHistory, setDensityOfCarPacksHistory] = useState<DensityOfCarPacksDataPoint[]>([]);
   const [percentageByLaneHistory, setPercentageByLaneHistory] = useState<PercentageOfCarsByLaneDataPoint[]>([]);
 
@@ -179,7 +179,7 @@ const Index = () => {
     setPackHistory([]);
     setPackLengthHistory([]);
     setPackDensityData([]);
-    setSpeedByLaneHistory([]);
+    setSpeedDensityHistory([]);
     setDensityOfCarPacksHistory([]);
     setPercentageByLaneHistory([]);
     lastPackRecordTimeRef.current = 0;
@@ -205,7 +205,7 @@ const Index = () => {
     setDensityThroughputHistory([]);
     setPackFormationHistory([]);
     setLaneUtilizationHistory([]);
-    setSpeedByLaneHistory([]);
+    setSpeedDensityHistory([]);
     setDensityOfCarPacksHistory([]);
     setPercentageByLaneHistory([]);
     initSimulation();
@@ -257,13 +257,26 @@ const Index = () => {
       // Record density-throughput data
       if (newCars.length > 0) {
         const avgSpeed = newCars.reduce((sum, car) => sum + car.speed, 0) / newCars.length;
-        const density = newCars.length / currentLaneLength;
+        const density = newCars.length / (currentLaneLength * params.numLanes);
         const throughput = avgSpeed * density;
         
         setDensityThroughputHistory(prev => {
           const newHistory = [...prev, {
-            density: parseFloat(density.toFixed(2)),
+            density: parseFloat(density.toFixed(3)),
             throughput: parseFloat(throughput.toFixed(0)),
+            time: parseFloat(time.toFixed(1))
+          }];
+          if (newHistory.length > 100) {
+            return newHistory.slice(-100);
+          }
+          return newHistory;
+        });
+
+        // Record speed-density data
+        setSpeedDensityHistory(prev => {
+          const newHistory = [...prev, {
+            density: parseFloat(density.toFixed(3)),
+            speed: parseFloat(avgSpeed.toFixed(1)),
             time: parseFloat(time.toFixed(1))
           }];
           if (newHistory.length > 100) {
@@ -286,29 +299,6 @@ const Index = () => {
           }];
           if (newHistory.length > 100) {
             return newHistory.slice(-100);
-          }
-          return newHistory;
-        });
-
-        // Record speed by lane data
-        const overallAvgSpeed = avgSpeed;
-        const speedByLanePoint: SpeedByLaneDataPoint = {
-          time: parseFloat(time.toFixed(1)),
-          overallAvgSpeed: parseFloat(overallAvgSpeed.toFixed(1))
-        };
-        
-        for (let i = 0; i < params.numLanes; i++) {
-          const carsInLane = newCars.filter(car => car.lane === i);
-          const laneAvgSpeed = carsInLane.length > 0 
-            ? carsInLane.reduce((sum, car) => sum + car.speed, 0) / carsInLane.length 
-            : 0;
-          speedByLanePoint[`lane${i}`] = parseFloat(laneAvgSpeed.toFixed(1));
-        }
-        
-        setSpeedByLaneHistory(prev => {
-          const newHistory = [...prev, speedByLanePoint];
-          if (newHistory.length > 50) {
-            return newHistory.slice(-50);
           }
           return newHistory;
         });
@@ -487,7 +477,7 @@ const Index = () => {
         params: { ...params },
         trafficRule: trafficRule,
         chartData: {
-          speedByLaneHistory: [...speedByLaneHistory],
+          speedByLaneHistory: [...speedDensityHistory],
           densityOfCarPacksHistory: [...densityOfCarPacksHistory],
           percentageByLaneHistory: [...percentageByLaneHistory],
           densityThroughputHistory: [...densityThroughputHistory],
@@ -518,7 +508,7 @@ const Index = () => {
         variant: "destructive",
       });
     }
-  }, [elapsedTime, cars, params, trafficRule, speedByLaneHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast]);
+  }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast]);
 
   useEffect(() => {
     initSimulation();
@@ -656,7 +646,7 @@ const Index = () => {
           laneLength={laneLength}
           params={params}
           trafficRule={trafficRule}
-          speedByLaneHistory={speedByLaneHistory}
+          speedDensityHistory={speedDensityHistory}
           densityOfCarPacksHistory={densityOfCarPacksHistory}
           percentageByLaneHistory={percentageByLaneHistory}
           densityThroughputHistory={densityThroughputHistory}
