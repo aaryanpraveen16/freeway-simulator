@@ -6,6 +6,7 @@ import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Responsive
 import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
+import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
 interface DensityThroughputDataPoint {
   density: number;
@@ -55,6 +56,17 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
     
     return historicalData;
   }, [dataHistory, currentPoint]);
+
+  // Calculate stabilized values for density and throughput
+  const stabilizedValues = useMemo(() => {
+    const densityData = extractDataValues(dataHistory, 'density');
+    const throughputData = extractDataValues(dataHistory, 'throughput');
+    
+    return {
+      density: calculateStabilizedValue(densityData),
+      throughput: calculateStabilizedValue(throughputData)
+    };
+  }, [dataHistory]);
 
   const handleExportImage = () => {
     if (!chartRef.current) return;
@@ -200,6 +212,31 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
             </ScatterChart>
           </ChartContainer>
         </div>
+        
+        {/* Stabilized Values Display */}
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+          <h4 className="text-sm font-semibold mb-2">Stabilized Operating Point:</h4>
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="flex justify-between">
+              <span>Density:</span>
+              <span className={`font-mono ${stabilizedValues.density?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
+                {stabilizedValues.density?.value?.toFixed(2) || 'N/A'} cars/mile
+                {stabilizedValues.density?.isStabilized && ' ✓'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Throughput:</span>
+              <span className={`font-mono ${stabilizedValues.throughput?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
+                {stabilizedValues.throughput?.value?.toFixed(0) || 'N/A'} cars/hr/mi
+                {stabilizedValues.throughput?.isStabilized && ' ✓'}
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            ✓ indicates stabilized operating conditions. This shows the steady-state flow characteristics.
+          </p>
+        </div>
+        
         <div className="mt-4 text-xs text-muted-foreground">
           <p>• Blue dots: Historical data points</p>
           <p>• Red dot: Current simulation state</p>
