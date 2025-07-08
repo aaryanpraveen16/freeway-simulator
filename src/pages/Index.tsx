@@ -561,6 +561,8 @@ const Index = () => {
         setSimulationSpeed={setSimulationSpeed}
         showPackFormation={showPackFormation}
         onTogglePackFormation={setShowPackFormation}
+        onSaveSimulation={handleSaveSimulation}
+        canSave={elapsedTime > 0 && cars.length > 0}
       />
       
       {/* Color Legend - moved down to avoid overlap */}
