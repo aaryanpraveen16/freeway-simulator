@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -189,7 +188,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onChange={(e) => handleOverallDensityChange(e.target.value)}
                     className="flex-1"
                     min="0"
-                    max="20"
+                    max="100"
                     step="0.5"
                   />
                   <span className="text-xs text-gray-500">cars/mile</span>
