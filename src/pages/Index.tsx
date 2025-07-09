@@ -623,15 +623,9 @@ const Index = () => {
           <div>
             <ControlPanel
               params={params}
-              onParamsChange={handleUpdateParams}
-              onReset={handleReset}
-              isRunning={isRunning}
+              onUpdateParams={handleUpdateParams}
               trafficRule={trafficRule}
               onTrafficRuleChange={setTrafficRule}
-              simulationSpeed={simulationSpeed}
-              onSimulationSpeedChange={setSimulationSpeed}
-              showPreviousRuns={showPreviousRuns}
-              onShowPreviousRunsChange={setShowPreviousRuns}
             />
           </div>
         </div>
