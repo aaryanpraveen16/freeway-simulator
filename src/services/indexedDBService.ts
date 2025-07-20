@@ -22,6 +22,7 @@ export interface SavedSimulation {
     averageSpeed: number;
     maxSpeed: number;
     minSpeed: number;
+    laneChanges: number;
   };
 }
 

@@ -497,6 +497,7 @@ const Index = () => {
           averageSpeed: parseFloat(avgSpeed.toFixed(1)),
           maxSpeed: parseFloat(maxSpeed.toFixed(1)),
           minSpeed: parseFloat(minSpeed.toFixed(1)),
+          laneChanges: laneChanges,
         },
       };
 

@@ -33,12 +33,17 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
     const throughputPerLane = avgSpeed * parseFloat(density);
     const totalThroughput = throughputPerLane * (cars.length > 0 ? Math.max(...cars.map(c => c.lane)) + 1 : 1);
     
+    // Format elapsed time as "X.X sec (Y min)"
+    const elapsedSeconds = parseFloat(elapsedTime.toFixed(1));
+    const elapsedMinutes = (elapsedSeconds / 60).toFixed(1);
+    const formattedElapsedTime = `${elapsedSeconds} sec (${elapsedMinutes} min)`;
+    
     return {
       avgSpeed: Math.round(avgSpeed),
       minSpeed: Math.round(minSpeed),
       maxSpeed: Math.round(maxSpeed),
       density,
-      elapsedTime: elapsedTime.toFixed(1),
+      elapsedTime: formattedElapsedTime,
       throughput: Math.round(totalThroughput),
     };
   }, [cars, laneLength, elapsedTime]);
@@ -77,7 +82,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
           
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Elapsed Time</p>
-            <p className="text-lg font-semibold">{stats.elapsedTime} sec</p>
+            <p className="text-lg font-semibold">{stats.elapsedTime}</p>
           </div>
           
           <div className="space-y-1">
