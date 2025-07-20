@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Trash2, Eye, Calendar, Clock, Users, Gauge, BarChart3 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Trash2, Eye, Calendar, Clock, Users, Gauge, BarChart3, CheckSquare, Square, Edit2 } from "lucide-react";
 import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
 import { useToast } from "@/hooks/use-toast";
 import ChartDashboard from "@/components/ChartDashboard";
@@ -17,6 +18,7 @@ const SavedSimulations: React.FC = () => {
   const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSimulation, setSelectedSimulation] = useState<SavedSimulation | null>(null);
+  const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,6 +85,26 @@ const SavedSimulations: React.FC = () => {
     }
   };
 
+  const handleComparisonSelection = (simulationId: string, checked: boolean) => {
+    setSelectedForComparison(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(simulationId);
+      } else {
+        newSet.delete(simulationId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllForComparison = () => {
+    setSelectedForComparison(new Set(savedSimulations.map(sim => sim.id)));
+  };
+
+  const deselectAllForComparison = () => {
+    setSelectedForComparison(new Set());
+  };
+
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
   };
@@ -108,11 +130,14 @@ const SavedSimulations: React.FC = () => {
   };
 
   const generateOverlappedComparisonData = () => {
-    if (savedSimulations.length === 0) return { speed: [], density: [], percentage: [] };
+    if (savedSimulations.length === 0 || selectedForComparison.size === 0) return { speed: [], density: [], percentage: [] };
 
-    // Get all unique time points across all simulations
+    // Filter simulations based on selection
+    const selectedSimulations = savedSimulations.filter(sim => selectedForComparison.has(sim.id));
+
+    // Get all unique time points across selected simulations
     const allTimePoints = new Set<number>();
-    savedSimulations.forEach(sim => {
+    selectedSimulations.forEach(sim => {
       sim.chartData.speedByLaneHistory.forEach(point => allTimePoints.add(point.time));
       sim.chartData.densityOfCarPacksHistory.forEach(point => allTimePoints.add(point.time));
       sim.chartData.percentageByLaneHistory.forEach(point => allTimePoints.add(point.time));
@@ -124,7 +149,7 @@ const SavedSimulations: React.FC = () => {
     const speedData = sortedTimePoints.map(time => {
       const dataPoint: any = { time };
       
-      savedSimulations.forEach(sim => {
+      selectedSimulations.forEach(sim => {
         const speedPoint = sim.chartData.speedByLaneHistory.find(p => p.time === time);
         if (speedPoint) {
           dataPoint[`sim${sim.simulationNumber}_overall`] = speedPoint.overallAvgSpeed;
@@ -141,11 +166,11 @@ const SavedSimulations: React.FC = () => {
       return dataPoint;
     }).filter(point => Object.keys(point).length > 1);
 
-    // Generate density comparison data
+      // Generate density comparison data
     const densityData = sortedTimePoints.map(time => {
       const dataPoint: any = { time };
       
-      savedSimulations.forEach(sim => {
+      selectedSimulations.forEach(sim => {
         const densityPoint = sim.chartData.densityOfCarPacksHistory.find(p => p.time === time);
         if (densityPoint) {
           dataPoint[`sim${sim.simulationNumber}_density`] = densityPoint.density;
@@ -159,7 +184,7 @@ const SavedSimulations: React.FC = () => {
     const percentageData = sortedTimePoints.map(time => {
       const dataPoint: any = { time };
       
-      savedSimulations.forEach(sim => {
+      selectedSimulations.forEach(sim => {
         const percentagePoint = sim.chartData.percentageByLaneHistory.find(p => p.time === time);
         if (percentagePoint) {
           // Add all lanes for each simulation
@@ -182,7 +207,8 @@ const SavedSimulations: React.FC = () => {
       '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', 
       '#8b5a3c', '#6b7280', '#14b8a6', '#f97316', '#a855f7', '#84cc16'
     ];
-    return savedSimulations.reduce((acc, sim, index) => {
+    const selectedSimulations = savedSimulations.filter(sim => selectedForComparison.has(sim.id));
+    return selectedSimulations.reduce((acc, sim, index) => {
       acc[sim.simulationNumber] = colors[index % colors.length];
       return acc;
     }, {} as Record<number, string>);
@@ -209,7 +235,8 @@ const SavedSimulations: React.FC = () => {
 
     // Create chart config properly
     const chartConfig: Record<string, any> = {};
-    savedSimulations.forEach(sim => {
+    const selectedSimulations = savedSimulations.filter(sim => selectedForComparison.has(sim.id));
+    selectedSimulations.forEach(sim => {
       const key = `sim${sim.simulationNumber}_overall`;
       chartConfig[key] = {
         label: `Simulation #${sim.simulationNumber}`,
@@ -222,7 +249,7 @@ const SavedSimulations: React.FC = () => {
         <CardHeader>
           <CardTitle>Speed Comparison - All Simulations Overlapped</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Overall average speed across all {savedSimulations.length} saved simulations
+            Overall average speed across {selectedForComparison.size} selected simulations
           </p>
         </CardHeader>
         <CardContent>
@@ -243,7 +270,7 @@ const SavedSimulations: React.FC = () => {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend />
                 
-                {savedSimulations.map(sim => (
+                {selectedSimulations.map(sim => (
                   <Line
                     key={`sim${sim.simulationNumber}_overall`}
                     dataKey={`sim${sim.simulationNumber}_overall`}
@@ -283,7 +310,8 @@ const SavedSimulations: React.FC = () => {
 
     // Create chart config properly
     const chartConfig: Record<string, any> = {};
-    savedSimulations.forEach(sim => {
+    const selectedSimulations = savedSimulations.filter(sim => selectedForComparison.has(sim.id));
+    selectedSimulations.forEach(sim => {
       const key = `sim${sim.simulationNumber}_density`;
       chartConfig[key] = {
         label: `Simulation #${sim.simulationNumber}`,
@@ -296,7 +324,7 @@ const SavedSimulations: React.FC = () => {
         <CardHeader>
           <CardTitle>Traffic Density Comparison - All Simulations Overlapped</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Car pack density across all {savedSimulations.length} saved simulations
+            Car pack density across {selectedForComparison.size} selected simulations
           </p>
         </CardHeader>
         <CardContent>
@@ -317,7 +345,7 @@ const SavedSimulations: React.FC = () => {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend />
                 
-                {savedSimulations.map(sim => (
+                {selectedSimulations.map(sim => (
                   <Line
                     key={`sim${sim.simulationNumber}_density`}
                     dataKey={`sim${sim.simulationNumber}_density`}
@@ -357,7 +385,8 @@ const SavedSimulations: React.FC = () => {
 
     // Create chart config properly
     const chartConfig: Record<string, any> = {};
-    savedSimulations.forEach(sim => {
+    const selectedSimulations = savedSimulations.filter(sim => selectedForComparison.has(sim.id));
+    selectedSimulations.forEach(sim => {
       for (let i = 0; i < (sim.params.numLanes || 2); i++) {
         const key = `sim${sim.simulationNumber}_lane${i}`;
         chartConfig[key] = {
@@ -372,7 +401,7 @@ const SavedSimulations: React.FC = () => {
         <CardHeader>
           <CardTitle>Lane Usage Comparison - All Simulations Overlapped</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Lane 1 usage percentage across all {savedSimulations.length} saved simulations
+            Lane 1 usage percentage across {selectedForComparison.size} selected simulations
           </p>
         </CardHeader>
         <CardContent>
@@ -394,7 +423,7 @@ const SavedSimulations: React.FC = () => {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend />
                 
-                {savedSimulations.map(sim => (
+                {selectedSimulations.map(sim => (
                   <Line
                     key={`sim${sim.simulationNumber}_lane0`}
                     dataKey={`sim${sim.simulationNumber}_lane0`}
@@ -563,15 +592,111 @@ const SavedSimulations: React.FC = () => {
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Multi-Simulation Analysis</h2>
                 <p className="text-gray-600">
-                  Compare performance metrics with overlapped graphs from all {savedSimulations.length} saved simulations
+                  Select simulations to compare their performance metrics
                 </p>
               </div>
-              
-              <div className="grid gap-6">
-                {renderOverlappedSpeedChart()}
-                {renderOverlappedDensityChart()}
-                {renderOverlappedPercentageChart()}
-              </div>
+
+              {/* Selection Controls */}
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>Select Simulations for Comparison</CardTitle>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={selectAllForComparison}
+                        disabled={savedSimulations.length === 0}
+                      >
+                        <CheckSquare size={16} className="mr-1" />
+                        Select All
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={deselectAllForComparison}
+                        disabled={selectedForComparison.size === 0}
+                      >
+                        <Square size={16} className="mr-1" />
+                        Deselect All
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedForComparison.size} of {savedSimulations.length} simulations selected
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {savedSimulations.map((simulation) => (
+                      <div key={simulation.id} className="flex items-center space-x-3 p-3 border rounded-lg">
+                        <Checkbox
+                          id={`comparison-${simulation.id}`}
+                          checked={selectedForComparison.has(simulation.id)}
+                          onCheckedChange={(checked) => 
+                            handleComparisonSelection(simulation.id, checked as boolean)
+                          }
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <label 
+                              htmlFor={`comparison-${simulation.id}`}
+                              className="text-sm font-medium cursor-pointer truncate"
+                            >
+                              {simulation.name}
+                            </label>
+                            <Badge variant="secondary" className="text-xs">
+                              #{simulation.simulationNumber}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-muted-foreground">
+                              {calculateNumCars(simulation)} cars, {simulation.params.numLanes} lanes
+                            </span>
+                            <div className="flex gap-1">
+                              <EditSimulationNameDialog
+                                currentName={simulation.name}
+                                onSave={(newName) => updateSimulationName(simulation.id, newName)}
+                                trigger={
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                    <Edit2 size={12} />
+                                  </Button>
+                                }
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                                onClick={() => deleteSimulation(simulation.id)}
+                              >
+                                <Trash2 size={12} />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Comparison Charts */}
+              {selectedForComparison.size > 0 ? (
+                <div className="grid gap-6">
+                  {renderOverlappedSpeedChart()}
+                  {renderOverlappedDensityChart()}
+                  {renderOverlappedPercentageChart()}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center h-64">
+                    <div className="text-center">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Simulations Selected</h3>
+                      <p className="text-gray-500 mb-4">Select at least one simulation to view comparison charts.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
         </Tabs>
