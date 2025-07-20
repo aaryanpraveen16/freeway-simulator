@@ -96,6 +96,18 @@ class IndexedDBService {
     });
   }
 
+  async updateSimulation(simulation: SavedSimulation): Promise<void> {
+    const db = await this.openDB();
+    const transaction = db.transaction([this.storeName], 'readwrite');
+    const store = transaction.objectStore(this.storeName);
+    
+    return new Promise((resolve, reject) => {
+      const request = store.put(simulation);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
   async getNextSimulationNumber(): Promise<number> {
     const simulations = await this.getAllSimulations();
     if (simulations.length === 0) return 1;

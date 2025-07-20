@@ -455,7 +455,7 @@ const Index = () => {
     animationFrameRef.current = requestAnimationFrame(animationLoop);
   }, [laneLength, params, elapsedTime, cars, recordPackData, handleSimulationEvents, simulationSpeed, trafficRule, stoppedCars]);
 
-  const handleSaveSimulation = useCallback(async () => {
+  const handleSaveSimulation = useCallback(async (name: string) => {
     if (elapsedTime === 0 || cars.length === 0) {
       toast({
         title: "Nothing to Save",
@@ -474,7 +474,7 @@ const Index = () => {
 
       const savedSimulation: SavedSimulation = {
         id: `simulation-${Date.now()}`,
-        name: `Traffic Simulation #${simulationNumber}`,
+        name: name,
         timestamp: Date.now(),
         simulationNumber,
         params: { ...params },
@@ -500,7 +500,7 @@ const Index = () => {
       
       toast({
         title: "Simulation Saved",
-        description: `Simulation #${simulationNumber} has been saved successfully.`,
+        description: `"${name}" has been saved successfully.`,
         duration: 3000,
       });
     } catch (error) {

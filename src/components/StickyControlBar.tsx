@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Pause, Play, RotateCcw, Save, Archive } from "lucide-react";
 import { Link } from "react-router-dom";
+import SaveSimulationDialog from "./SaveSimulationDialog";
 
 interface StickyControlBarProps {
   isRunning: boolean;
@@ -14,7 +15,7 @@ interface StickyControlBarProps {
   setSimulationSpeed: (speed: number) => void;
   showPackFormation: boolean;
   onTogglePackFormation: (show: boolean) => void;
-  onSaveSimulation?: () => void;
+  onSaveSimulation?: (name: string) => void;
   canSave?: boolean;
 }
 
@@ -99,15 +100,10 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
 
             <div className="flex gap-2">
               {onSaveSimulation && (
-                <Button
-                  onClick={onSaveSimulation}
-                  variant="outline"
-                  className="flex-1 flex items-center gap-2"
-                  disabled={!canSave}
-                >
-                  <Save size={16} />
-                  Save Simulation
-                </Button>
+                <SaveSimulationDialog
+                  onSave={onSaveSimulation}
+                  canSave={canSave}
+                />
               )}
               
               <Link to="/saved-simulations" className="flex-1">

@@ -8,6 +8,7 @@ import { Trash2, Eye, Calendar, Clock, Users, Gauge, BarChart3 } from "lucide-re
 import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
 import { useToast } from "@/hooks/use-toast";
 import ChartDashboard from "@/components/ChartDashboard";
+import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import { Link } from "react-router-dom";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
@@ -51,6 +52,32 @@ const SavedSimulations: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to delete simulation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateSimulationName = async (id: string, newName: string) => {
+    try {
+      const simulation = savedSimulations.find(sim => sim.id === id);
+      if (!simulation) return;
+
+      const updatedSimulation = { ...simulation, name: newName };
+      await indexedDBService.updateSimulation(updatedSimulation);
+      
+      setSavedSimulations(prev => 
+        prev.map(sim => sim.id === id ? updatedSimulation : sim)
+      );
+      
+      toast({
+        title: "Success",
+        description: "Simulation name updated successfully",
+      });
+    } catch (error) {
+      console.error('Error updating simulation name:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update simulation name",
         variant: "destructive",
       });
     }
@@ -439,10 +466,14 @@ const SavedSimulations: React.FC = () => {
                 <Card key={simulation.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-1">
                         <CardTitle className="text-lg flex items-center gap-2">
                           <span>{simulation.name}</span>
                           <Badge variant="secondary">#{simulation.simulationNumber}</Badge>
+                          <EditSimulationNameDialog
+                            currentName={simulation.name}
+                            onSave={(newName) => updateSimulationName(simulation.id, newName)}
+                          />
                         </CardTitle>
                         <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
                           <Calendar size={14} />
