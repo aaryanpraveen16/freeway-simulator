@@ -39,9 +39,8 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
     if (cars.length === 0) return null;
     
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
-    // Calculate density properly: total cars divided by total road capacity
-    const totalRoadLength = laneLength * numLanes;
-    const density = cars.length / totalRoadLength; // cars per mile per lane
+    // Calculate overall density (cars per mile)
+    const density = cars.length / laneLength; // cars per mile (overall freeway density)
     
     return {
       density: parseFloat(density.toFixed(3)),

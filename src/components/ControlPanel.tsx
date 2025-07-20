@@ -46,35 +46,30 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   const addLane = () => {
     if (params.numLanes < 6) {
-      const newDensity = [...params.trafficDensity];
-      newDensity.push(3); // Default density for new lane
       onUpdateParams({ 
-        numLanes: params.numLanes + 1,
-        trafficDensity: newDensity
+        numLanes: params.numLanes + 1
       });
     }
   };
 
   const removeLane = () => {
     if (params.numLanes > 1) {
-      const newDensity = params.trafficDensity.slice(0, -1);
       onUpdateParams({ 
-        numLanes: params.numLanes - 1,
-        trafficDensity: newDensity
+        numLanes: params.numLanes - 1
       });
     }
   };
 
-  // Calculate overall freeway density as average of all lanes
-  const overallDensity = params.trafficDensity.length > 0 
-    ? params.trafficDensity.reduce((sum, density) => sum + density, 0) / params.trafficDensity.length 
-    : 3;
+  // Overall traffic density in cars per mile (across all lanes)
+  const overallDensity = params.trafficDensity || 3;
 
+  /**
+   * Handle changes to the overall traffic density input
+   * @param value The new density value in cars per mile
+   */
   const handleOverallDensityChange = (value: string) => {
     const newDensity = parseFloat(value) || 3;
-    // Update all lanes to have the same density
-    const newTrafficDensity = Array(params.numLanes).fill(newDensity);
-    onUpdateParams({ trafficDensity: newTrafficDensity });
+    onUpdateParams({ trafficDensity: newDensity });
   };
 
   return (

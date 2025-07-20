@@ -259,7 +259,9 @@ const Index = () => {
       // Record density-throughput data
       if (newCars.length > 0) {
         const avgSpeed = newCars.reduce((sum, car) => sum + car.speed, 0) / newCars.length;
-        const density = newCars.length / (currentLaneLength * params.numLanes);
+        // Calculate overall density (cars per mile)
+        const density = newCars.length / currentLaneLength;
+        // Throughput = average speed * density (cars per hour)
         const throughput = avgSpeed * density;
         
         setDensityThroughputHistory(prev => {
@@ -314,8 +316,10 @@ const Index = () => {
           averagePackSize: 0
         };
         
+        // Calculate per-lane densities for visualization
         for (let i = 0; i < params.numLanes; i++) {
           const carsInLane = newCars.filter(car => car.lane === i);
+          // Per-lane density in cars per mile (for visualization only)
           const laneDensity = carsInLane.length / currentLaneLength;
           densityPacksPoint[`lane${i}Density`] = parseFloat(laneDensity.toFixed(2));
           totalPacks += 1; // Simplified for now

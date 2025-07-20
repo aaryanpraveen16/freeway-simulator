@@ -17,8 +17,14 @@ export interface Car {
   vehicleType: "car" | "truck" | "motorcycle"; // vehicle type
 }
 
+/**
+ * Parameters for the traffic simulation
+ */
 export interface SimulationParams {
-  trafficDensity: number[]; // cars per mile per lane
+  /**
+   * Overall traffic density in cars per mile (across all lanes)
+   */
+  trafficDensity: number;
   vehicleTypeDensity: {
     car: number; // percentage of cars (0-100)
     truck: number; // percentage of trucks (0-100)
@@ -49,7 +55,7 @@ export interface SimulationParams {
 
 // Default simulation parameters
 export const defaultParams: SimulationParams = {
-  trafficDensity: [0.5, 0.5], // 3 cars per mile per lane (default for 2 lanes)
+  trafficDensity: 1.0, // 1 car per mile (overall freeway density)
   vehicleTypeDensity: {
     car: 70,
     truck: 20,
@@ -216,21 +222,20 @@ export function initializeSimulation(params: SimulationParams): {
   const numLanes = params.numLanes || 1;
   const laneLength = params.freewayLength ?? 10; // lane length in miles
 
-  // Calculate total number of cars based on traffic density per lane
-  let totalCars = 0;
-  for (let lane = 0; lane < numLanes; lane++) {
-    const densityForLane =
-      params.trafficDensity[lane] || params.trafficDensity[0] || 3;
-    const carsInThisLane = Math.round(densityForLane * laneLength);
-    totalCars += carsInThisLane;
-  }
+  // Calculate total number of cars based on overall traffic density (cars/mile)
+  // Total cars = density (cars/mile) * lane length (miles)
+  const totalCars = Math.round(params.trafficDensity * laneLength);
+  
+  // Calculate target number of cars per lane
+  // Distribute cars as evenly as possible across lanes
+  const targetCarsPerLane = Math.floor(totalCars / numLanes);
+  const extraCars = totalCars % numLanes; // Distribute any remainder cars to the first few lanes
 
   // Generate cars with random desired speeds
   let carId = 0;
   for (let lane = 0; lane < numLanes; lane++) {
-    const densityForLane =
-      params.trafficDensity[lane] || params.trafficDensity[0] || 3;
-    const carsInThisLane = Math.round(densityForLane * laneLength);
+    // Distribute any extra cars to the first few lanes
+    const carsInThisLane = lane < extraCars ? targetCarsPerLane + 1 : targetCarsPerLane;
 
     for (let i = 0; i < carsInThisLane; i++) {
       // Generate vehicle type first
