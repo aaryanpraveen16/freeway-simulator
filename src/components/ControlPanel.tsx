@@ -8,6 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SimulationParams } from "@/utils/trafficSimulation";
+import { JsonImportExport } from "./JsonImportExport";
+import { InfoTooltip } from "./InfoTooltip";
 
 interface ControlPanelProps {
   params: SimulationParams;
@@ -82,7 +84,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <CardContent className="space-y-6">
             {/* Traffic Rule */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Traffic Rule</Label>
+              <div className="flex items-center">
+                <Label className="text-sm font-medium">Traffic Rule</Label>
+                <InfoTooltip content="Determines the lane change behavior: American (right-lane passing) or European (left-lane passing)" />
+              </div>
               <Select value={trafficRule} onValueChange={(value: 'american' | 'european') => onTrafficRuleChange(value)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -98,11 +103,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             {/* Vehicle Type Distribution */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Vehicle Type Distribution (%)</Label>
+              <div className="flex items-center">
+                <Label className="text-sm font-medium">Vehicle Type Distribution</Label>
+                <InfoTooltip content="Percentage distribution of different vehicle types in the simulation" />
+              </div>
               
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs w-20">Cars:</Label>
+                  <div className="flex items-center">
+                    <Label>Cars:</Label>
+                    <InfoTooltip content="Percentage of cars in the simulation" />
+                  </div>
                   <Input
                     type="number"
                     value={params.vehicleTypeDensity.car}
@@ -115,7 +126,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs w-20">Trucks:</Label>
+                  <div className="flex items-center">
+                    <Label>Trucks:</Label>
+                    <InfoTooltip content="Percentage of trucks in the simulation" />
+                  </div>
                   <Input
                     type="number"
                     value={params.vehicleTypeDensity.truck}
@@ -128,7 +142,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs w-20">Motorcycles:</Label>
+                  <div className="flex items-center">
+                    <Label>Motorcycles:</Label>
+                    <InfoTooltip content="Percentage of motorcycles in the simulation" />
+                  </div>
                   <Input
                     type="number"
                     value={params.vehicleTypeDensity.motorcycle}
@@ -151,7 +168,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             {/* Lane Configuration */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Number of Lanes</Label>
+                <div className="flex items-center">
+                  <Label className="text-sm font-medium">Number of Lanes</Label>
+                  <InfoTooltip content="Number of lanes in the freeway" />
+                </div>
                 <div className="flex items-center gap-2">
                   <Button 
                     variant="outline" 
@@ -175,7 +195,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               
               {/* Overall Freeway Traffic Density */}
               <div className="space-y-2">
-                <Label className="text-sm">Overall Freeway Traffic Density (cars/mile)</Label>
+                <div className="flex items-center">
+                  <Label className="text-sm">Overall Traffic Density (cars/mile)</Label>
+                  <InfoTooltip content="Number of vehicles per mile across all lanes. Higher values create more congestion." />
+                </div>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
@@ -198,10 +221,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             {/* Speed Settings */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Speed Settings</Label>
+              <div className="flex items-center">
+                <Label className="text-sm font-medium">Speed Settings</Label>
+                <InfoTooltip content="Settings for vehicle speeds in the simulation" />
+              </div>
               
               <div className="space-y-2">
-                <Label className="text-xs">Desired Mean Speed: {params.meanSpeed} mph</Label>
+                <div className="flex items-center">
+                  <Label className="text-xs">Desired Mean Speed:</Label>
+                  <InfoTooltip content="Average speed of vehicles in the simulation" />
+                </div>
                 <Slider
                   value={[params.meanSpeed]}
                   onValueChange={([value]) => onUpdateParams({ meanSpeed: value })}
@@ -214,7 +243,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="speedLimit">Speed Limit (mph)</Label>
+                  <div className="flex items-center">
+                    <Label>Speed Limit (mph)</Label>
+                    <InfoTooltip content="Maximum allowed speed in the simulation" />
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {params.speedLimit} mph ({params.speedLimit / params.meanSpeed * 100}% of desired speed)
                   </div>
@@ -293,6 +325,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   className="w-full"
                 />
               </div>
+            </div>
+
+            <Separator />
+            
+            {/* JSON Import/Export */}
+            <div className="pt-2">
+              <JsonImportExport 
+                onImport={onUpdateParams}
+                currentParams={params}
+              />
             </div>
           </CardContent>
         </Card>

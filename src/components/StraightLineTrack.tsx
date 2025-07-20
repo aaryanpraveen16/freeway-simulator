@@ -61,7 +61,11 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
                 className="flex flex-col justify-center text-xs text-gray-700 font-medium"
                 style={{ height: trackWidth }}
               >
-                <div className="font-bold">Lane {i + 1}</div>
+                <div className="flex items-center gap-1">
+                  <span className="font-bold">Lane {i + 1}</span>
+                  {i === 0 && <span className="text-xs text-blue-600">(Leftmost)</span>}
+                  {i === numLanes - 1 && <span className="text-xs text-blue-600">(Rightmost)</span>}
+                </div>
                 <div className="text-gray-600">{density}/mi</div>
               </div>
             );

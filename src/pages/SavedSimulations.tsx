@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, Eye, Calendar, Clock, Users, Gauge, BarChart3, CheckSquare, Square, Edit2 } from "lucide-react";
+import { BarChart3, Calendar, CheckSquare, Clock, Copy, Edit2, Eye, Gauge, Repeat, Square, Trash2, Users } from "lucide-react";
 import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
 import { useToast } from "@/hooks/use-toast";
+import { extractSimulationParams, formatParamsAsJson } from "../utils/simulationUtils";
 import ChartDashboard from "@/components/ChartDashboard";
 import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import { Link } from "react-router-dom";
@@ -24,6 +25,27 @@ const SavedSimulations: React.FC = () => {
   useEffect(() => {
     loadSimulations();
   }, []);
+
+  const copySimulationParams = async (simulation: SavedSimulation) => {
+    try {
+      const params = extractSimulationParams(simulation);
+      const jsonString = formatParamsAsJson(params);
+      await navigator.clipboard.writeText(jsonString);
+      
+      toast({
+        title: "Success",
+        description: "Simulation parameters copied to clipboard",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error copying simulation parameters:', error);
+      toast({
+        title: "Error",
+        description: "Failed to copy simulation parameters",
+        variant: "destructive",
+      });
+    }
+  };
 
   const loadSimulations = async () => {
     try {
@@ -529,9 +551,13 @@ const SavedSimulations: React.FC = () => {
                         <Clock size={16} className="text-purple-500" />
                         <span>{formatDuration(simulation.duration)}</span>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <Repeat size={16} className="text-amber-500" />
+                        <span>{simulation.finalStats.laneChanges} lane changes</span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center justify-between pt-2 border-t gap-2">
                       <Badge variant="outline" className="capitalize">
                         {simulation.trafficRule}
                       </Badge>
@@ -574,8 +600,23 @@ const SavedSimulations: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => deleteSimulation(simulation.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copySimulationParams(simulation);
+                          }}
+                          title="Copy simulation parameters"
+                        >
+                          <Copy size={16} />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSimulation(simulation.id);
+                          }}
                           className="text-red-600 hover:text-red-700"
+                          title="Delete simulation"
                         >
                           <Trash2 size={16} />
                         </Button>

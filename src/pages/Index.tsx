@@ -92,7 +92,7 @@ const Index = () => {
   const [simulationSpeed, setSimulationSpeed] = useState<number>(1);
   const [trafficRule, setTrafficRule] = useState<'american' | 'european'>('american');
   const [stoppedCars, setStoppedCars] = useState<Set<number>>(new Set());
-  const [showPackFormation, setShowPackFormation] = useState<boolean>(true);
+  const [showPackFormation, setShowPackFormation] = useState<boolean>(false);
   const [laneChanges, setLaneChanges] = useState<number>(0);
 
   // Chart history state variables - moved here to be declared before use
@@ -187,9 +187,58 @@ const Index = () => {
     lastDensityUpdateTimeRef.current = 0;
   }, [params]);
 
-  const handleUpdateParams = useCallback((newParams: Partial<SimulationParams>) => {
-    setParams((prev) => ({ ...prev, ...newParams }));
+  const resetSimulation = useCallback((params: SimulationParams) => {
+    console.log('Resetting simulation with params:', params);
+    
+    // Stop any running animation
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    lastTimestampRef.current = null;
+    setIsRunning(false);
+    
+    // Clear all data
+    setStoppedCars(new Set());
+    setDensityThroughputHistory([]);
+    setPackFormationHistory([]);
+    setLaneUtilizationHistory([]);
+    setSpeedDensityHistory([]);
+    setDensityOfCarPacksHistory([]);
+    setPercentageByLaneHistory([]);
+    setLaneChanges(0);
+    setElapsedTime(0);
+    setPackHistory([]);
+    setPackLengthHistory([]);
+    setPackDensityData([]);
+    
+    // Reset timers
+    lastPackRecordTimeRef.current = 0;
+    lastDensityUpdateTimeRef.current = 0;
+    
+    // Reinitialize simulation with new parameters
+    const { cars, laneLength } = initializeSimulation(params);
+    setCars(cars);
+    setLaneLength(laneLength);
+    
+    console.log('Simulation reset complete');
   }, []);
+
+  const handleUpdateParams = useCallback((newParams: Partial<SimulationParams>) => {
+    console.log('Updating params with:', newParams);
+    
+    // Update the params state using a callback to ensure we have the latest state
+    setParams(prevParams => {
+      const mergedParams = { ...prevParams, ...newParams };
+      
+      // Always reset the simulation when parameters change
+      console.log('Parameters changed, resetting simulation');
+      resetSimulation(mergedParams);
+      
+      return mergedParams;
+    });
+  }, [resetSimulation]);
 
   const toggleSimulation = useCallback(() => {
     setIsRunning((prev) => !prev);

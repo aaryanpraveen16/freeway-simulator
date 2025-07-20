@@ -21,7 +21,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
   onStopCar,
   onResumeCar,
 }) => {
-  const [activeView, setActiveView] = useState<"circular" | "straight">("circular");
+  const [activeView, setActiveView] = useState<"circular" | "straight">("straight");
   const trackRadius = 180; // radius in pixels
   const trackWidth = 30; // width of each lane in pixels
   const trackLength = 800; // length of the track in pixels
@@ -31,7 +31,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
   
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="circular" onValueChange={(value) => setActiveView(value as "circular" | "straight")}>
+      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as "circular" | "straight")}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="circular">Circular Track</TabsTrigger>
           <TabsTrigger value="straight">Straight Track</TabsTrigger>
