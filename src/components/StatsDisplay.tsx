@@ -13,12 +13,14 @@ interface StatsDisplayProps {
   cars: Car[];
   laneLength: number;
   elapsedTime: number;
+  laneChanges: number;
 }
 
 const StatsDisplay: React.FC<StatsDisplayProps> = ({
   cars,
   laneLength,
   elapsedTime,
+  laneChanges,
 }) => {
   const stats = useMemo(() => {
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
@@ -76,6 +78,11 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Elapsed Time</p>
             <p className="text-lg font-semibold">{stats.elapsedTime} sec</p>
+          </div>
+          
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Lane Changes</p>
+            <p className="text-2xl font-bold">{laneChanges}</p>
           </div>
         </div>
       </CardContent>

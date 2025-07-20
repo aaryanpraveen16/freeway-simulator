@@ -93,6 +93,7 @@ const Index = () => {
   const [trafficRule, setTrafficRule] = useState<'american' | 'european'>('american');
   const [stoppedCars, setStoppedCars] = useState<Set<number>>(new Set());
   const [showPackFormation, setShowPackFormation] = useState<boolean>(true);
+  const [laneChanges, setLaneChanges] = useState<number>(0);
 
   // Chart history state variables - moved here to be declared before use
   const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
@@ -208,6 +209,7 @@ const Index = () => {
     setSpeedDensityHistory([]);
     setDensityOfCarPacksHistory([]);
     setPercentageByLaneHistory([]);
+    setLaneChanges(0);
     initSimulation();
   }, [initSimulation]);
 
@@ -407,6 +409,7 @@ const Index = () => {
           variant: "default",
         });
       } else if (event.type === 'laneChange') {
+        setLaneChanges(prev => prev + 1);
         toast({
           title: "Lane Change",
           description: `${event.carName} has changed to lane ${event.lane! + 1}.`,
@@ -617,6 +620,7 @@ const Index = () => {
               cars={cars} 
               laneLength={laneLength} 
               elapsedTime={elapsedTime} 
+              laneChanges={laneChanges}
             />
           </div>
           

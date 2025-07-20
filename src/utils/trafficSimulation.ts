@@ -400,11 +400,12 @@ export function updateSimulation(
 ): {
   cars: Car[];
   events: {
-    type: "exit" | "enter";
+    type: "exit" | "enter" | "laneChange";
     carId: number;
     carName: string;
     position: number;
     speed: number;
+    lane?: number;
   }[];
 } {
   const updatedCars = [...cars];
@@ -424,11 +425,12 @@ export function updateSimulation(
   }[] = [];
   const carsToRemove: { index: number; car: Car }[] = [];
   const events: {
-    type: "exit" | "enter";
+    type: "exit" | "enter" | "laneChange";
     carId: number;
     carName: string;
     position: number;
     speed: number;
+    lane?: number;
   }[] = [];
   const sortedIndices = [...Array(numCars).keys()].sort((a, b) => {
     return updatedCars[a].position - updatedCars[b].position;
@@ -546,6 +548,16 @@ export function updateSimulation(
         // Perform lane change
         updatedCars[carIndex].lane = targetLane;
         updatedCars[carIndex].lastLaneChange = currentTime;
+        
+        // Add lane change event
+        events.push({
+          type: "laneChange",
+          carId: car.id,
+          carName: car.name,
+          position: car.position,
+          speed: car.speed,
+          lane: targetLane,
+        });
 
         // Recalculate aheadCar and gap in new lane
         currentLane = targetLane;
