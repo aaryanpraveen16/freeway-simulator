@@ -4,28 +4,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Linkedin, ExternalLink } from "lucide-react";
-
-interface Contributor {
-  name: string;
-  linkedin?: string;
-  portfolio?: string;
-}
-
-const contributors: Contributor[] = [
-  {
-    name: "Aaryan Praveen",
-    linkedin: "https://www.linkedin.com/in/aaryanpraveen/",
-    portfolio: "https://aaryan-praveen.vercel.app/"
-  },
-  {
-    name: "Aayushi Choksi",
-    linkedin: "https://www.linkedin.com/in/aayushi-choksi/"
-  },
-  {
-    name: "Sergey Aityan",
-    linkedin: "https://www.linkedin.com/in/sergey-aityan-2555b4200/"
-  }
-];
+import { contributors } from "@/types/contributor";
 
 const Navbar = () => {
   const [showCredits, setShowCredits] = useState(false);
