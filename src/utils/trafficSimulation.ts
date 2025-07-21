@@ -920,49 +920,72 @@ function shouldChangeLane(
   const adjustedRight = rightIncentive * (1 - car.laneStickiness);
 
   if (trafficRule === "american") {
-    // American drivers may pass either left or right
-    if (
+    // American rules: prefer left-lane passing but allow right-lane passing
+    // with lower probability and higher threshold
+    
+    // Check if we should move left to pass (preferred)
+    const shouldPassLeft = 
       car.lane > 0 &&
-      adjustedLeft > params.accelerationThreshold &&
-      slowerLeader &&
-      Math.random() < car.laneChangeProbability
-    ) {
-      return { shouldChange: true, targetLane: car.lane - 1 };
-    }
-
-    if (
+      adjustedLeft > params.accelerationThreshold * 0.8 && // Higher threshold for left
+      slowerLeader;
+      
+    // Check if we should move right to pass (less preferred)
+    const shouldPassRight = 
       car.lane < params.numLanes - 1 &&
-      adjustedRight > params.accelerationThreshold &&
+      adjustedRight > params.accelerationThreshold * 1.2 && // Higher threshold for right
       slowerLeader &&
-      Math.random() < car.laneChangeProbability
-    ) {
-      return { shouldChange: true, targetLane: car.lane + 1 };
-    }
-  } else {
-    // European drivers: overtake ONLY to the left
-    if (
-      car.lane > 0 &&
-      adjustedLeft > params.accelerationThreshold &&
-      slowerLeader &&
-      Math.random() < car.laneChangeProbability
-    ) {
-      return { shouldChange: true, targetLane: car.lane - 1 };
-    }
+      (car.lane === 0 || Math.random() > 0.9); // Much less likely to pass on right
 
-    // Return to right lane after overtaking (if safe and no slower leader there)
+    // Check if we should return to right lane when not passing
     const rightLaneLeader = adjacentLanes.rightLane.leader;
     const canReturnRight =
       car.lane < params.numLanes - 1 &&
       (!rightLaneLeader ||
-        rightLaneLeader.speed >= car.speed &&
-        ((rightLaneLeader.position - car.position + laneLength) %
-          laneLength >
-          300)); // Give decent spacing
+        (rightLaneLeader.speed >= car.speed &&
+          ((rightLaneLeader.position - car.position + laneLength) % laneLength > 300)));
 
+    // Decision making with priority:
+    // 1. Return to right lane when safe (if not passing)
+    // 2. Pass on left if possible (preferred)
+    // 3. Pass on right if no other option (rare)
+    
+    if (canReturnRight && 
+        !slowerLeader && // Not actively trying to pass
+        adjustedRight > params.accelerationThreshold * 0.5 &&
+        Math.random() < car.laneChangeProbability) {
+      return { shouldChange: true, targetLane: car.lane + 1 };
+    } else if (shouldPassLeft && Math.random() < car.laneChangeProbability) {
+      return { shouldChange: true, targetLane: car.lane - 1 };
+    } else if (shouldPassRight && Math.random() < car.laneChangeProbability * 0.5) {
+      return { shouldChange: true, targetLane: car.lane + 1 };
+    }
+  } else {
+    // European rules: strict left-lane passing only
+    
+    // Only pass on the left
+    if (
+      car.lane > 0 && // Not already in leftmost lane
+      adjustedLeft > params.accelerationThreshold * 0.7 && // Lower threshold for left
+      slowerLeader &&
+      Math.random() < car.laneChangeProbability * 1.2 // Higher probability for left
+    ) {
+      return { shouldChange: true, targetLane: car.lane - 1 };
+    }
+
+    // Strong incentive to return to right lane after passing
+    const rightLaneLeader = adjacentLanes.rightLane.leader;
+    const canReturnRight =
+      car.lane < params.numLanes - 1 &&
+      (!rightLaneLeader ||
+        (rightLaneLeader.speed >= car.speed * 0.9 && // More aggressive about returning right
+          ((rightLaneLeader.position - car.position + laneLength) % laneLength > 250)));
+
+    // If not actively passing, try to return right
     if (
       canReturnRight &&
-      adjustedRight > params.accelerationThreshold * 0.5 &&
-      Math.random() < car.laneChangeProbability
+      (!slowerLeader || car.lane === 0) && // Either no slower leader or already in left lane
+      adjustedRight > params.accelerationThreshold * 0.3 && // Lower threshold to return right
+      Math.random() < car.laneChangeProbability * 1.5 // Higher probability to return right
     ) {
       return { shouldChange: true, targetLane: car.lane + 1 };
     }
