@@ -227,18 +227,24 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
               
               <div className="space-y-2">
-                <div className="flex items-center">
-                  <Label className="text-xs">Desired Mean Speed:</Label>
-                  <InfoTooltip content="Average speed of vehicles in the simulation" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Label className="text-xs">Desired Mean Speed (mph):</Label>
+                    <InfoTooltip content="Average speed of vehicles in the simulation (30-80 mph)" />
+                  </div>
+                  <Input
+                    type="number"
+                    value={params.meanSpeed}
+                    onChange={(e) => {
+                      const value = Math.min(80, Math.max(30, Number(e.target.value) || 65));
+                      onUpdateParams({ meanSpeed: value });
+                    }}
+                    min={30}
+                    max={80}
+                    step={1}
+                    className="w-20 h-8 text-right"
+                  />
                 </div>
-                <Slider
-                  value={[params.meanSpeed]}
-                  onValueChange={([value]) => onUpdateParams({ meanSpeed: value })}
-                  min={30}
-                  max={80}
-                  step={5}
-                  className="w-full"
-                />
               </div>
               
               <div className="space-y-2">

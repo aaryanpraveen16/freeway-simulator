@@ -38,7 +38,8 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
     // Calculate overall density (cars per mile)
     const density = cars.length / laneLength; // cars per mile (overall freeway density)
-    const throughput = avgSpeed * density; // total throughput (cars per hour)
+    // Calculate total throughput (cars per hour) for the entire freeway
+    const throughput = avgSpeed * density;
     
     return {
       density: parseFloat(density.toFixed(3)),
@@ -127,7 +128,12 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
     <Card>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-lg">Density-Throughput Fundamental Diagram</CardTitle>
+          <div>
+            <CardTitle className="text-lg">Density-Throughput Fundamental Diagram</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Relationship between traffic density and freeway throughput
+            </p>
+          </div>
           <Button 
             variant="outline" 
             size="sm" 
@@ -138,9 +144,6 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
             Export
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Classic traffic engineering relationship between density and throughput
-        </p>
       </CardHeader>
       <CardContent>
         <div className="h-[400px]" ref={chartRef}>
@@ -171,9 +174,10 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
                 dataKey="density"
                 name="Density"
                 label={{ 
-                  value: "Traffic Density (cars/mile/lane)", 
+                  value: "Traffic Density (cars/mile)", 
                   position: "insideBottom", 
-                  offset: -40 
+                  offset: -40,
+                  style: { fontWeight: 500 }
                 }}
                 domain={['dataMin - 0.01', 'dataMax + 0.01']}
               />
@@ -183,20 +187,24 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
                 label={{ 
                   value: "Throughput (cars/hr)", 
                   angle: -90, 
-                  position: "insideLeft" 
+                  position: "insideLeft",
+                  style: { fontWeight: 500 }
                 }}
                 domain={['dataMin - 100', 'dataMax + 100']}
               />
               <Tooltip 
-                formatter={(value, name) => [
-                  `${value}`, 
-                  name === 'throughput' ? 'Throughput (cars/hr)' : name
-                ]}
-                labelFormatter={(label, payload) => {
-                  if (payload && payload[0]) {
-                    return `Density: ${payload[0].payload.density} cars/mile/lane`;
-                  }
-                  return '';
+                formatter={(value, name) => {
+                  const formattedValue = name === 'throughput' 
+                    ? `${Math.round(Number(value)).toLocaleString()} cars/hour`
+                    : `${Number(value).toFixed(2)}`;
+                  return [formattedValue, name === 'throughput' ? 'Throughput' : 'Density'];
+                }}
+                labelFormatter={(label) => `Time: ${label} sec`}
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '0.5rem',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}
               />
               <Scatter
@@ -223,7 +231,7 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
             <div className="flex justify-between">
               <span>Density:</span>
               <span className={`font-mono ${stabilizedValues.density?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.density?.value?.toFixed(3) || 'N/A'} cars/mile/lane
+                {stabilizedValues.density?.value?.toFixed(3) || 'N/A'} cars/mile
                 {stabilizedValues.density?.isStabilized && ' ✓'}
               </span>
             </div>
