@@ -5,12 +5,19 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { SimulationParams } from "@/utils/trafficSimulation";
 
+interface BatchSimulation {
+  name?: string;
+  duration: number; // in seconds
+  params: Partial<SimulationParams>;
+}
+
 interface JsonImportExportProps {
   onImport: (params: Partial<SimulationParams>) => void;
+  onBatchImport?: (simulations: BatchSimulation[]) => void;
   currentParams: SimulationParams;
 }
 
-export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, currentParams }) => {
+export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, onBatchImport, currentParams }) => {
   const [jsonInput, setJsonInput] = useState<string>('');
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -42,15 +49,55 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, cu
       setIsImporting(true);
       
       // Try to parse the JSON
-      let parsedParams;
+      let parsedData;
       try {
-        parsedParams = JSON.parse(jsonInput);
-        // If the parsed JSON has a 'params' property, use that instead
-        if (parsedParams.params && typeof parsedParams.params === 'object') {
-          parsedParams = parsedParams.params;
-        }
+        parsedData = JSON.parse(jsonInput);
       } catch (parseError) {
         throw new Error('Invalid JSON format. Please check your input.');
+      }
+
+      // Check if it's a batch simulation array
+      if (Array.isArray(parsedData)) {
+        if (!onBatchImport) {
+          throw new Error('Batch import not supported in this context');
+        }
+        
+        // Validate batch format
+        const batchSimulations: BatchSimulation[] = parsedData.map((item, index) => {
+          if (typeof item !== 'object' || item === null) {
+            throw new Error(`Invalid batch item at index ${index}: Expected an object`);
+          }
+          
+          const { name, duration, params, ...rest } = item;
+          
+          if (typeof duration !== 'number' || duration <= 0) {
+            throw new Error(`Invalid duration at index ${index}: Must be a positive number`);
+          }
+          
+          if (!params || typeof params !== 'object') {
+            throw new Error(`Invalid params at index ${index}: Missing or invalid params object`);
+          }
+          
+          return { name, duration, params };
+        });
+        
+        console.log('Parsed batch simulations:', batchSimulations);
+        onBatchImport(batchSimulations);
+        
+        toast({
+          title: "Success",
+          description: `${batchSimulations.length} batch simulations imported successfully!`,
+          variant: "default",
+        });
+        setJsonInput('');
+        return;
+      }
+
+      // Handle single simulation (existing logic)
+      let parsedParams = parsedData;
+      // If the parsed JSON has a 'params' property, use that instead
+      if (parsedParams.params && typeof parsedParams.params === 'object') {
+        parsedParams = parsedParams.params;
       }
       
       console.log('Parsed JSON:', parsedParams);
@@ -73,7 +120,7 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, cu
         'truckLength', 'motorcycleLength', 'truckPercentage', 'motorcyclePercentage',
         'carPercentage', 'dt', 'aMax', 'k', 'lengthCar', 'initialGap',
         'brakeTime', 'brakeCarIndex', 'minSpeed', 'stdSpeed', 'sigmaDistTripPlanned',
-        'politenessFactor', 'rightLaneBias', 'accelerationThreshold'
+        'politenessFactor', 'rightLaneBias', 'accelerationThreshold', 'simulationDuration'
       ];
       
       console.log('Current params before import:', currentParams);
@@ -161,9 +208,12 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, cu
           id="json-input"
           value={jsonInput}
           onChange={(e) => setJsonInput(e.target.value)}
-          placeholder="Paste your JSON configuration here..."
-          className="min-h-[100px] font-mono text-sm"
+          placeholder="Single simulation: { params: {...}, simulationDuration: 60 }&#10;&#10;Batch simulations: [&#10;  { name: 'Sim 1', duration: 60, params: {...} },&#10;  { name: 'Sim 2', duration: 120, params: {...} }&#10;]"
+          className="min-h-[120px] font-mono text-sm"
         />
+        <div className="text-xs text-muted-foreground">
+          Support for single simulation or batch array with duration parameter
+        </div>
       </div>
 
       <div className="flex gap-2">

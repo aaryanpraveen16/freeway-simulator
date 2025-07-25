@@ -34,6 +34,12 @@ interface SimulationEvent {
   lane?: number;
 }
 
+interface BatchSimulation {
+  name?: string;
+  duration: number;
+  params: Partial<SimulationParams>;
+}
+
 interface SimulationRun {
   id: string;
   packHistory: PackHistoryItem[];
@@ -239,6 +245,7 @@ const Index = () => {
       return mergedParams;
     });
   }, [resetSimulation]);
+
 
   const toggleSimulation = useCallback(() => {
     setIsRunning((prev) => !prev);
@@ -567,6 +574,56 @@ const Index = () => {
     }
   }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast]);
 
+  const handleBatchImport = useCallback((simulations: BatchSimulation[]) => {
+    console.log('Starting batch import:', simulations);
+    
+    let currentIndex = 0;
+    
+    const runNextSimulation = () => {
+      if (currentIndex >= simulations.length) {
+        console.log('All batch simulations completed');
+        toast({
+          title: "Batch Complete",
+          description: `All ${simulations.length} simulations have been completed.`,
+          variant: "default",
+        });
+        return;
+      }
+      
+      const simulation = simulations[currentIndex];
+      console.log(`Starting simulation ${currentIndex + 1}/${simulations.length}:`, simulation);
+      
+      // Update parameters
+      const mergedParams = { ...params, ...simulation.params };
+      setParams(mergedParams);
+      resetSimulation(mergedParams);
+      
+      // Start the simulation
+      setIsRunning(true);
+      
+      // Stop after the specified duration
+      setTimeout(() => {
+        setIsRunning(false);
+        
+        // Auto-save this simulation
+        const name = simulation.name || `Batch Sim ${currentIndex + 1}`;
+        handleSaveSimulation(name);
+        
+        toast({
+          title: "Simulation Complete",
+          description: `"${name}" completed and saved.`,
+          variant: "default",
+        });
+        
+        currentIndex++;
+        // Wait a bit before starting the next simulation
+        setTimeout(runNextSimulation, 1000);
+      }, simulation.duration * 1000);
+    };
+    
+    runNextSimulation();
+  }, [params, resetSimulation, handleSaveSimulation, toast]);
+
   useEffect(() => {
     initSimulation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -682,6 +739,7 @@ const Index = () => {
             <ControlPanel
               params={params}
               onUpdateParams={handleUpdateParams}
+              onBatchImport={handleBatchImport}
               trafficRule={trafficRule}
               onTrafficRuleChange={setTrafficRule}
             />

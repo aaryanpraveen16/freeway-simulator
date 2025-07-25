@@ -51,6 +51,7 @@ export interface SimulationParams {
   rightLaneBias?: number; // bias for right lane
   accelerationThreshold?: number; // threshold for lane change incentive
   laneChangeCooldown?: number; // min time between lane changes (seconds)
+  simulationDuration?: number; // simulation duration in seconds
 }
 
 // Default simulation parameters
@@ -82,6 +83,7 @@ export const defaultParams: SimulationParams = {
   rightLaneBias: 0.1, // small bias for right lane
   accelerationThreshold: 0.2, // threshold for lane change
   laneChangeCooldown: 2, // seconds
+  simulationDuration: 60, // 60 seconds default
 };
 
 // Generate random number from normal distribution

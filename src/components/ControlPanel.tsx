@@ -11,9 +11,16 @@ import { SimulationParams } from "@/utils/trafficSimulation";
 import { JsonImportExport } from "./JsonImportExport";
 import { InfoTooltip } from "./InfoTooltip";
 
+interface BatchSimulation {
+  name?: string;
+  duration: number;
+  params: Partial<SimulationParams>;
+}
+
 interface ControlPanelProps {
   params: SimulationParams;
   onUpdateParams: (params: Partial<SimulationParams>) => void;
+  onBatchImport?: (simulations: BatchSimulation[]) => void;
   trafficRule: 'american' | 'european';
   onTrafficRuleChange: (rule: 'american' | 'european') => void;
 }
@@ -21,6 +28,7 @@ interface ControlPanelProps {
 const ControlPanel: React.FC<ControlPanelProps> = ({
   params,
   onUpdateParams,
+  onBatchImport,
   trafficRule,
   onTrafficRuleChange,
 }) => {
@@ -292,6 +300,46 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             <Separator />
 
+            {/* Simulation Duration */}
+            <div className="space-y-3">
+              <div className="flex items-center">
+                <Label className="text-sm font-medium">Simulation Duration</Label>
+                <InfoTooltip content="How long the simulation should run in seconds" />
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={params.simulationDuration || 60}
+                    onChange={(e) => onUpdateParams({ simulationDuration: Number(e.target.value) || 60 })}
+                    className="flex-1"
+                    min="10"
+                    max="600"
+                    step="10"
+                  />
+                  <span className="text-xs text-gray-500">seconds</span>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <span className="text-xs text-muted-foreground">Presets:</span>
+                  <ToggleGroup type="single" size="sm" className="gap-1">
+                    {[30, 60, 120, 300].map((duration) => (
+                      <ToggleGroupItem 
+                        key={duration}
+                        value={duration.toString()}
+                        onClick={() => onUpdateParams({ simulationDuration: duration })}
+                        className="h-6 px-2 text-xs"
+                      >
+                        {duration}s
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
             {/* Advanced Parameters */}
             <div className="space-y-3">
               <Label className="text-sm font-medium">Advanced Parameters</Label>
@@ -339,6 +387,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <div className="pt-2">
               <JsonImportExport 
                 onImport={onUpdateParams}
+                onBatchImport={onBatchImport}
                 currentParams={params}
               />
             </div>
