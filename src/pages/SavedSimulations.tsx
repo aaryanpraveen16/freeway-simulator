@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { extractSimulationParams, formatParamsAsJson } from "../utils/simulationUtils";
 import ChartDashboard from "@/components/ChartDashboard";
 import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
+import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensityChart";
 import { Link } from "react-router-dom";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
@@ -724,6 +725,9 @@ const SavedSimulations: React.FC = () => {
               {/* Comparison Charts */}
               {selectedForComparison.size > 0 ? (
                 <div className="grid gap-6">
+                  <OverlayThroughputDensityChart 
+                    selectedSimulations={savedSimulations.filter(sim => selectedForComparison.has(sim.id))}
+                  />
                   {renderOverlappedSpeedChart()}
                   {renderOverlappedDensityChart()}
                   {renderOverlappedPercentageChart()}
