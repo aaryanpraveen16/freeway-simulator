@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { SimulationParams } from "@/utils/trafficSimulation";
+import { Copy, FileText } from "lucide-react";
 
 interface BatchSimulation {
   name?: string;
@@ -198,6 +199,97 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
     }
   };
 
+  const generateSampleJson = (type: 'single' | 'batch') => {
+    try {
+      let sampleJson;
+      
+      if (type === 'single') {
+        sampleJson = {
+          simulationDuration: 120,
+          numLanes: 3,
+          trafficDensity: 2.5,
+          meanSpeed: 65,
+          speedLimit: 70,
+          freewayLength: 5,
+          vehicleTypeDensity: {
+            car: 70,
+            truck: 20,
+            motorcycle: 10
+          },
+          tDist: 3,
+          meanDistTripPlanned: 8
+        };
+      } else {
+        sampleJson = [
+          {
+            name: "Low Traffic Scenario",
+            duration: 60,
+            params: {
+              numLanes: 2,
+              trafficDensity: 1.0,
+              meanSpeed: 70,
+              speedLimit: 75,
+              freewayLength: 10,
+              vehicleTypeDensity: {
+                car: 80,
+                truck: 15,
+                motorcycle: 5
+              }
+            }
+          },
+          {
+            name: "Medium Traffic Scenario", 
+            duration: 90,
+            params: {
+              numLanes: 3,
+              trafficDensity: 3.0,
+              meanSpeed: 60,
+              speedLimit: 65,
+              freewayLength: 8,
+              vehicleTypeDensity: {
+                car: 70,
+                truck: 25,
+                motorcycle: 5
+              }
+            }
+          },
+          {
+            name: "Heavy Traffic Scenario",
+            duration: 120,
+            params: {
+              numLanes: 4,
+              trafficDensity: 5.0,
+              meanSpeed: 45,
+              speedLimit: 55,
+              freewayLength: 6,
+              vehicleTypeDensity: {
+                car: 65,
+                truck: 30,
+                motorcycle: 5
+              }
+            }
+          }
+        ];
+      }
+      
+      const jsonString = JSON.stringify(sampleJson, null, 2);
+      navigator.clipboard.writeText(jsonString);
+      
+      toast({
+        title: "Sample JSON Copied",
+        description: `${type === 'single' ? 'Single simulation' : 'Batch simulation'} sample copied to clipboard!`,
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error generating sample JSON:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate sample JSON",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-4 p-4 border rounded-lg bg-card">
       <h3 className="text-lg font-medium">Import/Export Settings</h3>
@@ -216,7 +308,7 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button 
           onClick={handleImport} 
           disabled={!jsonInput.trim() || isImporting}
@@ -230,8 +322,35 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
           disabled={isExporting}
           variant="outline"
         >
-          {isExporting ? 'Copying...' : 'Export to Clipboard'}
+          <Copy className="w-4 h-4 mr-2" />
+          {isExporting ? 'Copying...' : 'Export Current'}
         </Button>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Sample Configurations</Label>
+        <div className="flex gap-2 flex-wrap">
+          <Button 
+            onClick={() => generateSampleJson('single')}
+            variant="secondary"
+            size="sm"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            Single Simulation
+          </Button>
+          
+          <Button 
+            onClick={() => generateSampleJson('batch')}
+            variant="secondary" 
+            size="sm"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            Batch Simulations
+          </Button>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Generate sample JSON configurations to copy and edit
+        </div>
       </div>
     </div>
   );
