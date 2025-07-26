@@ -12,9 +12,11 @@ import { extractSimulationParams, formatParamsAsJson } from "../utils/simulation
 import ChartDashboard from "@/components/ChartDashboard";
 import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensityChart";
+import OverlaySpeedChart from "@/components/OverlaySpeedChart";
+import OverlayDensityChart from "@/components/OverlayDensityChart";
+import OverlayLaneUsageChart from "@/components/OverlayLaneUsageChart";
+import OverlayPackFormationChart from "@/components/OverlayPackFormationChart";
 import { Link } from "react-router-dom";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 
 const SavedSimulations: React.FC = () => {
   const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
@@ -152,318 +154,13 @@ const SavedSimulations: React.FC = () => {
     return totalCars;
   };
 
-  const generateOverlappedComparisonData = () => {
-    if (savedSimulations.length === 0 || selectedForComparison.size === 0) return { speed: [], density: [], percentage: [] };
-
-    // Filter simulations based on selection
-    const selectedSimulations = savedSimulations.filter(sim => selectedForComparison.has(sim.id));
-
-    // Get all unique time points across selected simulations
-    const allTimePoints = new Set<number>();
-    selectedSimulations.forEach(sim => {
-      sim.chartData.speedByLaneHistory.forEach(point => allTimePoints.add(point.time));
-      sim.chartData.densityOfCarPacksHistory.forEach(point => allTimePoints.add(point.time));
-      sim.chartData.percentageByLaneHistory.forEach(point => allTimePoints.add(point.time));
-    });
-
-    const sortedTimePoints = Array.from(allTimePoints).sort((a, b) => a - b);
-    
-    // Generate speed comparison data
-    const speedData = sortedTimePoints.map(time => {
-      const dataPoint: any = { time };
-      
-      selectedSimulations.forEach(sim => {
-        const speedPoint = sim.chartData.speedByLaneHistory.find(p => p.time === time);
-        if (speedPoint) {
-          dataPoint[`sim${sim.simulationNumber}_overall`] = speedPoint.overallAvgSpeed;
-          
-          // Add individual lane data for more detailed comparison
-          for (let i = 0; i < (sim.params.numLanes || 2); i++) {
-            if (speedPoint[`lane${i}`] !== undefined) {
-              dataPoint[`sim${sim.simulationNumber}_lane${i}`] = speedPoint[`lane${i}`];
-            }
-          }
-        }
-      });
-      
-      return dataPoint;
-    }).filter(point => Object.keys(point).length > 1);
-
-      // Generate density comparison data
-    const densityData = sortedTimePoints.map(time => {
-      const dataPoint: any = { time };
-      
-      selectedSimulations.forEach(sim => {
-        const densityPoint = sim.chartData.densityOfCarPacksHistory.find(p => p.time === time);
-        if (densityPoint) {
-          dataPoint[`sim${sim.simulationNumber}_density`] = densityPoint.density;
-        }
-      });
-      
-      return dataPoint;
-    }).filter(point => Object.keys(point).length > 1);
-
-    // Generate percentage comparison data
-    const percentageData = sortedTimePoints.map(time => {
-      const dataPoint: any = { time };
-      
-      selectedSimulations.forEach(sim => {
-        const percentagePoint = sim.chartData.percentageByLaneHistory.find(p => p.time === time);
-        if (percentagePoint) {
-          // Add all lanes for each simulation
-          for (let i = 0; i < (sim.params.numLanes || 2); i++) {
-            if (percentagePoint[`lane${i}`] !== undefined) {
-              dataPoint[`sim${sim.simulationNumber}_lane${i}`] = percentagePoint[`lane${i}`];
-            }
-          }
-        }
-      });
-      
-      return dataPoint;
-    }).filter(point => Object.keys(point).length > 1);
-
-    return { speed: speedData, density: densityData, percentage: percentageData };
+  const getSelectedSimulations = () => {
+    return savedSimulations.filter(sim => selectedForComparison.has(sim.id));
   };
 
-  const getSimulationColors = () => {
-    const colors = [
-      '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', 
-      '#8b5a3c', '#6b7280', '#14b8a6', '#f97316', '#a855f7', '#84cc16'
-    ];
-    const selectedSimulations = savedSimulations.filter(sim => selectedForComparison.has(sim.id));
-    return selectedSimulations.reduce((acc, sim, index) => {
-      acc[sim.simulationNumber] = colors[index % colors.length];
-      return acc;
-    }, {} as Record<number, string>);
-  };
 
-  const renderOverlappedSpeedChart = () => {
-    const { speed: data } = generateOverlappedComparisonData();
-    const colors = getSimulationColors();
 
-    if (data.length === 0) {
-      return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Speed Comparison - All Simulations Overlapped</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-center justify-center text-gray-500">
-              No data available for comparison
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
 
-    // Create chart config properly
-    const chartConfig: Record<string, any> = {};
-    const selectedSimulations = savedSimulations.filter(sim => selectedForComparison.has(sim.id));
-    selectedSimulations.forEach(sim => {
-      const key = `sim${sim.simulationNumber}_overall`;
-      chartConfig[key] = {
-        label: `Simulation #${sim.simulationNumber}`,
-        color: colors[sim.simulationNumber]
-      };
-    });
-
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Speed Comparison - All Simulations Overlapped</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Overall average speed across {selectedForComparison.size} selected simulations
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[500px]">
-            <ChartContainer
-              className="h-full"
-              config={chartConfig}
-            >
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis 
-                  dataKey="time"
-                  label={{ value: "Time (seconds)", position: "insideBottom", offset: -5 }}
-                />
-                <YAxis
-                  label={{ value: "Speed (mph)", angle: -90, position: "insideLeft" }}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Legend />
-                
-                {selectedSimulations.map(sim => (
-                  <Line
-                    key={`sim${sim.simulationNumber}_overall`}
-                    dataKey={`sim${sim.simulationNumber}_overall`}
-                    stroke={colors[sim.simulationNumber]}
-                    strokeWidth={3}
-                    dot={false}
-                    name={`Sim #${sim.simulationNumber} (${sim.name})`}
-                    connectNulls={false}
-                  />
-                ))}
-              </LineChart>
-            </ChartContainer>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  const renderOverlappedDensityChart = () => {
-    const { density: data } = generateOverlappedComparisonData();
-    const colors = getSimulationColors();
-
-    if (data.length === 0) {
-      return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Traffic Density Comparison - All Simulations Overlapped</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-center justify-center text-gray-500">
-              No data available for comparison
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    // Create chart config properly
-    const chartConfig: Record<string, any> = {};
-    const selectedSimulations = savedSimulations.filter(sim => selectedForComparison.has(sim.id));
-    selectedSimulations.forEach(sim => {
-      const key = `sim${sim.simulationNumber}_density`;
-      chartConfig[key] = {
-        label: `Simulation #${sim.simulationNumber}`,
-        color: colors[sim.simulationNumber]
-      };
-    });
-
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Traffic Density Comparison - All Simulations Overlapped</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Car pack density across {selectedForComparison.size} selected simulations
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[500px]">
-            <ChartContainer
-              className="h-full"
-              config={chartConfig}
-            >
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis 
-                  dataKey="time"
-                  label={{ value: "Time (seconds)", position: "insideBottom", offset: -5 }}
-                />
-                <YAxis
-                  label={{ value: "Density (cars/km)", angle: -90, position: "insideLeft" }}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Legend />
-                
-                {selectedSimulations.map(sim => (
-                  <Line
-                    key={`sim${sim.simulationNumber}_density`}
-                    dataKey={`sim${sim.simulationNumber}_density`}
-                    stroke={colors[sim.simulationNumber]}
-                    strokeWidth={3}
-                    dot={false}
-                    name={`Sim #${sim.simulationNumber} (${sim.name})`}
-                    connectNulls={false}
-                  />
-                ))}
-              </LineChart>
-            </ChartContainer>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  const renderOverlappedPercentageChart = () => {
-    const { percentage: data } = generateOverlappedComparisonData();
-    const colors = getSimulationColors();
-
-    if (data.length === 0) {
-      return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Lane Usage Comparison - All Simulations Overlapped</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-center justify-center text-gray-500">
-              No data available for comparison
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    // Create chart config properly
-    const chartConfig: Record<string, any> = {};
-    const selectedSimulations = savedSimulations.filter(sim => selectedForComparison.has(sim.id));
-    selectedSimulations.forEach(sim => {
-      for (let i = 0; i < (sim.params.numLanes || 2); i++) {
-        const key = `sim${sim.simulationNumber}_lane${i}`;
-        chartConfig[key] = {
-          label: `Sim #${sim.simulationNumber} Lane ${i + 1}`,
-          color: colors[sim.simulationNumber]
-        };
-      }
-    });
-
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Lane Usage Comparison - All Simulations Overlapped</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Lane 1 usage percentage across {selectedForComparison.size} selected simulations
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[500px]">
-            <ChartContainer
-              className="h-full"
-              config={chartConfig}
-            >
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis 
-                  dataKey="time"
-                  label={{ value: "Time (seconds)", position: "insideBottom", offset: -5 }}
-                />
-                <YAxis
-                  label={{ value: "Percentage (%)", angle: -90, position: "insideLeft" }}
-                  domain={[0, 100]}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Legend />
-                
-                {selectedSimulations.map(sim => (
-                  <Line
-                    key={`sim${sim.simulationNumber}_lane0`}
-                    dataKey={`sim${sim.simulationNumber}_lane0`}
-                    stroke={colors[sim.simulationNumber]}
-                    strokeWidth={3}
-                    dot={false}
-                    name={`Sim #${sim.simulationNumber} Lane 1 (${sim.name})`}
-                    connectNulls={false}
-                  />
-                ))}
-              </LineChart>
-            </ChartContainer>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
 
   if (loading) {
     return (
@@ -726,11 +423,20 @@ const SavedSimulations: React.FC = () => {
               {selectedForComparison.size > 0 ? (
                 <div className="grid gap-6">
                   <OverlayThroughputDensityChart 
-                    selectedSimulations={savedSimulations.filter(sim => selectedForComparison.has(sim.id))}
+                    selectedSimulations={getSelectedSimulations()}
                   />
-                  {renderOverlappedSpeedChart()}
-                  {renderOverlappedDensityChart()}
-                  {renderOverlappedPercentageChart()}
+                  <OverlaySpeedChart
+                    selectedSimulations={getSelectedSimulations()}
+                  />
+                  <OverlayDensityChart
+                    selectedSimulations={getSelectedSimulations()}
+                  />
+                  <OverlayLaneUsageChart
+                    selectedSimulations={getSelectedSimulations()}
+                  />
+                  <OverlayPackFormationChart
+                    selectedSimulations={getSelectedSimulations()}
+                  />
                 </div>
               ) : (
                 <Card>
