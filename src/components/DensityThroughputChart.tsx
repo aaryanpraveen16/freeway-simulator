@@ -38,8 +38,9 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
     // Calculate overall density (cars per mile)
     const density = cars.length / laneLength; // cars per mile (overall freeway density)
-    // Calculate total throughput (cars per hour) for the entire freeway
-    const throughput = avgSpeed * density;
+    // Calculate total throughput (cars per hour) for the entire freeway - consistent with StatsDisplay
+    const throughputPerLane = avgSpeed * density;
+    const throughput = throughputPerLane * numLanes;
     
     return {
       density: parseFloat(density.toFixed(3)),
