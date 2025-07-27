@@ -100,6 +100,7 @@ const Index = () => {
   const [stoppedCars, setStoppedCars] = useState<Set<number>>(new Set());
   const [showPackFormation, setShowPackFormation] = useState<boolean>(false);
   const [laneChanges, setLaneChanges] = useState<number>(0);
+  const [carSize, setCarSize] = useState<number>(24);
 
   // Chart history state variables - moved here to be declared before use
   const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
@@ -720,6 +721,7 @@ const Index = () => {
               stoppedCars={stoppedCars}
               onStopCar={handleStopCar}
               onResumeCar={handleResumeCar}
+              carSize={carSize}
             />
           </div>
         </div>
@@ -742,6 +744,8 @@ const Index = () => {
               onBatchImport={handleBatchImport}
               trafficRule={trafficRule}
               onTrafficRuleChange={setTrafficRule}
+              carSize={carSize}
+              onCarSizeChange={setCarSize}
             />
           </div>
         </div>

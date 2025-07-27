@@ -23,6 +23,8 @@ interface ControlPanelProps {
   onBatchImport?: (simulations: BatchSimulation[]) => void;
   trafficRule: 'american' | 'european';
   onTrafficRuleChange: (rule: 'american' | 'european') => void;
+  carSize?: number;
+  onCarSizeChange?: (size: number) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -31,6 +33,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onBatchImport,
   trafficRule,
   onTrafficRuleChange,
+  carSize = 24,
+  onCarSizeChange,
 }) => {
   const handleVehicleTypeDensityChange = (vehicleType: 'car' | 'truck' | 'motorcycle', value: number) => {
     const newVehicleTypeDensity = { ...params.vehicleTypeDensity };
@@ -380,6 +384,35 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 />
               </div>
             </div>
+
+            <Separator />
+
+            {/* Car Display Size */}
+            {onCarSizeChange && (
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <Label className="text-sm font-medium">Car Display Size</Label>
+                  <InfoTooltip content="Adjust the visual size of cars to make them easier to see" />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Size: {carSize}px</Label>
+                    <span className="text-xs text-muted-foreground">
+                      ({carSize < 20 ? 'Small' : carSize > 30 ? 'Large' : 'Medium'})
+                    </span>
+                  </div>
+                  <Slider
+                    value={[carSize]}
+                    onValueChange={([value]) => onCarSizeChange(value)}
+                    min={12}
+                    max={48}
+                    step={2}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            )}
 
             <Separator />
             

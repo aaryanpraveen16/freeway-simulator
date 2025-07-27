@@ -11,15 +11,17 @@ interface TrafficTrackProps {
   stoppedCars?: Set<number>;
   onStopCar?: (carId: number) => void;
   onResumeCar?: (carId: number) => void;
+  carSize?: number;
 }
 
-const TrafficTrack: React.FC<TrafficTrackProps> = ({ 
-  cars, 
-  laneLength, 
+const TrafficTrack: React.FC<TrafficTrackProps> = ({
+  cars,
+  laneLength,
   numLanes,
   stoppedCars = new Set(),
   onStopCar,
   onResumeCar,
+  carSize = 24,
 }) => {
   const [activeView, setActiveView] = useState<"circular" | "straight">("straight");
   const trackRadius = 180; // radius in pixels
@@ -85,6 +87,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
                 isStopped={stoppedCars.has(car.id)}
                 onStopCar={onStopCar}
                 onResumeCar={onResumeCar}
+                carSize={carSize}
               />
             ))}
             
@@ -106,14 +109,15 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
           </div>
         </TabsContent>
         <TabsContent value="straight">
-          <StraightLineTrack 
-            cars={cars} 
-            laneLength={laneLength} 
-            numLanes={numLanes}
-            stoppedCars={stoppedCars}
-            onStopCar={onStopCar}
-            onResumeCar={onResumeCar}
-          />
+            <StraightLineTrack
+              cars={cars}
+              laneLength={laneLength}
+              numLanes={numLanes}
+              stoppedCars={stoppedCars}
+              onStopCar={onStopCar}
+              onResumeCar={onResumeCar}
+              carSize={carSize}
+            />
         </TabsContent>
       </Tabs>
     </div>

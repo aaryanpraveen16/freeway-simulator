@@ -16,6 +16,7 @@ interface CarComponentProps {
   isStopped?: boolean;
   onStopCar?: (carId: number) => void;
   onResumeCar?: (carId: number) => void;
+  carSize?: number;
 }
 
 const CarComponent: React.FC<CarComponentProps> = ({
@@ -29,8 +30,8 @@ const CarComponent: React.FC<CarComponentProps> = ({
   isStopped = false,
   onStopCar,
   onResumeCar,
+  carSize = 24,
 }) => {
-  const carSize = 24; // size of car icon in pixels
   
   // Calculate position based on track type
   // Add a small vertical offset to position cars lower in their lanes
