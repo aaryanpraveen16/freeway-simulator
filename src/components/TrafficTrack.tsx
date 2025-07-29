@@ -96,6 +96,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
                     isStopped={stoppedCars.has(car.id)}
                     onStopCar={onStopCar}
                     onResumeCar={onResumeCar}
+                    carSize={carSize}
                   />
                 ))}
               </div>
@@ -126,6 +127,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
               stoppedCars={stoppedCars}
               onStopCar={onStopCar}
               onResumeCar={onResumeCar}
+              carSize={carSize}
             />
           </TabsContent>
         </Tabs>
