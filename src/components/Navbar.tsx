@@ -3,17 +3,38 @@ import React, { useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Linkedin, ExternalLink } from "lucide-react";
+import { Linkedin, ExternalLink, Save, Archive } from "lucide-react";
+import { Link } from "react-router-dom";
 import { contributors } from "@/types/contributor";
+import SaveSimulationDialog from "./SaveSimulationDialog";
 
-const Navbar = () => {
+interface NavbarProps {
+  onSaveSimulation?: (name: string) => void;
+  canSave?: boolean;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false }) => {
   const [showCredits, setShowCredits] = useState(false);
 
   return (
     <div className="bg-primary text-primary-foreground py-2 px-4 mb-6 shadow-md">
       <div className="container mx-auto flex items-center justify-between">
         <h2 className="text-xl font-medium">Freeway Simulator</h2>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {onSaveSimulation && (
+            <SaveSimulationDialog
+              onSave={onSaveSimulation}
+              canSave={canSave}
+            />
+          )}
+          
+          <Link to="/saved-simulations">
+            <Button variant="outline" size="sm" className="bg-white text-primary hover:bg-gray-100 flex items-center gap-2">
+              <Archive size={16} />
+              View Saved
+            </Button>
+          </Link>
+          
           <Button 
             variant="outline" 
             size="sm"

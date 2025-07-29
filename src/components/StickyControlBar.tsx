@@ -127,21 +127,6 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
                     </Button>
                   </div>
 
-                  <div className="flex gap-2">
-                    {onSaveSimulation && (
-                      <SaveSimulationDialog
-                        onSave={onSaveSimulation}
-                        canSave={canSave}
-                      />
-                    )}
-                    
-                    <Link to="/saved-simulations" className="flex-1">
-                      <Button variant="outline" className="w-full flex items-center gap-2">
-                        <Archive size={16} />
-                        View Saved
-                      </Button>
-                    </Link>
-                  </div>
 
                   <div className="flex items-center justify-center gap-3 pt-2 border-t">
                     <Label htmlFor="pack-formation-toggle" className="text-sm">

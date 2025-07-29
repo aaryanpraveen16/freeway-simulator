@@ -664,7 +664,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Navbar />
+      <Navbar onSaveSimulation={handleSaveSimulation} canSave={packHistory.length > 0} />
       
       {/* Sticky Control Bar */}
       <StickyControlBar
