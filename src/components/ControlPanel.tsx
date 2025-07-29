@@ -129,8 +129,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <Input
                     type="number"
                     value={params.vehicleTypeDensity.car}
-                    onChange={(e) => handleVehicleTypeDensityChange('car', parseInt(e.target.value) || 0)}
-                    className="flex-1"
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      if (value >= 0 && value <= 100) {
+                        handleVehicleTypeDensityChange('car', value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Allow: backspace, delete, tab, escape, enter, and decimal points
+                      if ([46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
+                          // Allow: Ctrl+A, Command+A
+                          (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                          // Allow: home, end, left, right, down, up
+                          (e.keyCode >= 35 && e.keyCode <= 40)) {
+                        // Let it happen, don't do anything
+                        return;
+                      }
+                      // Ensure that it is a number and stop the keypress
+                      if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     min="0"
                     max="100"
                   />
@@ -145,8 +165,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <Input
                     type="number"
                     value={params.vehicleTypeDensity.truck}
-                    onChange={(e) => handleVehicleTypeDensityChange('truck', parseInt(e.target.value) || 0)}
-                    className="flex-1"
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      if (value >= 0 && value <= 100) {
+                        handleVehicleTypeDensityChange('truck', value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Allow: backspace, delete, tab, escape, enter, and decimal points
+                      if ([46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
+                          // Allow: Ctrl+A, Command+A
+                          (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                          // Allow: home, end, left, right, down, up
+                          (e.keyCode >= 35 && e.keyCode <= 40)) {
+                        // Let it happen, don't do anything
+                        return;
+                      }
+                      // Ensure that it is a number and stop the keypress
+                      if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     min="0"
                     max="100"
                   />
@@ -161,8 +201,28 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <Input
                     type="number"
                     value={params.vehicleTypeDensity.motorcycle}
-                    onChange={(e) => handleVehicleTypeDensityChange('motorcycle', parseInt(e.target.value) || 0)}
-                    className="flex-1"
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      if (value >= 0 && value <= 100) {
+                        handleVehicleTypeDensityChange('motorcycle', value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Allow: backspace, delete, tab, escape, enter, and decimal points
+                      if ([46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
+                          // Allow: Ctrl+A, Command+A
+                          (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                          // Allow: home, end, left, right, down, up
+                          (e.keyCode >= 35 && e.keyCode <= 40)) {
+                        // Let it happen, don't do anything
+                        return;
+                      }
+                      // Ensure that it is a number and stop the keypress
+                      if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     min="0"
                     max="100"
                   />
@@ -223,6 +283,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   />
                   <span className="text-xs text-gray-500">cars/mile</span>
                 </div>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {[10, 20, 30, 40, 50].map((density) => (
+                    <Button
+                      key={density}
+                      variant="outline"
+                      size="sm"
+                      className={`h-7 px-2 text-xs ${Math.abs(overallDensity - density) < 0.1 ? 'bg-primary/10' : ''}`}
+                      onClick={() => handleOverallDensityChange(density.toString())}
+                    >
+                      {density}
+                    </Button>
+                  ))}
+                </div>
                 <div className="text-xs text-gray-500">
                   This density will be applied uniformly across all {params.numLanes} lane(s)
                 </div>
@@ -234,10 +307,68 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             {/* Speed Settings */}
             <div className="space-y-3">
               <div className="flex items-center">
-                <Label className="text-sm font-medium">Speed Settings</Label>
-                <InfoTooltip content="Settings for vehicle speeds in the simulation" />
+                <Label className="text-sm font-medium">Simulation Settings</Label>
+                <InfoTooltip content="Settings for the simulation duration and speed" />
               </div>
               
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Label className="text-xs">Simulation Duration (seconds):</Label>
+                    <InfoTooltip content="How long the simulation will run (0 = unlimited)" />
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {params.simulationDuration === 0 ? 'Unlimited' : `${params.simulationDuration}s`}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Slider
+                    value={[Math.min(params.simulationDuration || 0, 600)]}
+                    onValueChange={([value]) => onUpdateParams({ simulationDuration: Math.min(value, 600) })}
+                    min={0}
+                    max={600}
+                    step={10}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    value={params.simulationDuration || ''}
+                    onChange={(e) => {
+                      const value = Math.min(Number(e.target.value) || 0, 600);
+                      onUpdateParams({ simulationDuration: value });
+                    }}
+                    onBlur={(e) => {
+                      const value = Math.min(Number(e.target.value) || 0, 600);
+                      onUpdateParams({ simulationDuration: value });
+                    }}
+                    className="w-20"
+                    min={0}
+                    max={600}
+                    step={10}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {[30, 60, 180, 300, 600].map((duration) => (
+                    <Button
+                      key={duration}
+                      variant="outline"
+                      size="sm"
+                      className={`h-7 px-2 text-xs ${params.simulationDuration === duration ? 'bg-primary/10' : ''}`}
+                      onClick={() => onUpdateParams({ simulationDuration: duration })}
+                    >
+                      {duration < 60 ? `${duration}s` : duration === 60 ? '1 min' : duration < 300 ? `${duration/60} mins` : duration === 600 ? '10 mins (max)' : `${duration/60} mins`}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center">
+                  <Label className="text-sm font-medium">Speed Settings</Label>
+                  <InfoTooltip content="Settings for vehicle speeds in the simulation" />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">

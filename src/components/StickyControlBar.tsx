@@ -1,10 +1,10 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Pause, Play, RotateCcw, Save, Archive } from "lucide-react";
+import { Pause, Play, RotateCcw, Save, Archive, ChevronUp, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import SaveSimulationDialog from "./SaveSimulationDialog";
 
@@ -29,111 +29,137 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
   onSaveSimulation,
   canSave = false,
 }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   return (
-    <div className="sticky top-0 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm max-w-2xl">
-      <div className="mx-auto px-4 py-3 max-w-2xl">
-        <Card>
-          <CardContent className="p-4 space-y-4">
-            <div className="flex gap-2">
-              <Button
-                onClick={onToggleSimulation}
-                variant={isRunning ? "destructive" : "default"}
-                className="flex-1 flex items-center gap-2"
+    <div className="sticky top-0 left-0 right-0 z-50">
+      <div className="flex justify-center">
+        <div className="w-full max-w-2xl px-4 py-1">
+          <Card>
+            <CardContent className="p-2">
+              <div 
+                className="flex items-center justify-center cursor-pointer py-1 text-sm text-muted-foreground hover:text-foreground"
+                onClick={() => setIsCollapsed(!isCollapsed)}
               >
-                {isRunning ? (
+                {isCollapsed ? (
                   <>
-                    <Pause size={16} />
-                    Pause
+                    <ChevronDown size={16} className="mr-1" />
+                    Show Controls
                   </>
                 ) : (
                   <>
-                    <Play size={16} />
-                    Start
+                    <ChevronUp size={16} className="mr-1" />
+                    Hide Controls
                   </>
                 )}
-              </Button>
-              
-              <Button
-                onClick={onReset}
-                variant="outline"
-                className="flex-1 flex items-center gap-2"
-              >
-                <RotateCcw size={16} />
-                Reset
-              </Button>
-            </div>
+              </div>
+              {!isCollapsed && (
+                <div className="space-y-4 mt-2">
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={onToggleSimulation}
+                      variant={isRunning ? "destructive" : "default"}
+                      className="flex-1 flex items-center gap-2"
+                    >
+                      {isRunning ? (
+                        <>
+                          <Pause size={16} />
+                          Pause
+                        </>
+                      ) : (
+                        <>
+                          <Play size={16} />
+                          Start
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      onClick={onReset}
+                      variant="outline"
+                      className="flex-1 flex items-center gap-2"
+                    >
+                      <RotateCcw size={16} />
+                      Reset
+                    </Button>
+                  </div>
 
-            <div className="flex gap-2">
-              <Button
-                onClick={() => setSimulationSpeed(0.5)}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-              >
-                0.5x
-              </Button>
-              <Button
-                onClick={() => setSimulationSpeed(1)}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-              >
-                1x
-              </Button>
-              <Button
-                onClick={() => setSimulationSpeed(2)}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-              >
-                2x
-              </Button>
-              <Button
-                onClick={() => setSimulationSpeed(4)}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-              >
-                4x
-              </Button>
-              <Button
-                onClick={() => setSimulationSpeed(8)}
-                variant="outline"
-                size="sm"
-                className="flex-1"
-              >
-                8x
-              </Button>
-            </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setSimulationSpeed(0.5)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      0.5x
+                    </Button>
+                    <Button
+                      onClick={() => setSimulationSpeed(1)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      1x
+                    </Button>
+                    <Button
+                      onClick={() => setSimulationSpeed(2)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      2x
+                    </Button>
+                    <Button
+                      onClick={() => setSimulationSpeed(4)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      4x
+                    </Button>
+                    <Button
+                      onClick={() => setSimulationSpeed(8)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      8x
+                    </Button>
+                  </div>
 
-            <div className="flex gap-2">
-              {onSaveSimulation && (
-                <SaveSimulationDialog
-                  onSave={onSaveSimulation}
-                  canSave={canSave}
-                />
+                  <div className="flex gap-2">
+                    {onSaveSimulation && (
+                      <SaveSimulationDialog
+                        onSave={onSaveSimulation}
+                        canSave={canSave}
+                      />
+                    )}
+                    
+                    <Link to="/saved-simulations" className="flex-1">
+                      <Button variant="outline" className="w-full flex items-center gap-2">
+                        <Archive size={16} />
+                        View Saved
+                      </Button>
+                    </Link>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-3 pt-2 border-t">
+                    <Label htmlFor="pack-formation-toggle" className="text-sm">
+                      Show Pack Information
+                    </Label>
+                    <Switch
+                      id="pack-formation-toggle"
+                      checked={showPackFormation}
+                      onCheckedChange={onTogglePackFormation}
+                    />
+                  </div>
+
+
+                </div>
               )}
-              
-              <Link to="/saved-simulations" className="flex-1">
-                <Button variant="outline" className="w-full flex items-center gap-2">
-                  <Archive size={16} />
-                  View Saved
-                </Button>
-              </Link>
-            </div>
-
-            <div className="flex items-center justify-center gap-3 pt-2 border-t">
-              <Label htmlFor="pack-formation-toggle" className="text-sm">
-                Show Pack Information
-              </Label>
-              <Switch
-                id="pack-formation-toggle"
-                checked={showPackFormation}
-                onCheckedChange={onTogglePackFormation}
-              />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

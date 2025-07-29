@@ -318,13 +318,15 @@ const Index = () => {
         const avgSpeed = newCars.reduce((sum, car) => sum + car.speed, 0) / newCars.length;
         // Calculate overall density (cars per mile)
         const density = newCars.length / currentLaneLength;
-        // Throughput = average speed * density (cars per hour)
-        const throughput = avgSpeed * density;
+        // Throughput = average speed * density * number of lanes (cars per hour)
+        const numLanes = newCars.length > 0 ? Math.max(...newCars.map(c => c.lane)) + 1 : 1;
+        const throughputPerLane = avgSpeed * density;
+        const throughput = throughputPerLane * numLanes;
         
         setDensityThroughputHistory(prev => {
           const newHistory = [...prev, {
-            density: parseFloat(density.toFixed(3)),
-            throughput: parseFloat(throughput.toFixed(0)),
+            density: parseFloat((newCars.length / currentLaneLength).toFixed(2)), // Match current point precision
+            throughput: Math.round(throughput), // Use Math.round to match current point
             time: parseFloat(time.toFixed(1))
           }];
           if (newHistory.length > 100) {
@@ -484,6 +486,12 @@ const Index = () => {
     if (!lastTimestampRef.current) {
       lastTimestampRef.current = timestamp;
       animationFrameRef.current = requestAnimationFrame(animationLoop);
+      return;
+    }
+
+    // Check if simulation duration has been reached
+    if (params.simulationDuration > 0 && elapsedTime >= params.simulationDuration) {
+      setIsRunning(false);
       return;
     }
 
@@ -693,22 +701,22 @@ const Index = () => {
         </div>
       </div>
       
-      {/* Visual Overlap Disclaimer - moved down and to the right */}
-      <div className="absolute top-44 right-4 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm p-3 z-10 max-w-xs">
-        <p className="text-xs text-yellow-800">
-          <strong>Note:</strong> Cars may appear to overlap visually, but they maintain safe distances in the simulation logic.
-        </p>
-      </div>
-      
+
       <div className="container mx-auto px-4 py-8 pt-16">
         <header className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Freeway Simulator
           </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            A real-time simulation of traffic flow in a closed loop, demonstrating how 
-            traffic jams can emerge from the dynamics of car following behavior.
-          </p>
+          <div className="max-w-2xl mx-auto">
+            <p className="text-gray-600">
+              A real-time simulation of traffic flow in a closed loop, demonstrating how 
+              traffic jams can emerge from the dynamics of car following behavior.
+            </p>
+            <div className="mt-4 p-3 bg-white/80 text-xs text-gray-600 rounded border border-gray-200 shadow-sm">
+              <div className="font-medium text-gray-700">Note</div>
+              <p className="mt-1">This is a work in progress. Cars may appear to overlap visually, but they maintain safe distances in the simulation logic.</p>
+            </div>
+          </div>
         </header>
 
         {/* Full width track */}

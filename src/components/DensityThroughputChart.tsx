@@ -37,14 +37,15 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
     
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
     // Calculate overall density (cars per mile)
-    const density = cars.length / laneLength; // cars per mile (overall freeway density)
-    // Calculate total throughput (cars per hour) for the entire freeway - consistent with StatsDisplay
+    const density = parseFloat((cars.length / laneLength).toFixed(2)); // Match StatsDisplay's density calculation
+    
+    // Calculate freeway throughput (cars per hour per lane)
     const throughputPerLane = avgSpeed * density;
-    const throughput = throughputPerLane * numLanes;
+    const totalThroughput = throughputPerLane * (cars.length > 0 ? Math.max(...cars.map(c => c.lane)) + 1 : 1);
     
     return {
-      density: parseFloat(density.toFixed(3)),
-      throughput: parseFloat(throughput.toFixed(0)),
+      density,
+      throughput: Math.round(totalThroughput), // Match StatsDisplay's rounding
       time: parseFloat(elapsedTime.toFixed(1))
     };
   }, [cars, laneLength, elapsedTime, numLanes]);
@@ -194,18 +195,32 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
                 domain={['dataMin - 100', 'dataMax + 100']}
               />
               <Tooltip 
-                formatter={(value, name) => {
-                  const formattedValue = name === 'throughput' 
-                    ? `${Math.round(Number(value)).toLocaleString()} cars/hour`
-                    : `${Number(value).toFixed(2)}`;
-                  return [formattedValue, name === 'throughput' ? 'Throughput' : 'Density'];
+                formatter={(value, name, props) => {
+                  if (name === 'throughput') {
+                    return [
+                      `${Math.round(Number(value)).toLocaleString()} cars/hour`,
+                      'Throughput'
+                    ];
+                  } else if (name === 'density') {
+                    return [
+                      `${Number(value).toFixed(2)} cars/mile`,
+                      'Density'
+                    ];
+                  }
+                  return [value, name];
                 }}
-                labelFormatter={(label) => `Time: ${label} sec`}
+                labelFormatter={(label, payload) => {
+                  if (!payload || payload.length === 0) return '';
+                  const time = payload[0]?.payload?.time;
+                  return time !== undefined ? `Time: ${time.toFixed(1)} sec` : '';
+                }}
                 contentStyle={{
                   backgroundColor: 'white',
                   border: '1px solid #e2e8f0',
                   borderRadius: '0.5rem',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  padding: '8px 12px',
+                  fontSize: '14px'
                 }}
               />
               <Scatter

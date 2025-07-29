@@ -1,0 +1,846 @@
+{
+  "experiment": {
+    "name": "fundamental_diagram",
+    "description": "Measure throughput vs density relationship",
+    "replications": 10,
+    "parameters": {
+      "density": [
+        10,
+        20,
+        30,
+        40,
+        50,
+        60,
+        70,
+        80,
+        90,
+        100,
+        110,
+        120,
+        130,
+        140,
+        150,
+        160,
+        170,
+        180,
+        190,
+        200
+      ],
+      "numLanes": [
+        3
+      ],
+      "meanSpeed": [
+        100
+      ]
+    },
+    "metrics": [
+      "throughput",
+      "avgSpeed",
+      "density",
+      "flowStability"
+    ]
+  },
+  "timestamp": "2025-07-25T04:11:11.464Z",
+  "results": [
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 10
+      },
+      "result": {
+        "metrics": {
+          "throughput": 1000,
+          "avgSpeed": 98,
+          "density": 10,
+          "flowStability": 0.8913937095756783
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 10
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 20
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 96,
+          "density": 20,
+          "flowStability": 0.9155835728287895
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 20
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 30
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 94,
+          "density": 30,
+          "flowStability": 0.9098959131706827
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 30
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 40
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 92,
+          "density": 40,
+          "flowStability": 0.906191985045169
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 40
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 50
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 90,
+          "density": 50,
+          "flowStability": 0.8828056305848764
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 50
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 60
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 88,
+          "density": 60,
+          "flowStability": 0.9338264408698596
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 60
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 70
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 86,
+          "density": 70,
+          "flowStability": 0.8784252271463275
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 70
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 80
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 84,
+          "density": 80,
+          "flowStability": 0.8845476761538373
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 80
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 90
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 82,
+          "density": 90,
+          "flowStability": 0.9266867207280528
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 90
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 100
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 80,
+          "density": 100,
+          "flowStability": 0.8966056930835427
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 100
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 110
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 78,
+          "density": 110,
+          "flowStability": 0.8825299537861827
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 110
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 120
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 76,
+          "density": 120,
+          "flowStability": 0.9061913348282559
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 120
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 130
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 74,
+          "density": 130,
+          "flowStability": 0.8756926107652296
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 130
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 140
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 72,
+          "density": 140,
+          "flowStability": 0.8808430924262767
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 140
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 150
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 70,
+          "density": 150,
+          "flowStability": 0.9020014319381318
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 150
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 160
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 68,
+          "density": 160,
+          "flowStability": 0.9004670458772995
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 160
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 170
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 66,
+          "density": 170,
+          "flowStability": 0.906347738070127
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 170
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 180
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 64,
+          "density": 180,
+          "flowStability": 0.8943296660154338
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 180
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 190
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 62,
+          "density": 190,
+          "flowStability": 0.9131679276156957
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 190
+        }
+      }
+    },
+    {
+      "params": {
+        "duration": 3600,
+        "warmup": 900,
+        "seed": 42,
+        "laneLength": 1000,
+        "numLanes": 3,
+        "meanSpeed": 100,
+        "sdSpeed": 5,
+        "minGap": 2,
+        "reactionTime": 1,
+        "sdReactionTime": 0.2,
+        "maxAccel": 2,
+        "maxDecel": 3,
+        "density": 200
+      },
+      "result": {
+        "metrics": {
+          "throughput": 2000,
+          "avgSpeed": 60,
+          "density": 200,
+          "flowStability": 0.8892253553033609
+        },
+        "params": {
+          "duration": 3600,
+          "warmup": 900,
+          "seed": 42,
+          "laneLength": 1000,
+          "numLanes": 3,
+          "meanSpeed": 100,
+          "sdSpeed": 5,
+          "minGap": 2,
+          "reactionTime": 1,
+          "sdReactionTime": 0.2,
+          "maxAccel": 2,
+          "maxDecel": 3,
+          "density": 200
+        }
+      }
+    }
+  ]
+}

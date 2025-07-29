@@ -1,0 +1,17 @@
+{
+  "name": "freeway-experiments",
+  "version": "1.0.0",
+  "description": "Freeway traffic simulation experiments",
+  "type": "module",
+  "scripts": {
+    "start": "npx tsx runExperiment.ts",
+    "fundamental-diagram": "npx tsx runExperiment.ts"
+  },
+  "dependencies": {
+    "tsx": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "typescript": "^5.0.0"
+  }
+}

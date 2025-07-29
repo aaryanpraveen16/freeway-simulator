@@ -49,9 +49,9 @@ export interface SimulationParams {
   numLanes?: number; // number of lanes
   politenessFactor?: number; // MOBIL politeness factor
   rightLaneBias?: number; // bias for right lane
-  accelerationThreshold?: number; // threshold for lane change incentive
+  accelerationThreshold?: number; // threshold for lane change
   laneChangeCooldown?: number; // min time between lane changes (seconds)
-  simulationDuration?: number; // simulation duration in seconds
+  simulationDuration?: number; // simulation duration in seconds (0 = unlimited)
 }
 
 // Default simulation parameters
@@ -76,14 +76,14 @@ export const defaultParams: SimulationParams = {
   stdSpeed: 5, // mph
   meanDistTripPlanned: 10, // 1.9 miles
   sigmaDistTripPlanned: 0.5, // standard deviation for log-normal distribution (miles)
-  speedLimit: 70,
+  speedLimit: 1000, // Effectively no limit by default
   freewayLength: 10, // initial value in miles
   numLanes: 2, // default to 2 lanes
   politenessFactor: 0.3, // typical MOBIL value
   rightLaneBias: 0.1, // small bias for right lane
   accelerationThreshold: 0.2, // threshold for lane change
   laneChangeCooldown: 2, // seconds
-  simulationDuration: 60, // 60 seconds default
+  simulationDuration: 600, // 10 minutes by default, 0 would be unlimited but we're setting a max
 };
 
 // Generate random number from normal distribution
