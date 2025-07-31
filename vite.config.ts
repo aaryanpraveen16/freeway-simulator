@@ -1,45 +1,57 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react-swc';
+import path from 'path';
 import { componentTagger } from "lovable-tagger";
+import tailwindcss from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
 
 // https://vitejs.dev/config/
-const isProduction = process.env.NODE_ENV === 'production';
-const base = isProduction ? '/Freeway-Modeling' : '/';
-
-export default defineConfig(({ mode }) => ({
-  base:'freeway-simulator',
-  define: {
-    'process.env.NODE_ENV': `"${mode}"`
-  },
-  optimizeDeps: {
-    include: ['react', 'react-dom']
-  },
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html'),
-      },
-      output: {
-        entryFileNames: 'assets/[name].[hash].js',
-        chunkFileNames: 'assets/[name].[hash].js',
-        assetFileNames: 'assets/[name].[hash][extname]',
+export default defineConfig(({ mode }) => {
+  const isDev = mode === 'development';
+  
+  return {
+    base: './', // Always use relative paths
+    publicDir: 'public', // Use the public directory for static assets
+    css: {
+      modules: false,
+      devSourcemap: isDev,
+      postcss: {
+        plugins: [
+          tailwindcss(),
+          autoprefixer(),
+        ],
       },
     },
-  },
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [
-    react(),
-    mode === 'development' && componentTagger(),
-  ].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      assetsDir: 'assets',
+      cssCodeSplit: true,
+      assetsInlineLimit: 0, // Disable inline assets
+      minify: !isDev, // Only minify in production
+      sourcemap: isDev, // Only generate sourcemaps in development
+      rollupOptions: {
+        input: path.resolve(__dirname, 'index.html'),
+        output: {
+          entryFileNames: 'assets/[name].[hash].js',
+          chunkFileNames: 'assets/[name].[hash].js',
+          assetFileNames: 'assets/[name].[hash][extname]',
+        },
+      },
     },
-  },
-}));
+    server: {
+      host: "::",
+      port: 3000,
+      strictPort: true,
+    },
+    plugins: [
+      react(),
+      isDev && componentTagger(),
+    ].filter(Boolean) as any[],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+  };
+});
