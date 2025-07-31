@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://aaryanpraveen16.github.io/freeway-simulator/",
+  "homepage": "https://aaryanpraveen16.github.io/freeway-simulator",
   "scripts": {
     "dev": "vite",
     "build": "vite build --mode production",

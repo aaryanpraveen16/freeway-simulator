@@ -8,7 +8,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const base = isProduction ? '/Freeway-Modeling' : '/';
 
 export default defineConfig(({ mode }) => ({
-  base,
+  base:'freeway-simulator',
   define: {
     'process.env.NODE_ENV': `"${mode}"`
   },
