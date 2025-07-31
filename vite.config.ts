@@ -4,14 +4,28 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
+const isProduction = process.env.NODE_ENV === 'production';
+const base = isProduction ? '/Freeway-Modeling' : '/';
+
 export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? '/Freeway-Modeling/' : '/',
+  base,
+  define: {
+    'process.env.NODE_ENV': `"${mode}"`
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom']
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
+      },
+      output: {
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash][extname]',
       },
     },
   },
