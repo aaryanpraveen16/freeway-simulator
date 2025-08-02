@@ -1,12 +1,14 @@
 
 import React from "react";
 import { Car, calculateDistanceToCarAhead, getCarColor } from "@/utils/trafficSimulation";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface CarStatsCardProps {
   cars: Car[];
   laneLength: number;
   showPackInfo?: boolean;
+  unitSystem: UnitSystem;
 }
 
 interface PackInfo {
@@ -84,7 +86,8 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
   return { packs, carPackMap };
 };
 
-const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, showPackInfo = true }) => {
+const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, showPackInfo = true, unitSystem }) => {
+  const conversions = getUnitConversions(unitSystem);
   const { packs, carPackMap } = identifyPacks(cars);
   
   // Filter packs to only show those with more than 1 car
@@ -114,7 +117,7 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, showPackI
                       </div>
                       <div>
                         <span className="text-muted-foreground">Speed:</span>
-                        <span className="font-medium ml-1">{pack.speed} mph</span>
+                        <span className="font-medium ml-1">{Math.round(conversions.speed.toDisplay(pack.speed))} {conversions.speed.unit}</span>
                       </div>
                     </div>
                   </div>
@@ -172,15 +175,15 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, showPackI
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <span className="text-muted-foreground">Desired Speed:</span>
-                      <span className="font-medium ml-1">{Math.round(car.desiredSpeed)} mph</span>
+                      <span className="font-medium ml-1">{Math.round(conversions.speed.toDisplay(car.desiredSpeed))} {conversions.speed.unit}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Current Speed:</span>
-                      <span className="font-medium ml-1">{Math.round(car.speed)} mph</span>
+                      <span className="font-medium ml-1">{Math.round(conversions.speed.toDisplay(car.speed))} {conversions.speed.unit}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Distance to Car Ahead:</span>
-                      <span className="font-medium ml-1">{distanceToCarAhead.toFixed(2)} mi</span>
+                      <span className="font-medium ml-1">{conversions.distance.toDisplay(distanceToCarAhead).toFixed(2)} {conversions.distance.unit}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Trip Progress:</span>
@@ -210,8 +213,8 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, showPackI
                       ></div>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>{car.distanceTraveled.toFixed(2)} mi</span>
-                      <span>{car.distTripPlanned.toFixed(2)} mi</span>
+                      <span>{conversions.distance.toDisplay(car.distanceTraveled).toFixed(2)} {conversions.distance.unit}</span>
+                      <span>{conversions.distance.toDisplay(car.distTripPlanned).toFixed(2)} {conversions.distance.unit}</span>
                     </div>
                   </div>
                 </div>

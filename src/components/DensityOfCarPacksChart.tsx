@@ -5,6 +5,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import { useToast } from "@/hooks/use-toast";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
@@ -22,6 +23,7 @@ interface DensityOfCarPacksChartProps {
   dataHistory: DensityOfCarPacksDataPoint[];
   numLanes: number;
   trafficRule: 'american' | 'european';
+  unitSystem: UnitSystem;
 }
 
 // Helper function to identify packs across all lanes
@@ -71,10 +73,12 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
   laneLength,
   dataHistory,
   numLanes,
-  trafficRule
+  trafficRule,
+  unitSystem
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const conversions = getUnitConversions(unitSystem);
 
   const currentPoint = useMemo(() => {
     if (cars.length === 0) return null;
@@ -87,13 +91,13 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
     
     const point: DensityOfCarPacksDataPoint = {
       time: parseFloat(elapsedTime.toFixed(1)),
-      overallDensity: parseFloat(overallDensity.toFixed(2)),
+      overallDensity: parseFloat(conversions.density.toDisplay(overallDensity).toFixed(2)),
       totalPacks: packCount,
       averagePackSize: packCount > 0 ? parseFloat((totalPackSize / packCount).toFixed(1)) : 0
     };
     
     return point;
-  }, [cars, elapsedTime, laneLength, numLanes]);
+  }, [cars, elapsedTime, laneLength, numLanes, conversions]);
 
   const chartData = useMemo(() => {
     const data = [...dataHistory];
@@ -110,8 +114,8 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
     const totalPacksData = extractDataValues(chartData, 'totalPacks');
     
     return {
-      density: calculateStabilizedValue(densityData),
-      packSize: calculateStabilizedValue(packSizeData),
+      overallDensity: calculateStabilizedValue(densityData),
+      averagePackSize: calculateStabilizedValue(packSizeData),
       totalPacks: calculateStabilizedValue(totalPacksData)
     };
   }, [chartData]);
@@ -207,35 +211,45 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
                 label={{ value: "Time (seconds)", position: "insideBottom", offset: -5 }}
               />
               <YAxis
-                label={{ value: "Density / Pack Metrics", angle: -90, position: "insideLeft" }}
+                yAxisId="left"
+                orientation="left"
+                label={{ value: `Density (${conversions.density.unit})`, angle: -90, position: "insideLeft" }}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                label={{ value: "Pack Size / Count", angle: 90, position: "insideRight" }}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Legend />
               
               <Line
+                yAxisId="left"
                 dataKey="overallDensity"
                 stroke="#000"
                 strokeWidth={3}
                 dot={false}
-                name="Traffic Density (cars/mile)"
+                name="Overall Density"
               />
               
               <Line
+                yAxisId="right"
                 dataKey="averagePackSize"
-                stroke="#dc2626"
+                stroke="#EF4444"
                 strokeWidth={2}
-                dot={false}
-                name="Avg Pack Size (cars)"
                 strokeDasharray="5 5"
+                dot={false}
+                name="Avg Pack Size"
               />
               
               <Line
+                yAxisId="right"
                 dataKey="totalPacks"
-                stroke="#059669"
+                stroke="#10B981"
                 strokeWidth={2}
+                strokeDasharray="5 5"
                 dot={false}
                 name="Total Packs"
-                strokeDasharray="3 3"
               />
             </LineChart>
           </ChartContainer>
@@ -246,17 +260,17 @@ const DensityOfCarPacksChart: React.FC<DensityOfCarPacksChartProps> = ({
           <h4 className="text-sm font-semibold mb-2">Stabilized Values:</h4>
           <div className="grid grid-cols-1 gap-2 text-xs">
             <div className="flex justify-between">
-              <span>Traffic Density:</span>
-              <span className={`font-mono ${stabilizedValues.density?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.density?.value?.toFixed(2) || 'N/A'} cars/mile
-                {stabilizedValues.density?.isStabilized && ' ✓'}
+              <span>Density:</span>
+              <span className={`font-mono ${stabilizedValues.overallDensity?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
+                {stabilizedValues.overallDensity?.value?.toFixed(2) || 'N/A'} {conversions.density.unit}
+                {stabilizedValues.overallDensity?.isStabilized && ' ✓'}
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Average Pack Size:</span>
-              <span className={`font-mono ${stabilizedValues.packSize?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.packSize?.value?.toFixed(1) || 'N/A'} cars
-                {stabilizedValues.packSize?.isStabilized && ' ✓'}
+              <span>Avg Pack Size:</span>
+              <span className={`font-mono ${stabilizedValues.averagePackSize?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
+                {stabilizedValues.averagePackSize?.value?.toFixed(1) || 'N/A'} cars
+                {stabilizedValues.averagePackSize?.isStabilized && ' ✓'}
               </span>
             </div>
             <div className="flex justify-between">

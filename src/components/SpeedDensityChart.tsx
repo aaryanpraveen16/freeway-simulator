@@ -6,6 +6,7 @@ import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import { useToast } from "@/hooks/use-toast";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
@@ -22,6 +23,7 @@ interface SpeedDensityChartProps {
   numLanes: number;
   trafficRule: 'american' | 'european';
   laneLength: number;
+  unitSystem: UnitSystem;
 }
 
 const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
@@ -30,10 +32,12 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
   dataHistory,
   numLanes,
   trafficRule,
-  laneLength
+  laneLength,
+  unitSystem
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const conversions = getUnitConversions(unitSystem);
 
   const currentPoint = useMemo(() => {
     if (cars.length === 0) return null;
@@ -43,11 +47,11 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
     const density = cars.length / laneLength; // cars per mile (overall freeway density)
     
     return {
-      density: parseFloat(density.toFixed(3)),
-      speed: parseFloat(avgSpeed.toFixed(1)),
+      density: parseFloat(conversions.density.toDisplay(density).toFixed(3)),
+      speed: parseFloat(conversions.speed.toDisplay(avgSpeed).toFixed(1)),
       time: parseFloat(elapsedTime.toFixed(1))
     };
-  }, [cars, elapsedTime, laneLength, numLanes]);
+  }, [cars, elapsedTime, laneLength, numLanes, conversions]);
 
   const chartData = useMemo(() => {
     const historicalData = dataHistory.map(point => ({
@@ -141,90 +145,66 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
           <ChartContainer
             className="h-full"
             config={{
-              speed: {
-                label: "Speed (mph)",
-                color: "hsl(var(--primary))"
+              density: {
+                label: "Traffic Density",
+                color: "#3B82F6"
               },
-              current: {
-                label: "Current State",
-                color: "hsl(var(--destructive))"
+              speed: {
+                label: "Average Speed",
+                color: "#EF4444"
               }
             }}
           >
-            <ScatterChart
-              data={chartData}
-              margin={{
-                top: 20,
-                right: 30,
-                bottom: 60,
-                left: 60,
-              }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="density"
-                name="Density"
-                label={{ 
-                  value: "Traffic Density (cars/mile/lane)", 
-                  position: "insideBottom", 
-                  offset: -40 
-                }}
-                domain={['dataMin - 0.01', 'dataMax + 0.01']}
-              />
-              <YAxis
-                dataKey="speed"
-                name="Speed"
-                label={{ 
-                  value: "Average Speed (mph)", 
-                  angle: -90, 
-                  position: "insideLeft" 
-                }}
-                domain={['dataMin - 5', 'dataMax + 5']}
-              />
-              <Tooltip 
-                formatter={(value, name) => [
-                  `${value}`, 
-                  name === 'speed' ? 'Speed (mph)' : name
-                ]}
-                labelFormatter={(label, payload) => {
-                  if (payload && payload[0]) {
-                    return `Density: ${payload[0].payload.density} cars/mile/lane`;
-                  }
-                  return '';
-                }}
-              />
-              <Scatter
-                data={chartData.filter(d => d.type === 'historical')}
-                fill="hsl(var(--primary))"
-                fillOpacity={0.6}
-                r={4}
-              />
-              <Scatter
-                data={chartData.filter(d => d.type === 'current')}
-                fill="hsl(var(--destructive))"
-                r={8}
-                stroke="hsl(var(--destructive))"
-                strokeWidth={2}
-              />
-            </ScatterChart>
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="density"
+                  name="Density"
+                  label={{ value: `Traffic Density (${conversions.density.unit})`, position: "insideBottom", offset: -5 }}
+                />
+                <YAxis
+                  dataKey="speed"
+                  name="Speed"
+                  label={{ value: `Average Speed (${conversions.speed.unit})`, angle: -90, position: "insideLeft" }}
+                />
+                <Tooltip 
+                  formatter={(value, name) => {
+                    if (name === "density") return [`${typeof value === 'number' ? value.toFixed(2) : value} ${conversions.density.unit}`, "Density"];
+                    if (name === "speed") return [`${typeof value === 'number' ? value.toFixed(1) : value} ${conversions.speed.unit}`, "Speed"];
+                    return [value, name];
+                  }}
+                />
+                <Scatter 
+                  dataKey="density" 
+                  fill="#3B82F6" 
+                  name="Historical data points"
+                />
+                <Scatter 
+                  dataKey="speed" 
+                  fill="#EF4444" 
+                  name="Current simulation state"
+                />
+              </ScatterChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </div>
         
-        {/* Stabilized Values Display */}
+        {/* Stabilized Operating Point Display */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
           <h4 className="text-sm font-semibold mb-2">Stabilized Operating Point:</h4>
-          <div className="grid grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex justify-between">
               <span>Density:</span>
               <span className={`font-mono ${stabilizedValues.density?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.density?.value?.toFixed(3) || 'N/A'} cars/mile/lane
+                {stabilizedValues.density?.value?.toFixed(3) || 'N/A'} {conversions.density.unit}
                 {stabilizedValues.density?.isStabilized && ' ✓'}
               </span>
             </div>
             <div className="flex justify-between">
               <span>Speed:</span>
               <span className={`font-mono ${stabilizedValues.speed?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.speed?.value?.toFixed(1) || 'N/A'} mph
+                {stabilizedValues.speed?.value?.toFixed(1) || 'N/A'} {conversions.speed.unit}
                 {stabilizedValues.speed?.isStabilized && ' ✓'}
               </span>
             </div>
@@ -232,12 +212,6 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
           <p className="text-xs text-gray-500 mt-2">
             ✓ indicates stabilized values. Higher density typically leads to lower speeds.
           </p>
-        </div>
-        
-        <div className="mt-4 text-xs text-muted-foreground">
-          <p>• Blue dots: Historical data points</p>
-          <p>• Red dot: Current simulation state</p>
-          <p>• Typical pattern: Speed decreases as density increases (congestion)</p>
         </div>
       </CardContent>
     </Card>

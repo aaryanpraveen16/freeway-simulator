@@ -5,6 +5,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
+import { UnitSystem } from "@/utils/unitConversion";
 import { useToast } from "@/hooks/use-toast";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
@@ -19,6 +20,7 @@ interface PercentageOfCarsByLaneChartProps {
   dataHistory: PercentageOfCarsByLaneDataPoint[];
   numLanes: number;
   trafficRule: 'american' | 'european';
+  unitSystem: UnitSystem;
 }
 
 const PercentageOfCarsByLaneChart: React.FC<PercentageOfCarsByLaneChartProps> = ({
@@ -26,7 +28,8 @@ const PercentageOfCarsByLaneChart: React.FC<PercentageOfCarsByLaneChartProps> = 
   elapsedTime,
   dataHistory,
   numLanes,
-  trafficRule
+  trafficRule,
+  unitSystem
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();

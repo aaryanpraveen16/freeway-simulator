@@ -5,6 +5,7 @@ import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import { useToast } from "@/hooks/use-toast";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
@@ -20,6 +21,7 @@ interface DensityThroughputChartProps {
   elapsedTime: number;
   dataHistory: DensityThroughputDataPoint[];
   numLanes: number;
+  unitSystem: UnitSystem;
 }
 
 const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
@@ -27,28 +29,30 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
   laneLength,
   elapsedTime,
   dataHistory,
-  numLanes
+  numLanes,
+  unitSystem
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const conversions = getUnitConversions(unitSystem);
 
   const currentPoint = useMemo(() => {
     if (cars.length === 0) return null;
     
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
     // Calculate overall density (cars per mile)
-    const density = parseFloat((cars.length / laneLength).toFixed(2)); // Match StatsDisplay's density calculation
+    const density = cars.length / laneLength; // cars per mile (internal)
     
     // Calculate freeway throughput (cars per hour per lane)
     const throughputPerLane = avgSpeed * density;
     const totalThroughput = throughputPerLane * (cars.length > 0 ? Math.max(...cars.map(c => c.lane)) + 1 : 1);
     
     return {
-      density,
-      throughput: Math.round(totalThroughput), // Match StatsDisplay's rounding
+      density: parseFloat(conversions.density.toDisplay(density).toFixed(2)),
+      throughput: Math.round(totalThroughput), // Throughput stays in cars/hr
       time: parseFloat(elapsedTime.toFixed(1))
     };
-  }, [cars, laneLength, elapsedTime, numLanes]);
+  }, [cars, laneLength, elapsedTime, numLanes, conversions]);
 
   const chartData = useMemo(() => {
     const historicalData = dataHistory.map(point => ({
@@ -130,12 +134,7 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
     <Card>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
-          <div>
-            <CardTitle className="text-lg">Density-Throughput Fundamental Diagram</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Relationship between traffic density and freeway throughput
-            </p>
-          </div>
+          <CardTitle className="text-lg">Density-Throughput Relationship</CardTitle>
           <Button 
             variant="outline" 
             size="sm" 
@@ -146,108 +145,68 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
             Export
           </Button>
         </div>
+        <p className="text-sm text-muted-foreground">
+          Relationship between traffic density and flow throughput
+        </p>
       </CardHeader>
       <CardContent>
-        <div className="h-[400px]" ref={chartRef}>
+        <div className="h-[300px]" ref={chartRef}>
           <ChartContainer
             className="h-full"
             config={{
-              throughput: {
-                label: "Throughput (cars/hr)",
-                color: "hsl(var(--primary))"
+              density: {
+                label: "Traffic Density",
+                color: "#3B82F6"
               },
-              current: {
-                label: "Current State",
-                color: "hsl(var(--destructive))"
+              throughput: {
+                label: "Throughput",
+                color: "#10B981"
               }
             }}
           >
-            <ScatterChart
-              data={chartData}
-              margin={{
-                top: 20,
-                right: 30,
-                bottom: 60,
-                left: 60,
-              }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="density"
-                name="Density"
-                label={{ 
-                  value: "Traffic Density (cars/mile)", 
-                  position: "insideBottom", 
-                  offset: -40,
-                  style: { fontWeight: 500 }
-                }}
-                domain={['dataMin - 0.01', 'dataMax + 0.01']}
-              />
-              <YAxis
-                dataKey="throughput"
-                name="Throughput"
-                label={{ 
-                  value: "Throughput (cars/hr)", 
-                  angle: -90, 
-                  position: "insideLeft",
-                  style: { fontWeight: 500 }
-                }}
-                domain={['dataMin - 100', 'dataMax + 100']}
-              />
-              <Tooltip 
-                formatter={(value, name, props) => {
-                  if (name === 'throughput') {
-                    return [
-                      `${Math.round(Number(value)).toLocaleString()} cars/hour`,
-                      'Throughput'
-                    ];
-                  } else if (name === 'density') {
-                    return [
-                      `${Number(value).toFixed(2)} cars/mile`,
-                      'Density'
-                    ];
-                  }
-                  return [value, name];
-                }}
-                labelFormatter={(label, payload) => {
-                  if (!payload || payload.length === 0) return '';
-                  const time = payload[0]?.payload?.time;
-                  return time !== undefined ? `Time: ${time.toFixed(1)} sec` : '';
-                }}
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '0.5rem',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  padding: '8px 12px',
-                  fontSize: '14px'
-                }}
-              />
-              <Scatter
-                data={chartData.filter(d => d.type === 'historical')}
-                fill="hsl(var(--primary))"
-                fillOpacity={0.6}
-                r={4}
-              />
-              <Scatter
-                data={chartData.filter(d => d.type === 'current')}
-                fill="hsl(var(--destructive))"
-                r={8}
-                stroke="hsl(var(--destructive))"
-                strokeWidth={2}
-              />
-            </ScatterChart>
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="density"
+                  name="Density"
+                  label={{ value: `Traffic Density (${conversions.density.unit})`, position: "insideBottom", offset: -5 }}
+                />
+                <YAxis
+                  dataKey="throughput"
+                  name="Throughput"
+                  label={{ value: "Throughput (cars/hr)", angle: -90, position: "insideLeft" }}
+                />
+                <Tooltip 
+                  formatter={(value, name) => {
+                    if (name === "density") return [`${typeof value === 'number' ? value.toFixed(2) : value} ${conversions.density.unit}`, "Density"];
+                    if (name === "throughput") return [`${typeof value === 'number' ? value.toFixed(0) : value} cars/hr`, "Throughput"];
+                    return [value, name];
+                  }}
+                />
+                <Scatter 
+                  dataKey="density" 
+                  fill="#3B82F6" 
+                  name="Historical data points"
+                />
+                <Scatter 
+                  dataKey="throughput" 
+                  fill="#10B981" 
+                  name="Current simulation state"
+                />
+              </ScatterChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </div>
         
         {/* Stabilized Values Display */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
           <h4 className="text-sm font-semibold mb-2">Stabilized Operating Point:</h4>
-          <div className="grid grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex justify-between">
               <span>Density:</span>
               <span className={`font-mono ${stabilizedValues.density?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.density?.value?.toFixed(3) || 'N/A'} cars/mile
+                {stabilizedValues.density?.value?.toFixed(2) || 'N/A'} {conversions.density.unit}
                 {stabilizedValues.density?.isStabilized && ' ✓'}
               </span>
             </div>
@@ -260,14 +219,8 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            ✓ indicates stabilized operating conditions. This shows the steady-state flow characteristics.
+            ✓ indicates stabilized values. Optimal flow occurs at moderate densities.
           </p>
-        </div>
-        
-        <div className="mt-4 text-xs text-muted-foreground">
-          <p>• Blue dots: Historical data points</p>
-          <p>• Red dot: Current simulation state</p>
-          <p>• Optimal throughput typically occurs at moderate densities</p>
         </div>
       </CardContent>
     </Card>

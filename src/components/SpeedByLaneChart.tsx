@@ -5,6 +5,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import { useToast } from "@/hooks/use-toast";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
@@ -20,6 +21,7 @@ interface SpeedByLaneChartProps {
   dataHistory: SpeedByLaneDataPoint[];
   numLanes: number;
   trafficRule: 'american' | 'european';
+  unitSystem: UnitSystem;
 }
 
 const SpeedByLaneChart: React.FC<SpeedByLaneChartProps> = ({
@@ -27,10 +29,12 @@ const SpeedByLaneChart: React.FC<SpeedByLaneChartProps> = ({
   elapsedTime,
   dataHistory,
   numLanes,
-  trafficRule
+  trafficRule,
+  unitSystem
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const conversions = getUnitConversions(unitSystem);
 
   const currentPoint = useMemo(() => {
     if (cars.length === 0) return null;
@@ -38,7 +42,7 @@ const SpeedByLaneChart: React.FC<SpeedByLaneChartProps> = ({
     const overallAvgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
     const point: SpeedByLaneDataPoint = {
       time: parseFloat(elapsedTime.toFixed(1)),
-      overallAvgSpeed: parseFloat(overallAvgSpeed.toFixed(1))
+      overallAvgSpeed: parseFloat(conversions.speed.toDisplay(overallAvgSpeed).toFixed(1))
     };
     
     // Calculate average speed per lane
@@ -47,11 +51,11 @@ const SpeedByLaneChart: React.FC<SpeedByLaneChartProps> = ({
       const avgSpeed = carsInLane.length > 0 
         ? carsInLane.reduce((sum, car) => sum + car.speed, 0) / carsInLane.length 
         : 0;
-      point[`lane${i}`] = parseFloat(avgSpeed.toFixed(1));
+      point[`lane${i}`] = parseFloat(conversions.speed.toDisplay(avgSpeed).toFixed(1));
     }
     
     return point;
-  }, [cars, elapsedTime, numLanes]);
+  }, [cars, elapsedTime, numLanes, conversions]);
 
   const chartData = useMemo(() => {
     const data = [...dataHistory];
@@ -172,7 +176,7 @@ const SpeedByLaneChart: React.FC<SpeedByLaneChartProps> = ({
                 label={{ value: "Time (seconds)", position: "insideBottom", offset: -5 }}
               />
               <YAxis
-                label={{ value: "Speed (mph)", angle: -90, position: "insideLeft" }}
+                label={{ value: `Speed (${conversions.speed.unit})`, angle: -90, position: "insideLeft" }}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Legend />
@@ -206,7 +210,7 @@ const SpeedByLaneChart: React.FC<SpeedByLaneChartProps> = ({
             <div className="flex justify-between">
               <span>Overall Average:</span>
               <span className={`font-mono ${stabilizedValues.overall?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.overall?.value?.toFixed(1) || 'N/A'} mph
+                {stabilizedValues.overall?.value?.toFixed(1) || 'N/A'} {conversions.speed.unit}
                 {stabilizedValues.overall?.isStabilized && ' ✓'}
               </span>
             </div>
@@ -214,7 +218,7 @@ const SpeedByLaneChart: React.FC<SpeedByLaneChartProps> = ({
               <div key={i} className="flex justify-between">
                 <span>Lane {i + 1}:</span>
                 <span className={`font-mono ${stabilizedValues[`lane${i}`]?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                  {stabilizedValues[`lane${i}`]?.value?.toFixed(1) || 'N/A'} mph
+                  {stabilizedValues[`lane${i}`]?.value?.toFixed(1) || 'N/A'} {conversions.speed.unit}
                   {stabilizedValues[`lane${i}`]?.isStabilized && ' ✓'}
                 </span>
               </div>

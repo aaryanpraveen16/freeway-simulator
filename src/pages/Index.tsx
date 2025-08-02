@@ -744,6 +744,7 @@ const Index = () => {
               laneLength={laneLength} 
               elapsedTime={elapsedTime} 
               laneChanges={laneChanges}
+              unitSystem={unitSystem}
             />
           </div>
           
@@ -764,7 +765,7 @@ const Index = () => {
 
         {/* Additional info sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <CarStatsCard cars={cars} laneLength={laneLength} showPackInfo={showPackFormation} />
+          <CarStatsCard cars={cars} laneLength={laneLength} showPackInfo={showPackFormation} unitSystem={unitSystem} />
           
           <div className="bg-white rounded-xl shadow-sm p-6">
             <SimulationInfo />
@@ -778,6 +779,7 @@ const Index = () => {
           laneLength={laneLength}
           params={params}
           trafficRule={trafficRule}
+          unitSystem={unitSystem}
           speedDensityHistory={speedDensityHistory}
           densityOfCarPacksHistory={densityOfCarPacksHistory}
           percentageByLaneHistory={percentageByLaneHistory}
