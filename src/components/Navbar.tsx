@@ -29,17 +29,16 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false }) =>
           )}
           
           <Link to="/saved-simulations">
-            <Button variant="outline" size="sm" className="bg-white text-primary hover:bg-gray-100 flex items-center gap-2">
+            <Button variant="secondary" size="sm" className="flex items-center gap-2">
               <Archive size={16} />
               View Saved
             </Button>
           </Link>
           
           <Button 
-            variant="outline" 
+            variant="secondary" 
             size="sm"
             onClick={() => setShowCredits(true)}
-            className="bg-white text-primary hover:bg-gray-100"
           >
             Credits
           </Button>
