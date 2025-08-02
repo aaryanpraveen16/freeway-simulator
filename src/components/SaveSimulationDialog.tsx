@@ -29,9 +29,8 @@ const SaveSimulationDialog: React.FC<SaveSimulationDialogProps> = ({
 
   const defaultTrigger = (
     <Button
-      variant="secondary"
-      size="sm"
-      className="flex items-center gap-2"
+      variant="outline"
+      className="flex-1 flex items-center gap-2"
       disabled={!canSave}
     >
       <Save size={16} />

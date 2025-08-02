@@ -10,7 +10,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SimulationParams } from "@/utils/trafficSimulation";
 import { JsonImportExport } from "./JsonImportExport";
 import { InfoTooltip } from "./InfoTooltip";
-import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 
 interface BatchSimulation {
   name?: string;
@@ -26,8 +25,6 @@ interface ControlPanelProps {
   onTrafficRuleChange: (rule: 'american' | 'european') => void;
   carSize?: number;
   onCarSizeChange?: (size: number) => void;
-  unitSystem?: UnitSystem;
-  onUnitSystemChange?: (system: UnitSystem) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -38,10 +35,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onTrafficRuleChange,
   carSize = 24,
   onCarSizeChange,
-  unitSystem = 'imperial',
-  onUnitSystemChange,
 }) => {
-  const conversions = getUnitConversions(unitSystem);
   const handleVehicleTypeDensityChange = (vehicleType: 'car' | 'truck' | 'motorcycle', value: number) => {
     const newVehicleTypeDensity = { ...params.vehicleTypeDensity };
     newVehicleTypeDensity[vehicleType] = value;
@@ -100,25 +94,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <CardTitle className="text-lg">Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Unit System */}
-            {onUnitSystemChange && (
-              <div className="space-y-2">
-                <div className="flex items-center">
-                  <Label className="text-sm font-medium">Unit System</Label>
-                  <InfoTooltip content="Choose between metric (km/h, km) or imperial (mph, miles) units" />
-                </div>
-                <Select value={unitSystem} onValueChange={(value: UnitSystem) => onUnitSystemChange(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="imperial">Imperial (mph, miles)</SelectItem>
-                    <SelectItem value="metric">Metric (km/h, km)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             {/* Traffic Rule */}
             <div className="space-y-2">
               <div className="flex items-center">
@@ -293,24 +268,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               {/* Overall Freeway Traffic Density */}
               <div className="space-y-2">
                 <div className="flex items-center">
-                  <Label className="text-sm">Overall Traffic Density ({conversions.density.unit})</Label>
+                  <Label className="text-sm">Overall Traffic Density (cars/mile)</Label>
                   <InfoTooltip content="Number of vehicles per mile across all lanes. Higher values create more congestion." />
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
-                    value={conversions.density.toDisplay(overallDensity).toFixed(1)}
-                    onChange={(e) => {
-                      const displayValue = parseFloat(e.target.value) || 3;
-                      const internalValue = conversions.density.fromDisplay(displayValue);
-                      handleOverallDensityChange(internalValue.toString());
-                    }}
+                    value={overallDensity.toFixed(1)}
+                    onChange={(e) => handleOverallDensityChange(e.target.value)}
                     className="flex-1"
                     min="0"
                     max="100"
                     step="0.5"
                   />
-                  <span className="text-xs text-gray-500">{conversions.density.unit}</span>
+                  <span className="text-xs text-gray-500">cars/mile</span>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-1">
                   {[10, 20, 30, 40, 50].map((density) => (
@@ -321,7 +292,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       className={`h-7 px-2 text-xs ${Math.abs(overallDensity - density) < 0.1 ? 'bg-primary/10' : ''}`}
                       onClick={() => handleOverallDensityChange(density.toString())}
                     >
-                      {conversions.density.toDisplay(density).toFixed(0)}
+                      {density}
                     </Button>
                   ))}
                 </div>
@@ -401,20 +372,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <Label className="text-xs">Desired Mean Speed ({conversions.speed.unit}):</Label>
-                    <InfoTooltip content="Average speed of vehicles in the simulation" />
+                    <Label className="text-xs">Desired Mean Speed (mph):</Label>
+                    <InfoTooltip content="Average speed of vehicles in the simulation (30-80 mph)" />
                   </div>
                   <Input
                     type="number"
-                    value={Math.round(conversions.speed.toDisplay(params.meanSpeed))}
+                    value={params.meanSpeed}
                     onChange={(e) => {
-                      const displayValue = Number(e.target.value) || 65;
-                      const internalValue = conversions.speed.fromDisplay(displayValue);
-                      const value = Math.min(80, Math.max(30, internalValue));
+                      const value = Math.min(80, Math.max(30, Number(e.target.value) || 65));
                       onUpdateParams({ meanSpeed: value });
                     }}
-                    min={Math.round(conversions.speed.toDisplay(30))}
-                    max={Math.round(conversions.speed.toDisplay(80))}
+                    min={30}
+                    max={80}
                     step={1}
                     className="w-20 h-8 text-right"
                   />
@@ -424,22 +393,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
-                    <Label>Speed Limit ({conversions.speed.unit})</Label>
+                    <Label>Speed Limit (mph)</Label>
                     <InfoTooltip content="Maximum allowed speed in the simulation" />
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {Math.round(conversions.speed.toDisplay(params.speedLimit))} {conversions.speed.unit} ({Math.round(params.speedLimit / params.meanSpeed * 100)}% of desired speed)
+                    {params.speedLimit} mph ({params.speedLimit / params.meanSpeed * 100}% of desired speed)
                   </div>
                 </div>
                 <Input
                   id="speedLimit"
                   type="number"
-                  value={Math.round(conversions.speed.toDisplay(params.speedLimit))}
-                  onChange={(e) => {
-                    const displayValue = Number(e.target.value);
-                    const internalValue = conversions.speed.fromDisplay(displayValue);
-                    onUpdateParams({ speedLimit: internalValue });
-                  }}
+                  value={params.speedLimit}
+                  onChange={(e) => onUpdateParams({ speedLimit: Number(e.target.value) })}
                   min="0"
                   step="5"
                 />
@@ -515,7 +480,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <Label className="text-sm font-medium">Advanced Parameters</Label>
               
               <div className="space-y-2">
-                <Label className="text-xs">Freeway Length: {conversions.distance.toDisplay(params.freewayLength).toFixed(1)} {conversions.distance.unit}</Label>
+                <Label className="text-xs">Freeway Length: {params.freewayLength} miles</Label>
                 <Slider
                   value={[params.freewayLength]}
                   onValueChange={([value]) => onUpdateParams({ freewayLength: value })}
@@ -539,7 +504,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
               
               <div className="space-y-2">
-                <Label className="text-xs">Trip Distance: {conversions.distance.toDisplay(params.meanDistTripPlanned).toFixed(1)} {conversions.distance.unit}</Label>
+                <Label className="text-xs">Trip Distance: {params.meanDistTripPlanned} miles</Label>
                 <Slider
                   value={[params.meanDistTripPlanned]}
                   onValueChange={([value]) => onUpdateParams({ meanDistTripPlanned: value })}

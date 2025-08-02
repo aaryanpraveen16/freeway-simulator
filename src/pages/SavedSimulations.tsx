@@ -17,7 +17,6 @@ import OverlayDensityChart from "@/components/OverlayDensityChart";
 import OverlayLaneUsageChart from "@/components/OverlayLaneUsageChart";
 import OverlayPackFormationChart from "@/components/OverlayPackFormationChart";
 import { Link } from "react-router-dom";
-import Navbar from "@/components/Navbar";
 
 const SavedSimulations: React.FC = () => {
   const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
@@ -165,44 +164,39 @@ const SavedSimulations: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-lg text-foreground">Loading saved simulations...</div>
-          </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading saved simulations...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Saved Simulations</h1>
-            <p className="text-muted-foreground mt-2">View and analyze your previously saved traffic simulations</p>
-          </div>
-          <Link to="/freeway-simulator">
-            <Button variant="outline">Back to Simulator</Button>
-          </Link>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Saved Simulations</h1>
+          <p className="text-gray-600 mt-2">View and analyze your previously saved traffic simulations</p>
         </div>
+        <Link to="/freeway-simulator">
+          <Button variant="outline">Back to Simulator</Button>
+        </Link>
+      </div>
 
-        {savedSimulations.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center h-64">
-              <div className="text-center">
-                <h3 className="text-lg font-medium text-foreground mb-2">No Saved Simulations</h3>
-                <p className="text-muted-foreground mb-4">You haven't saved any simulations yet.</p>
-                <Link to="/freeway-simulator">
-                  <Button>Start New Simulation</Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
+      {savedSimulations.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center h-64">
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Saved Simulations</h3>
+              <p className="text-gray-500 mb-4">You haven't saved any simulations yet.</p>
+              <Link to="/freeway-simulator">
+                <Button>Start New Simulation</Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
         <Tabs defaultValue="individual" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="individual" className="flex items-center gap-2">
@@ -230,7 +224,7 @@ const SavedSimulations: React.FC = () => {
                             onSave={(newName) => updateSimulationName(simulation.id, newName)}
                           />
                         </CardTitle>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                        <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
                           <Calendar size={14} />
                           {formatDate(simulation.timestamp)}
                         </div>
@@ -335,8 +329,8 @@ const SavedSimulations: React.FC = () => {
           <TabsContent value="comparison">
             <div className="space-y-6">
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-foreground mb-2">Multi-Simulation Analysis</h2>
-                <p className="text-muted-foreground">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Multi-Simulation Analysis</h2>
+                <p className="text-gray-600">
                   Select simulations to compare their performance metrics
                 </p>
               </div>
@@ -448,8 +442,8 @@ const SavedSimulations: React.FC = () => {
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center h-64">
                     <div className="text-center">
-                      <h3 className="text-lg font-medium text-foreground mb-2">No Simulations Selected</h3>
-                      <p className="text-muted-foreground mb-4">Select at least one simulation to view comparison charts.</p>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Simulations Selected</h3>
+                      <p className="text-gray-500 mb-4">Select at least one simulation to view comparison charts.</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -458,7 +452,6 @@ const SavedSimulations: React.FC = () => {
           </TabsContent>
         </Tabs>
       )}
-      </div>
     </div>
   );
 };
