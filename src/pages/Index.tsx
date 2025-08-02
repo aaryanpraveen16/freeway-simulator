@@ -24,6 +24,7 @@ import {
 } from "@/utils/trafficSimulation";
 import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
 import { useToast } from "@/hooks/use-toast";
+import { UnitSystem } from "@/utils/unitConversion";
 
 interface SimulationEvent {
   type: 'exit' | 'enter' | 'laneChange';
@@ -101,6 +102,7 @@ const Index = () => {
   const [showPackFormation, setShowPackFormation] = useState<boolean>(false);
   const [laneChanges, setLaneChanges] = useState<number>(0);
   const [carSize, setCarSize] = useState<number>(24);
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('imperial');
 
   // Chart history state variables - moved here to be declared before use
   const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
@@ -754,6 +756,8 @@ const Index = () => {
               onTrafficRuleChange={setTrafficRule}
               carSize={carSize}
               onCarSizeChange={setCarSize}
+              unitSystem={unitSystem}
+              onUnitSystemChange={setUnitSystem}
             />
           </div>
         </div>
