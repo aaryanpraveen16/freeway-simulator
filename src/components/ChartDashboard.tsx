@@ -12,6 +12,7 @@ import PackFormationChart from "./PackFormationChart";
 import AveragePackLengthChart from "./AveragePackLengthChart";
 import { Car } from "@/utils/trafficSimulation";
 import { SimulationParams } from "@/utils/trafficSimulation";
+import { UnitSystem } from "@/utils/unitConversion";
 
 interface ChartDashboardProps {
   // Core data
@@ -20,6 +21,7 @@ interface ChartDashboardProps {
   laneLength: number;
   params: SimulationParams;
   trafficRule: 'american' | 'european';
+  unitSystem?: UnitSystem;
   
   // Chart-specific data histories
   speedDensityHistory: any[];
@@ -45,6 +47,7 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
   laneLength,
   params,
   trafficRule,
+  unitSystem = 'imperial',
   speedDensityHistory,
   densityOfCarPacksHistory,
   percentageByLaneHistory,
@@ -102,6 +105,7 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                     numLanes={params.numLanes}
                     trafficRule={trafficRule}
                     laneLength={laneLength}
+                    unitSystem={unitSystem}
                   />
                   <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
                     <strong>Speed-Density Relationship:</strong> Shows the fundamental traffic engineering relationship. 

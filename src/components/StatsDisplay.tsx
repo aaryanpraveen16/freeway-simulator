@@ -8,12 +8,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 
 interface StatsDisplayProps {
   cars: Car[];
   laneLength: number;
   elapsedTime: number;
   laneChanges: number;
+  unitSystem?: UnitSystem;
 }
 
 const StatsDisplay: React.FC<StatsDisplayProps> = ({
@@ -21,16 +23,18 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
   laneLength,
   elapsedTime,
   laneChanges,
+  unitSystem = 'imperial',
 }) => {
+  const conversions = getUnitConversions(unitSystem);
   const stats = useMemo(() => {
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
     const minSpeed = Math.min(...cars.map((car) => car.speed));
     const maxSpeed = Math.max(...cars.map((car) => car.speed));
-    const density = (cars.length / laneLength).toFixed(2); // cars per mile
+    const densityRaw = cars.length / laneLength; // cars per mile (internal)
     
     // Calculate freeway throughput (cars per hour per lane)
     // Throughput = average speed * density
-    const throughputPerLane = avgSpeed * parseFloat(density);
+    const throughputPerLane = avgSpeed * densityRaw;
     const totalThroughput = throughputPerLane * (cars.length > 0 ? Math.max(...cars.map(c => c.lane)) + 1 : 1);
     
     // Format elapsed time as "X.X sec (Y min)"
@@ -39,14 +43,14 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
     const formattedElapsedTime = `${elapsedSeconds} sec (${elapsedMinutes} min)`;
     
     return {
-      avgSpeed: Math.round(avgSpeed),
-      minSpeed: Math.round(minSpeed),
-      maxSpeed: Math.round(maxSpeed),
-      density,
+      avgSpeed: Math.round(conversions.speed.toDisplay(avgSpeed)),
+      minSpeed: Math.round(conversions.speed.toDisplay(minSpeed)),
+      maxSpeed: Math.round(conversions.speed.toDisplay(maxSpeed)),
+      density: conversions.density.toDisplay(densityRaw).toFixed(2),
       elapsedTime: formattedElapsedTime,
-      throughput: Math.round(totalThroughput),
+      throughput: Math.round(totalThroughput), // Keep as cars/hour
     };
-  }, [cars, laneLength, elapsedTime]);
+  }, [cars, laneLength, elapsedTime, conversions]);
   
   return (
     <Card>
@@ -60,12 +64,12 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Average Speed</p>
-            <p className="text-2xl font-bold">{stats.avgSpeed} mph</p>
+            <p className="text-2xl font-bold">{stats.avgSpeed} {conversions.speed.unit}</p>
           </div>
           
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Traffic Density</p>
-            <p className="text-2xl font-bold">{stats.density} cars/mi</p>
+            <p className="text-2xl font-bold">{stats.density} {conversions.density.unit}</p>
           </div>
           
           <div className="space-y-1">
@@ -76,7 +80,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Speed Range</p>
             <p className="text-lg font-semibold">
-              {stats.minSpeed} - {stats.maxSpeed} mph
+              {stats.minSpeed} - {stats.maxSpeed} {conversions.speed.unit}
             </p>
           </div>
           

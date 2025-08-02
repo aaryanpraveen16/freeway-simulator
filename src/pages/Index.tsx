@@ -666,7 +666,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Navbar onSaveSimulation={handleSaveSimulation} canSave={packHistory.length > 0} />
+      <Navbar 
+        onSaveSimulation={handleSaveSimulation} 
+        canSave={packHistory.length > 0}
+        unitSystem={unitSystem}
+        onUnitSystemChange={setUnitSystem}
+      />
       
       {/* Sticky Control Bar */}
       <StickyControlBar
@@ -739,12 +744,13 @@ const Index = () => {
         {/* Stats and controls row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           <div className="lg:col-span-2">
-            <StatsDisplay 
-              cars={cars} 
-              laneLength={laneLength} 
-              elapsedTime={elapsedTime} 
-              laneChanges={laneChanges}
-            />
+          <StatsDisplay 
+            cars={cars} 
+            laneLength={laneLength} 
+            elapsedTime={elapsedTime}
+            laneChanges={laneChanges}
+            unitSystem={unitSystem}
+          />
           </div>
           
           <div>
@@ -764,7 +770,7 @@ const Index = () => {
 
         {/* Additional info sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <CarStatsCard cars={cars} laneLength={laneLength} showPackInfo={showPackFormation} />
+          <CarStatsCard cars={cars} laneLength={laneLength} showPackInfo={showPackFormation} unitSystem={unitSystem} />
           
           <div className="bg-white rounded-xl shadow-sm p-6">
             <SimulationInfo />
@@ -778,6 +784,7 @@ const Index = () => {
           laneLength={laneLength}
           params={params}
           trafficRule={trafficRule}
+          unitSystem={unitSystem}
           speedDensityHistory={speedDensityHistory}
           densityOfCarPacksHistory={densityOfCarPacksHistory}
           percentageByLaneHistory={percentageByLaneHistory}

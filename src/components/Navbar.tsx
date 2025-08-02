@@ -7,13 +7,18 @@ import { Linkedin, ExternalLink, Save, Archive } from "lucide-react";
 import { Link } from "react-router-dom";
 import { contributors } from "@/types/contributor";
 import SaveSimulationDialog from "./SaveSimulationDialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { UnitSystem } from "@/utils/unitConversion";
 
 interface NavbarProps {
   onSaveSimulation?: (name: string) => void;
   canSave?: boolean;
+  unitSystem?: UnitSystem;
+  onUnitSystemChange?: (system: UnitSystem) => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false }) => {
+const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'imperial', onUnitSystemChange }) => {
   const [showCredits, setShowCredits] = useState(false);
 
   return (
@@ -21,6 +26,19 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false }) =>
       <div className="container mx-auto flex items-center justify-between">
         <h2 className="text-xl font-medium">Freeway Simulator</h2>
         <div className="flex items-center gap-3">
+          {onUnitSystemChange && (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="unit-toggle" className="text-sm">
+                {unitSystem === 'imperial' ? 'Imperial' : 'Metric'}
+              </Label>
+              <Switch
+                id="unit-toggle"
+                checked={unitSystem === 'metric'}
+                onCheckedChange={(checked) => onUnitSystemChange(checked ? 'metric' : 'imperial')}
+              />
+            </div>
+          )}
+          
           {onSaveSimulation && (
             <SaveSimulationDialog
               onSave={onSaveSimulation}

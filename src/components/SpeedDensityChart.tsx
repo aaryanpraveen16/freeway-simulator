@@ -8,6 +8,7 @@ import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 
 interface SpeedDensityDataPoint {
   density: number;
@@ -22,6 +23,7 @@ interface SpeedDensityChartProps {
   numLanes: number;
   trafficRule: 'american' | 'european';
   laneLength: number;
+  unitSystem?: UnitSystem;
 }
 
 const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
@@ -30,8 +32,10 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
   dataHistory,
   numLanes,
   trafficRule,
-  laneLength
+  laneLength,
+  unitSystem = 'imperial'
 }) => {
+  const conversions = getUnitConversions(unitSystem);
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -39,19 +43,21 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
     if (cars.length === 0) return null;
     
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
-    // Calculate overall density (cars per mile)
-    const density = cars.length / laneLength; // cars per mile (overall freeway density)
+    // Calculate overall density (cars per mile) - internal units
+    const densityInternal = cars.length / laneLength; // cars per mile (overall freeway density)
     
     return {
-      density: parseFloat(density.toFixed(3)),
-      speed: parseFloat(avgSpeed.toFixed(1)),
+      density: parseFloat(conversions.density.toDisplay(densityInternal).toFixed(3)),
+      speed: parseFloat(conversions.speed.toDisplay(avgSpeed).toFixed(1)),
       time: parseFloat(elapsedTime.toFixed(1))
     };
-  }, [cars, elapsedTime, laneLength, numLanes]);
+  }, [cars, elapsedTime, laneLength, numLanes, conversions]);
 
   const chartData = useMemo(() => {
     const historicalData = dataHistory.map(point => ({
-      ...point,
+      density: conversions.density.toDisplay(point.density),
+      speed: conversions.speed.toDisplay(point.speed),
+      time: point.time,
       type: 'historical'
     }));
     
@@ -60,18 +66,18 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
     }
     
     return historicalData;
-  }, [dataHistory, currentPoint]);
+  }, [dataHistory, currentPoint, conversions]);
 
   // Calculate stabilized values
   const stabilizedValues = useMemo(() => {
-    const densityData = extractDataValues(dataHistory, 'density');
-    const speedData = extractDataValues(dataHistory, 'speed');
+    const densityData = extractDataValues(dataHistory, 'density').map(d => conversions.density.toDisplay(d));
+    const speedData = extractDataValues(dataHistory, 'speed').map(s => conversions.speed.toDisplay(s));
     
     return {
       density: calculateStabilizedValue(densityData),
       speed: calculateStabilizedValue(speedData)
     };
-  }, [dataHistory]);
+  }, [dataHistory, conversions]);
 
   const handleExportImage = () => {
     if (!chartRef.current) return;
@@ -142,7 +148,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
             className="h-full"
             config={{
               speed: {
-                label: "Speed (mph)",
+                label: `Speed (${conversions.speed.unit})`,
                 color: "hsl(var(--primary))"
               },
               current: {
@@ -165,7 +171,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
                 dataKey="density"
                 name="Density"
                 label={{ 
-                  value: "Traffic Density (cars/mile/lane)", 
+                  value: `Traffic Density (${conversions.density.unit}/lane)`, 
                   position: "insideBottom", 
                   offset: -40 
                 }}
@@ -175,7 +181,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
                 dataKey="speed"
                 name="Speed"
                 label={{ 
-                  value: "Average Speed (mph)", 
+                  value: `Average Speed (${conversions.speed.unit})`, 
                   angle: -90, 
                   position: "insideLeft" 
                 }}
@@ -184,11 +190,11 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
               <Tooltip 
                 formatter={(value, name) => [
                   `${value}`, 
-                  name === 'speed' ? 'Speed (mph)' : name
+                  name === 'speed' ? `Speed (${conversions.speed.unit})` : name
                 ]}
                 labelFormatter={(label, payload) => {
                   if (payload && payload[0]) {
-                    return `Density: ${payload[0].payload.density} cars/mile/lane`;
+                    return `Density: ${payload[0].payload.density} ${conversions.density.unit}/lane`;
                   }
                   return '';
                 }}
@@ -217,14 +223,14 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
             <div className="flex justify-between">
               <span>Density:</span>
               <span className={`font-mono ${stabilizedValues.density?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.density?.value?.toFixed(3) || 'N/A'} cars/mile/lane
+                {stabilizedValues.density?.value?.toFixed(3) || 'N/A'} {conversions.density.unit}/lane
                 {stabilizedValues.density?.isStabilized && ' ✓'}
               </span>
             </div>
             <div className="flex justify-between">
               <span>Speed:</span>
               <span className={`font-mono ${stabilizedValues.speed?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.speed?.value?.toFixed(1) || 'N/A'} mph
+                {stabilizedValues.speed?.value?.toFixed(1) || 'N/A'} {conversions.speed.unit}
                 {stabilizedValues.speed?.isStabilized && ' ✓'}
               </span>
             </div>

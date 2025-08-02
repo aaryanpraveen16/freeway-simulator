@@ -7,6 +7,7 @@ import { Download, BarChart2 } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
 import { identifyPacks } from "./PackFormationChart";
 import { useToast } from "@/hooks/use-toast";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 
 export interface PackLengthHistoryItem {
   time: number;
@@ -20,6 +21,7 @@ interface AveragePackLengthChartProps {
   onSaveCurrentRun?: () => void;
   onTogglePreviousRuns?: () => void;
   showPreviousRuns?: boolean;
+  unitSystem?: UnitSystem;
 }
 
 const COLORS = [
@@ -35,10 +37,12 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
   previousRunsData = [],
   onSaveCurrentRun,
   onTogglePreviousRuns,
-  showPreviousRuns = false
+  showPreviousRuns = false,
+  unitSystem = 'imperial'
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const conversions = getUnitConversions(unitSystem);
 
   const handleExportImage = () => {
     if (!chartRef.current) return;
@@ -169,9 +173,9 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
                 label={{ value: "Time (seconds)", position: "insideBottomRight", offset: -10 }}
               />
               <YAxis
-                label={{ value: "Average Pack Length (miles)", angle: -90, position: "insideLeft" }}
+                label={{ value: `Average Pack Length (${conversions.distance.unit})`, angle: -90, position: "insideLeft" }}
               />
-              <Tooltip formatter={(value: number) => [`${value.toFixed(3)} mi`, "Average Pack Length"]} />
+              <Tooltip formatter={(value: number) => [`${conversions.distance.toDisplay(value).toFixed(3)} ${conversions.distance.unit}`, "Average Pack Length"]} />
               <Legend />
               <Line
                 type="monotone"
