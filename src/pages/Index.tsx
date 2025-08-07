@@ -763,7 +763,7 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Additional info sections */}
+      
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <CarStatsCard cars={cars} laneLength={laneLength} showPackInfo={showPackFormation} unitSystem={unitSystem} />
           
