@@ -24,61 +24,58 @@ export const getUnitConversions = (unitSystem: UnitSystem): UnitConversions => {
   if (unitSystem === 'metric') {
     return {
       speed: {
-        toDisplay: (mph: number) => mph * 1.60934, // mph to km/h
-        fromDisplay: (kmh: number) => kmh / 1.60934, // km/h to mph
+        toDisplay: (kmh: number) => kmh, // Already in km/h
+        fromDisplay: (kmh: number) => kmh, // Already in km/h
         unit: 'km/h'
       },
       distance: {
-        toDisplay: (miles: number) => miles * 1.60934, // miles to km
-        fromDisplay: (km: number) => km / 1.60934, // km to miles
+        toDisplay: (km: number) => km, // Already in km
+        fromDisplay: (km: number) => km, // Already in km
         unit: 'km'
       },
       density: {
-        toDisplay: (carsPerMile: number) => carsPerMile / 1.60934, // cars/mile to cars/km
-        fromDisplay: (carsPerKm: number) => carsPerKm * 1.60934, // cars/km to cars/mile
+        toDisplay: (carsPerKm: number) => carsPerKm, // Already in cars/km
+        fromDisplay: (carsPerKm: number) => carsPerKm, // Already in cars/km
         unit: 'cars/km'
       }
     };
   }
   
-  // Imperial system (default)
+  // Imperial system (conversion from internal metric)
   return {
     speed: {
-      toDisplay: (mph: number) => mph,
-      fromDisplay: (mph: number) => mph,
+      toDisplay: (kmh: number) => kmh / 1.60934, // km/h to mph
+      fromDisplay: (mph: number) => mph * 1.60934, // mph to km/h
       unit: 'mph'
     },
     distance: {
-      toDisplay: (miles: number) => miles,
-      fromDisplay: (miles: number) => miles,
+      toDisplay: (km: number) => km / 1.60934, // km to miles
+      fromDisplay: (miles: number) => miles * 1.60934, // miles to km
       unit: 'miles'
     },
     density: {
-      toDisplay: (carsPerMile: number) => carsPerMile,
-      fromDisplay: (carsPerMile: number) => carsPerMile,
+      toDisplay: (carsPerKm: number) => carsPerKm * 1.60934, // cars/km to cars/mile
+      fromDisplay: (carsPerMile: number) => carsPerMile / 1.60934, // cars/mile to cars/km
       unit: 'cars/mile'
     }
   };
 };
 
-// Conversion functions for common values
+// Conversion functions for common values (all values are in internal metric units)
 export const convertSpeed = (value: number, from: UnitSystem, to: UnitSystem): number => {
   if (from === to) return value;
-  if (from === 'imperial' && to === 'metric') return value * 1.60934;
-  if (from === 'metric' && to === 'imperial') return value / 1.60934;
-  return value;
+  if (from === 'metric' && to === 'imperial') return value / 1.60934; // km/h to mph
+  return value * 1.60934; // mph to km/h
 };
 
 export const convertDistance = (value: number, from: UnitSystem, to: UnitSystem): number => {
   if (from === to) return value;
-  if (from === 'imperial' && to === 'metric') return value * 1.60934;
-  if (from === 'metric' && to === 'imperial') return value / 1.60934;
-  return value;
+  if (from === 'metric' && to === 'imperial') return value / 1.60934; // km to miles
+  return value * 1.60934; // miles to km
 };
 
 export const convertDensity = (value: number, from: UnitSystem, to: UnitSystem): number => {
   if (from === to) return value;
-  if (from === 'imperial' && to === 'metric') return value / 1.60934;
-  if (from === 'metric' && to === 'imperial') return value * 1.60934;
-  return value;
+  if (from === 'metric' && to === 'imperial') return value * 1.60934; // cars/km to cars/mile
+  return value / 1.60934; // cars/mile to cars/km
 };

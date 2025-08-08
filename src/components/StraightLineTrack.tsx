@@ -2,6 +2,7 @@
 import React from "react";
 import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
 import CarComponent from "./CarComponent";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 
 interface StraightLineTrackProps {
   cars: Car[];
@@ -11,6 +12,7 @@ interface StraightLineTrackProps {
   onStopCar?: (carId: number) => void;
   onResumeCar?: (carId: number) => void;
   carSize?: number;
+  unitSystem?: UnitSystem;
 }
 
 const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
@@ -21,7 +23,9 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   onStopCar,
   onResumeCar,
   carSize = 24,
+  unitSystem = 'imperial',
 }) => {
+  const conversions = getUnitConversions(unitSystem);
   const trackWidth = 60; // width of each lane in pixels (increased for better visibility)
   const trackHeight = 100; // height of the track in pixels (not currently used)
   // Use a maximum width that fits within most screens while being responsive
@@ -32,12 +36,21 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   const carHeight = 16; // height of car for vertical centering
   
   // Calculate density per lane
-  const getLaneDensity = (laneIndex: number) => {
+  const getLaneDensity = React.useCallback((laneIndex: number) => {
     const carsInLane = cars.filter(car => car.lane === laneIndex);
     const carCount = carsInLane.length;
-    const density = laneLength > 0 ? (carCount / laneLength).toFixed(2) : "0.00";
-    return density;
-  };
+    const densityInternal = laneLength > 0 ? carCount / laneLength : 0; // cars per mile (internal)
+    const densityDisplay = conversions.density.toDisplay(densityInternal);
+    return {
+      value: densityDisplay.toFixed(2),
+      unit: conversions.density.unit
+    };
+  }, [cars, laneLength, conversions.density]);
+  
+  // Memoize the density calculation for each lane
+  const laneDensities = React.useMemo(() => {
+    return Array.from({ length: numLanes }, (_, i) => getLaneDensity(i));
+  }, [numLanes, getLaneDensity]);
 
   // Get lane color based on index
   const getLaneColor = (laneIndex: number) => {
@@ -55,23 +68,20 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
       <div className="relative mx-auto flex items-center gap-4" style={{ width: Math.min(maxTrackWidth, window.innerWidth - 40), height: totalTrackHeight + 50 }}>
         {/* Lane labels and density */}
         <div className="flex flex-col justify-center flex-shrink-0" style={{ height: totalTrackHeight, marginTop: "25px" }}>
-          {Array.from({ length: numLanes }, (_, i) => {
-            const density = getLaneDensity(i);
-            return (
-              <div 
-                key={i} 
-                className="flex flex-col justify-center text-xs text-gray-700 font-medium"
-                style={{ height: trackWidth }}
-              >
-                <div className="flex items-center gap-1">
-                  <span className="font-bold">Lane {i + 1}</span>
-                  {i === 0 && <span className="text-xs text-blue-600">(Leftmost)</span>}
-                  {i === numLanes - 1 && <span className="text-xs text-blue-600">(Rightmost)</span>}
-                </div>
-                <div className="text-gray-600">{density}/mi</div>
+          {laneDensities.map((density, i) => (
+            <div 
+              key={i} 
+              className="flex flex-col justify-center text-xs text-gray-700 font-medium"
+              style={{ height: trackWidth }}
+            >
+              <div className="flex items-center gap-1">
+                <span className="font-bold">Lane {i + 1}</span>
+                {i === 0 && <span className="text-xs text-blue-600">(Leftmost)</span>}
+                {i === numLanes - 1 && <span className="text-xs text-blue-600">(Rightmost)</span>}
               </div>
-            );
-          })}
+              <div className="text-gray-600">{density.value} {density.unit}</div>
+            </div>
+          ))}
         </div>
         
         {/* Track container */}

@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
   
   return {
-    base: './', // Always use relative paths
+    base: '/', // TEMP: Use root for local preview
     publicDir: 'public', // Use the public directory for static assets
     css: {
       modules: false,

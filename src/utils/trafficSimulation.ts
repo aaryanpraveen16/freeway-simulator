@@ -2,13 +2,13 @@
 export interface Car {
   id: number;
   name: string; // Add name property
-  position: number; // position in the loop (0 to laneLength)
-  speed: number; // speed in mph
-  desiredSpeed: number; // desired speed in mph
+  position: number; // position in the loop in meters (0 to laneLength)
+  speed: number; // speed in km/h
+  desiredSpeed: number; // desired speed in km/h
   color: string; // color for visualization
-  virtualLength: number; // physical length + safe distance
-  distTripPlanned: number; // planned trip distance in feet
-  distanceTraveled: number; // distance traveled so far in feet
+  virtualLength: number; // physical length + safe distance in meters
+  distTripPlanned: number; // planned trip distance in meters
+  distanceTraveled: number; // distance traveled so far in meters
   lane: number; // lane index (required)
   driverType: "aggressive" | "normal" | "conservative"; // driver personality
   laneChangeProbability: number; // probability of changing lanes (0-1)
@@ -22,30 +22,30 @@ export interface Car {
  */
 export interface SimulationParams {
   /**
-   * Overall traffic density in cars per mile (across all lanes)
+   * Overall traffic density in cars per kilometer (across all lanes)
    */
-  trafficDensity: number;
+  trafficDensity: number; // cars per kilometer
   vehicleTypeDensity: {
     car: number; // percentage of cars (0-100)
     truck: number; // percentage of trucks (0-100)
     motorcycle: number; // percentage of motorcycles (0-100)
   };
   dt: number; // time step in seconds
-  aMax: number; // max deceleration (mi/s^2)
+  aMax: number; // max deceleration (m/s²)
   k: number; // speed adjustment sensitivity
-  lengthCar: number; // physical car length in miles
+  lengthCar: number; // physical car length in meters
   tDist: number; // time headway in seconds
-  initialGap: number; // initial gap between cars in miles
+  initialGap: number; // initial gap between cars in meters
   brakeTime: number; // time at which leader car starts braking
   brakeCarIndex: number; // index of the car to brake (default: 0 for first car)
-  minSpeed: number; // minimum speed in mph
-  maxSpeed: number; // maximum speed in mph
-  meanSpeed: number; // mean desired speed in mph
-  stdSpeed: number; // standard deviation of desired speeds
-  meanDistTripPlanned: number; // mean planned trip distance in miles
-  sigmaDistTripPlanned: number; // standard deviation of planned trip distances (miles)
-  speedLimit: number;
-  freewayLength?: number; // length of the freeway in miles
+  minSpeed: number; // minimum speed in km/h
+  maxSpeed: number; // maximum speed in km/h
+  meanSpeed: number; // mean desired speed in km/h
+  stdSpeed: number; // standard deviation of desired speeds in km/h
+  meanDistTripPlanned: number; // mean planned trip distance in km
+  sigmaDistTripPlanned: number; // standard deviation of planned trip distances in km
+  speedLimit: number; // in km/h
+  freewayLength?: number; // length of the freeway in km
   numLanes?: number; // number of lanes
   politenessFactor?: number; // MOBIL politeness factor
   rightLaneBias?: number; // bias for right lane
@@ -56,28 +56,28 @@ export interface SimulationParams {
 
 // Default simulation parameters
 export const defaultParams: SimulationParams = {
-  trafficDensity: 1.0, // 1 car per mile (overall freeway density)
+  trafficDensity: 0.62, // 1 car per 1.6 km (converted from 1 car per mile)
   vehicleTypeDensity: {
     car: 70,
     truck: 20,
     motorcycle: 10,
   },
   dt: 0.1, // 100ms time step
-  aMax: 10 / 5280, // 10 ft/s^2 converted to mi/s^2
+  aMax: 1.5, // m/s² (maximum comfortable deceleration, reduced from 3 to 1.5 for smoother braking)
   k: 0.3, // unitless
-  lengthCar: 15 / 5280, // 15 feet in miles
-  tDist: 3, // seconds
-  initialGap: 50 / 5280, // 50 feet in miles
+  lengthCar: 4.5, // meters (typical car length)
+  tDist: 3, // seconds (time headway)
+  initialGap: 15, // meters (safe following distance at low speed)
   brakeTime: 5, // seconds
   brakeCarIndex: 0, // default to first car
-  minSpeed: 10, // mph
-  maxSpeed: 80, // mph
-  meanSpeed: 65, // mph
-  stdSpeed: 5, // mph
-  meanDistTripPlanned: 10, // 1.9 miles
-  sigmaDistTripPlanned: 0.5, // standard deviation for log-normal distribution (miles)
-  speedLimit: 1000, // Effectively no limit by default
-  freewayLength: 10, // initial value in miles
+  minSpeed: 20, // km/h (minimum realistic speed)
+  maxSpeed: 130, // km/h (typical highway speed limit)
+  meanSpeed: 90, // km/h (average desired speed)
+  stdSpeed: 40, // km/h (standard deviation of desired speeds)
+  meanDistTripPlanned: 15, // km (average trip length)
+  sigmaDistTripPlanned: 0.5, // km (standard deviation of trip lengths, reduced from 1 to 0.5 for realistic values)
+  speedLimit: 130, // km/h (standard highway speed limit)
+  freewayLength: 16, // km (about 10 miles)
   numLanes: 2, // default to 2 lanes
   politenessFactor: 0.3, // typical MOBIL value
   rightLaneBias: 0.1, // small bias for right lane
@@ -117,11 +117,11 @@ export function logNormalRandom(mean: number, sigma: number): number {
   return Math.exp(mu + sigma * z0);
 }
 
-// Calculate safe following distance based on speed (returns miles)
+// Calculate safe following distance based on speed (returns meters)
 export function calculateSafeDistance(speed: number, tDist: number): number {
-  // speed in mph, tDist in seconds
-  // Convert mph to miles per second: 1 mph = 1/3600 miles/sec
-  return (tDist * speed) / 3600;
+  // speed in km/h, tDist in seconds
+  // Convert km/h to m/s: 1 km/h = 1000/3600 m/s
+  return (tDist * speed * 1000) / 3600;
 }
 
 // Calculate virtual car length (physical length + safe distance) in miles
@@ -222,7 +222,9 @@ export function initializeSimulation(params: SimulationParams): {
   ];
 
   const numLanes = params.numLanes || 1;
-  const laneLength = params.freewayLength ?? 10; // lane length in miles
+  // Ensure laneLength is in kilometers
+  let laneLength = params.freewayLength ?? 16; // default 16 km if not set
+  // All code below uses kilometers for laneLength and positions.
 
   // Calculate total number of cars based on overall traffic density (cars/mile)
   // Total cars = density (cars/mile) * lane length (miles)
@@ -259,10 +261,15 @@ export function initializeSimulation(params: SimulationParams): {
       const modifiedParams = { ...params, lengthCar: vehicleLengthMiles };
       const virtualLength = calculateVirtualLength(speed, modifiedParams);
 
-      // Generate planned trip distance using log-normal distribution (miles)
-      const distTripPlanned = logNormalRandom(
-        params.meanDistTripPlanned,
-        params.sigmaDistTripPlanned
+      // Generate planned trip distance using log-normal distribution (km)
+      const minTripDistance = 1; // minimum trip distance in km
+      const distTripPlannedRaw = logNormalRandom(params.meanDistTripPlanned, params.sigmaDistTripPlanned);
+      const distTripPlanned = Math.max(
+        minTripDistance,
+        distTripPlannedRaw
+      );
+      console.log(
+        `[DEBUG] Car ${carId}: meanDistTripPlanned=${params.meanDistTripPlanned}, sigmaDistTripPlanned=${params.sigmaDistTripPlanned}, raw=${distTripPlannedRaw}, final=${distTripPlanned}`
       );
 
       // Generate driver properties
@@ -290,34 +297,33 @@ export function initializeSimulation(params: SimulationParams): {
   // Calculate overall traffic density (cars per mile)
   const density = totalCars / laneLength;
 
-  // Randomly position cars along their respective lanes
+  // Position cars with proper spacing in each lane
   for (let lane = 0; lane < numLanes; lane++) {
     const carsInLane = cars.filter((car) => car.lane === lane);
-    const usedPositions: number[] = [];
-
-    for (const car of carsInLane) {
-      let validPosition = false;
-      let position = 0;
-      let attempts = 0;
-      const maxAttempts = 100;
-
-      while (!validPosition && attempts < maxAttempts) {
-        position = Math.random() * laneLength;
-        validPosition = true;
-
-        for (const usedPos of usedPositions) {
-          const distance = Math.abs(position - usedPos);
-          const wrappedDistance = Math.min(distance, laneLength - distance);
-          if (wrappedDistance < params.lengthCar + params.initialGap / 2) {
-            validPosition = false;
-            break;
-          }
-        }
-        attempts++;
-      }
-
-      usedPositions.push(position);
-      car.position = position;
+    
+    // If no cars in this lane, skip to next lane
+    if (carsInLane.length === 0) continue;
+    
+    // Sort cars by ID to ensure consistent ordering
+    carsInLane.sort((a, b) => a.id - b.id);
+    
+    // Calculate spacing between cars (in meters)
+    const spacing = laneLength / carsInLane.length;
+    
+    // Position cars with even spacing
+    for (let i = 0; i < carsInLane.length; i++) {
+      // Calculate position with some randomness to prevent perfect alignment
+      const position = (i * spacing + Math.random() * spacing * 0.1) % laneLength;
+      carsInLane[i].position = position; // always in kilometers
+      
+      // Set initial speed to desired speed with some variation
+      carsInLane[i].speed = Math.max(
+        params.minSpeed,
+        Math.min(
+          carsInLane[i].desiredSpeed * (0.9 + Math.random() * 0.2), // 90-110% of desired speed
+          params.speedLimit
+        )
+      );
     }
   }
 
@@ -373,8 +379,9 @@ export function calculateDistanceToCarAhead(
 
 // Utility to get car color based on entry/exit distance
 export function getCarColor(car: Car): string {
-  const entryThreshold = 2; // miles
-  const exitThreshold = 2; // miles
+  // Use 20% of trip distance or 5 km, whichever is smaller, for thresholds
+  const entryThreshold = Math.min(5, car.distTripPlanned * 0.2); // km
+  const exitThreshold = Math.min(5, car.distTripPlanned * 0.2); // km
   const fullGreen = "hsl(142, 72%, 29%)";
   const lightGreen = "hsl(142, 72%, 45%)";
   const lightRed = "hsl(0, 72%, 65%)";
@@ -479,57 +486,66 @@ export function updateSimulation(
       (c) => (c.position - car.position + laneLength) % laneLength > 0
     );
 
-    // Calculate gap to car ahead (with wrap-around)
+    // Calculate gap to car ahead in kilometers (with wrap-around)
     let gap = aheadCar
       ? (aheadCar.position - car.position + laneLength) % laneLength
       : laneLength;
 
-    const safeDist = calculateSafeDistance(carSpeed, params.tDist);
-    const hysteresisBuffer = 0.02; // ~100 feet in miles
-    const safeGap = safeDist + params.lengthCar / 5280 + hysteresisBuffer;
+    // Calculate safe following distance in kilometers
+    const safeDistKm = calculateSafeDistance(carSpeed, params.tDist) / 1000; // meters to km
+    const bufferKm = 0.005; // 5 meters in km
+    const safeGap = safeDistKm + (params.lengthCar / 1000) + bufferKm;
 
-    // If already stopped and gap is still unsafe, remain stopped
-    if (car.speed === 0 && gap < safeGap) {
-      carSpeed = 0;
-      movements[carIndex] = {
-        newPosition: car.position,
-        newSpeed: 0,
-        distanceTraveled: car.distanceTraveled,
-      };
-      continue;
-    }
-
-    carSpeed += (car.desiredSpeed - carSpeed) * params.k * effectiveDt;
-    carSpeed = Math.min(carSpeed, params.speedLimit);
-    car.virtualLength = calculateVirtualLength(carSpeed, params);
-
-    // Enhanced collision avoidance for stopped cars ahead
-    const buffer = 0.01; // e.g., extra 50 ft ~ 0.01 miles
-    if (gap < safeDist + params.lengthCar / 5280 + buffer) {
-      const aheadCarSpeed = aheadCar?.speed || 0;
-
-      // If the car ahead is stopped, apply stronger braking
-      if (aheadCarSpeed === 0 && gap < safeDist * 2) {
-        carSpeed = Math.max(carSpeed * 0.5, 0); // Rapid deceleration
+    const aheadCarSpeed = aheadCar?.speed || 0;
+    
+    // If there's no car ahead or it's far enough, accelerate to desired speed
+    if (!aheadCar || gap > safeGap) {
+      // If far ahead, accelerate towards desired speed (in km/h)
+      const acceleration = params.aMax * 3.6; // Convert m/s² to km/h/s
+      carSpeed = Math.min(carSpeed + acceleration * effectiveDt, car.desiredSpeed);
+    } else if (gap < safeGap) {
+      // If too close, decelerate based on the car ahead
+      const deceleration = params.aMax * 3.6; // Convert m/s² to km/h/s
+      if (aheadCarSpeed === 0) {
+        // Decelerate smoothly if car ahead is stopped
+        if (gap > 0.0001) { // gap > 0.1 meter
+          // Never decelerate by more than current speed (prevents instant drop to zero)
+          carSpeed = Math.max(carSpeed - Math.min(carSpeed, deceleration * effectiveDt), 0);
+        } else {
+          carSpeed = 0; // Only stop if extremely close
+        }
+        // Do NOT enforce minSpeed here, allow smooth deceleration below minSpeed
       } else {
-        const decel = Math.min(
-          (carSpeed ** 2 - aheadCarSpeed ** 2) /
-            (2 * Math.max(safeDist - gap + params.lengthCar / 5280, 1e-6)),
-          params.aMax
-        );
-        carSpeed = Math.max(carSpeed - decel * (1 / 3600) * effectiveDt, 0);
+        carSpeed = Math.max(aheadCarSpeed * 0.9, carSpeed - deceleration * effectiveDt);
+        // No minSpeed enforcement; speed is only limited by physical constraints
       }
+    } else {
+      // Maintain speed if in a good following distance
+      carSpeed = Math.min(carSpeed, aheadCarSpeed);
+    }
+    
+    // Ensure speed is not negative
+    carSpeed = Math.max(carSpeed, 0);
 
-      if (gap < (params.lengthCar * 1.5) / 5280) {
-        carSpeed = Math.min(carSpeed, aheadCarSpeed * 0.9);
-      }
+    // Ensure we don't exceed speed limit
+    carSpeed = Math.min(carSpeed, params.speedLimit);
+    car.virtualLength = calculateVirtualLength(carSpeed, params) / 1000; // meters to km
+    
+    // Calculate movement for this time step (convert km/h to km/frame)
+    let potentialMove = carSpeed * (1/3600) * effectiveDt; // km/h to km/s to km/frame
+    // Ensure we have some minimum movement to prevent cars from getting stuck (but only if not blocked)
+    if (!aheadCar || gap > safeGap) {
+      const minMove = 0.00001 * effectiveDt; // 1 cm per second in km
+      potentialMove = Math.max(potentialMove, minMove);
+    }
+    // Ensure we don't move past the car ahead
+    if (aheadCar) {
+      const distanceToCarAhead = (aheadCar.position - car.position + laneLength) % laneLength;
+      const safeDistance = (calculateSafeDistance(carSpeed, params.tDist) + params.lengthCar) / 1000; // meters to km
+      potentialMove = Math.max(0, Math.min(potentialMove, distanceToCarAhead - safeDistance));
     }
 
-    // Convert speed from mph to miles per second
-    const mphToMilesPerSec = 1 / 3600;
-    const potentialMove = carSpeed * mphToMilesPerSec * effectiveDt;
-
-    // Final check: prevent moving too close to car ahead
+    // Final check: prevent moving too close to car ahead (gap is in km)
     if (gap - potentialMove < safeGap) {
       // Try lane change first
       const adjacentLanes = findAdjacentCars(
@@ -603,6 +619,7 @@ export function updateSimulation(
       }
     }
 
+    // Calculate new position in km
     const newPosition = (car.position + potentialMove) % laneLength;
     const newDistanceTraveled = car.distanceTraveled + potentialMove;
     movements[carIndex] = {
@@ -661,9 +678,13 @@ export function updateSimulation(
     const modifiedParams = { ...params, lengthCar: vehicleLengthMiles };
     const virtualLength = calculateVirtualLength(speed, modifiedParams);
     
-    const distTripPlanned = logNormalRandom(
-      params.meanDistTripPlanned,
-      params.sigmaDistTripPlanned
+    const minTripDistance = 1; // km
+    const distTripPlanned = Math.max(
+      minTripDistance,
+      logNormalRandom(
+        params.meanDistTripPlanned,
+        params.sigmaDistTripPlanned
+      )
     );
 
     // Generate driver properties for new car

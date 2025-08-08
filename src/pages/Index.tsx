@@ -737,6 +737,7 @@ const Index = () => {
               onStopCar={handleStopCar}
               onResumeCar={handleResumeCar}
               carSize={carSize}
+              unitSystem={unitSystem}
             />
           </div>
         </div>

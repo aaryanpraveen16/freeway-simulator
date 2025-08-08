@@ -171,7 +171,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
                 dataKey="density"
                 name="Density"
                 label={{ 
-                  value: `Traffic Density (${conversions.density.unit}/lane)`, 
+                  value: `Traffic Density (${conversions.density.unit})`, 
                   position: "insideBottom", 
                   offset: -40 
                 }}
@@ -194,7 +194,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
                 ]}
                 labelFormatter={(label, payload) => {
                   if (payload && payload[0]) {
-                    return `Density: ${payload[0].payload.density} ${conversions.density.unit}/lane`;
+                    return `Density: ${payload[0].payload.density} ${conversions.density.unit}`;
                   }
                   return '';
                 }}
@@ -223,7 +223,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
             <div className="flex justify-between">
               <span>Density:</span>
               <span className={`font-mono ${stabilizedValues.density?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.density?.value?.toFixed(3) || 'N/A'} {conversions.density.unit}/lane
+                {stabilizedValues.density?.value?.toFixed(3) || 'N/A'} {conversions.density.unit}
                 {stabilizedValues.density?.isStabilized && ' ✓'}
               </span>
             </div>

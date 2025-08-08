@@ -3,6 +3,7 @@ import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
 import CarComponent from "./CarComponent";
 import StraightLineTrack from "./StraightLineTrack";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UnitSystem } from "@/utils/unitConversion";
 
 interface TrafficTrackProps {
   cars: Car[];
@@ -12,6 +13,7 @@ interface TrafficTrackProps {
   onStopCar?: (carId: number) => void;
   onResumeCar?: (carId: number) => void;
   carSize?: number;
+  unitSystem?: UnitSystem;
 }
 
 const TrafficTrack: React.FC<TrafficTrackProps> = ({
@@ -22,6 +24,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
   onStopCar,
   onResumeCar,
   carSize = 24,
+  unitSystem = 'imperial',
 }) => {
   const [activeView, setActiveView] = useState<"circular" | "straight">("straight");
   const trackRadius = 180; // radius in pixels
@@ -128,6 +131,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
               onStopCar={onStopCar}
               onResumeCar={onResumeCar}
               carSize={carSize}
+              unitSystem={unitSystem}
             />
           </TabsContent>
         </Tabs>

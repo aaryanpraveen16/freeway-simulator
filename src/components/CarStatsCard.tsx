@@ -183,7 +183,14 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, showPackI
                      </div>
                      <div>
                        <span className="text-muted-foreground">Distance to Car Ahead:</span>
-                       <span className="font-medium ml-1">{conversions.distance.toDisplay(distanceToCarAhead).toFixed(2)} {conversions.distance.unit}</span>
+                       <span className="font-medium ml-1">
+                         {conversions.distance.toDisplay(distanceToCarAhead).toFixed(2)} {conversions.distance.unit}
+                         {unitSystem === 'metric' && (
+                           <span className="text-muted-foreground">
+                             {' '}({(distanceToCarAhead * 1609.34).toFixed(1)} m)
+                           </span>
+                         )}
+                       </span>
                      </div>
                     <div>
                       <span className="text-muted-foreground">Trip Progress:</span>
