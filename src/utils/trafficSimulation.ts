@@ -499,29 +499,61 @@ export function updateSimulation(
     const aheadCarSpeed = aheadCar?.speed || 0;
     
     // If there's no car ahead or it's far enough, accelerate to desired speed
-    if (!aheadCar || gap > safeGap) {
+    if (!aheadCar || gap > safeGap * 1.5) {
       // If far ahead, accelerate towards desired speed (in km/h)
       const acceleration = params.aMax * 3.6; // Convert m/s² to km/h/s
       carSpeed = Math.min(carSpeed + acceleration * effectiveDt, car.desiredSpeed);
     } else if (gap < safeGap) {
-      // If too close, decelerate based on the car ahead
-      const deceleration = params.aMax * 3.6; // Convert m/s² to km/h/s
+      // Calculate how close we are to the safe gap (0 = at safe distance, 1 = very close)
+      const proximityFactor = Math.max(0, 1 - (gap / safeGap));
+      
+      // Base deceleration rate (smoother than before)
+      const baseDeceleration = params.aMax * 0.6 * 3.6; // Reduced from full aMax for smoother braking
+      
+      // Adjust deceleration based on proximity and speed difference
+      const speedDifference = carSpeed - aheadCarSpeed;
+      const urgencyFactor = Math.max(0.1, proximityFactor + (speedDifference / carSpeed) * 0.5);
+      
+      // Calculate deceleration with smooth curves
+      const deceleration = baseDeceleration * urgencyFactor;
+      
       if (aheadCarSpeed === 0) {
-        // Decelerate smoothly if car ahead is stopped
-        if (gap > 0.0001) { // gap > 0.1 meter
-          // Never decelerate by more than current speed (prevents instant drop to zero)
-          carSpeed = Math.max(carSpeed - Math.min(carSpeed, deceleration * effectiveDt), 0);
+        // Gradually decelerate when approaching a stopped car
+        const stopDistance = 0.01; // 10 meters minimum stopping distance in km
+        if (gap > stopDistance) {
+          // Smooth deceleration based on remaining distance
+          const decelerationRate = Math.min(deceleration, carSpeed * 0.8); // Max 80% speed reduction per time step
+          carSpeed = Math.max(carSpeed - decelerationRate * effectiveDt, 0);
         } else {
-          carSpeed = 0; // Only stop if extremely close
+          // Very close - more aggressive but still gradual braking
+          carSpeed = Math.max(carSpeed * 0.7, 0); // Reduce speed by 30% each frame when very close
         }
-        // Do NOT enforce minSpeed here, allow smooth deceleration below minSpeed
       } else {
-        carSpeed = Math.max(aheadCarSpeed * 0.9, carSpeed - deceleration * effectiveDt);
-        // No minSpeed enforcement; speed is only limited by physical constraints
+        // Match speed of car ahead more gradually
+        const targetSpeed = Math.max(aheadCarSpeed * 0.95, aheadCarSpeed - 5); // Slightly slower than car ahead
+        const speedAdjustment = deceleration * effectiveDt;
+        
+        if (carSpeed > targetSpeed) {
+          carSpeed = Math.max(carSpeed - speedAdjustment, targetSpeed);
+        } else {
+          carSpeed = Math.min(carSpeed + speedAdjustment * 0.5, targetSpeed); // Slower acceleration
+        }
       }
     } else {
-      // Maintain speed if in a good following distance
-      carSpeed = Math.min(carSpeed, aheadCarSpeed);
+      // In safe following distance - gradual speed matching
+      const targetSpeed = Math.min(aheadCarSpeed, car.desiredSpeed);
+      const speedDifference = targetSpeed - carSpeed;
+      const adjustmentRate = params.aMax * 0.3 * 3.6; // Gentle adjustment
+      
+      if (Math.abs(speedDifference) > 1) { // Only adjust if difference > 1 km/h
+        if (speedDifference > 0) {
+          carSpeed = Math.min(carSpeed + adjustmentRate * effectiveDt, targetSpeed);
+        } else {
+          carSpeed = Math.max(carSpeed - adjustmentRate * effectiveDt, targetSpeed);
+        }
+      } else {
+        carSpeed = targetSpeed; // Close enough, match exactly
+      }
     }
     
     // Ensure speed is not negative
@@ -599,23 +631,21 @@ export function updateSimulation(
 
         // Recalculate potential move and gap again
         if (gap - potentialMove < safeGap) {
-          carSpeed = 0;
-          movements[carIndex] = {
-            newPosition: car.position,
-            newSpeed: 0,
-            distanceTraveled: car.distanceTraveled,
-          };
-          continue;
+          // Still too close after lane change - gradual braking instead of immediate stop
+          const emergencyBraking = Math.max(carSpeed * 0.6, 5); // Reduce speed by 40% but maintain minimum 5 km/h
+          carSpeed = Math.max(emergencyBraking, 0);
+          potentialMove = carSpeed * (1/3600) * effectiveDt;
+          // Ensure we don't collide
+          potentialMove = Math.min(potentialMove, Math.max(0, gap - safeGap * 0.8));
         }
       } else {
-        // No valid lane change, must stop
-        carSpeed = 0;
-        movements[carIndex] = {
-          newPosition: car.position,
-          newSpeed: 0,
-          distanceTraveled: car.distanceTraveled,
-        };
-        continue;
+        // No valid lane change - gradual emergency braking instead of immediate stop
+        const emergencyDeceleration = params.aMax * 1.2 * 3.6; // Stronger but still gradual deceleration
+        carSpeed = Math.max(carSpeed - emergencyDeceleration * effectiveDt, 0);
+        
+        // Calculate conservative movement to avoid collision
+        potentialMove = carSpeed * (1/3600) * effectiveDt;
+        potentialMove = Math.min(potentialMove, Math.max(0, gap - safeGap * 0.9));
       }
     }
 
