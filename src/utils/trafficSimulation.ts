@@ -58,9 +58,9 @@ export interface SimulationParams {
 export const defaultParams: SimulationParams = {
   trafficDensity: 0.62, // 1 car per 1.6 km (converted from 1 car per mile)
   vehicleTypeDensity: {
-    car: 70,
-    truck: 20,
-    motorcycle: 10,
+    car: 100,    // 100% cars by default
+    truck: 0,    // No trucks by default
+    motorcycle: 0, // No motorcycles by default
   },
   dt: 0.1, // 100ms time step
   aMax: 1.5, // m/s² (maximum comfortable deceleration, reduced from 3 to 1.5 for smoother braking)
@@ -185,20 +185,20 @@ function getVehicleProperties(vehicleType: "car" | "truck" | "motorcycle") {
   switch (vehicleType) {
     case "truck":
       return {
-        lengthFeet: 25, // trucks are longer
+        lengthMeters: 7.5, // ~25ft in meters, rounded down
         speedModifier: 0.9, // trucks are slightly slower
         accelerationModifier: 0.8, // trucks accelerate slower
       };
     case "motorcycle":
       return {
-        lengthFeet: 8, // motorcycles are shorter
+        lengthMeters: 2.4, // ~8ft in meters, rounded down
         speedModifier: 1.1, // motorcycles can go faster
         accelerationModifier: 1.3, // motorcycles accelerate faster
       };
     case "car":
     default:
       return {
-        lengthFeet: 15, // standard car length
+        lengthMeters: 4.5, // ~15ft in meters, rounded down
         speedModifier: 1.0, // normal speed
         accelerationModifier: 1.0, // normal acceleration
       };
@@ -257,7 +257,7 @@ export function initializeSimulation(params: SimulationParams): {
       const speed = desiredSpeed;
 
       // Calculate virtual length based on vehicle type and initial speed (in miles)
-      const vehicleLengthMiles = vehicleProps.lengthFeet / 5280;
+      const vehicleLengthMiles = (vehicleProps.lengthMeters * 3.28084) / 5280; // Convert meters to miles
       const modifiedParams = { ...params, lengthCar: vehicleLengthMiles };
       const virtualLength = calculateVirtualLength(speed, modifiedParams);
 
@@ -706,8 +706,8 @@ export function updateSimulation(
     );
     const speed = desiredSpeed;
     
-    // Calculate virtual length based on vehicle type
-    const vehicleLengthMiles = vehicleProps.lengthFeet / 5280;
+    // Calculate virtual length based on vehicle type (convert meters to miles)
+    const vehicleLengthMiles = (vehicleProps.lengthMeters * 3.28084) / 5280;
     const modifiedParams = { ...params, lengthCar: vehicleLengthMiles };
     const virtualLength = calculateVirtualLength(speed, modifiedParams);
     
@@ -850,7 +850,8 @@ export function calculateLaneChangeIncentive(
   currentLeader: Car | undefined,
   targetLane: { leader?: Car; follower?: Car },
   params: SimulationParams,
-  laneLength: number
+  laneLength: number,
+  trafficRule: "american" | "european" = "american"
 ): number {
   // Calculate current acceleration in current lane
   const currentGap = currentLeader
@@ -916,9 +917,14 @@ export function calculateLaneChangeIncentive(
     incentive += 3; // Strong incentive to change lanes
   }
 
-  // Optional: Slight incentive for right-lane preference (if applicable)
-  if (targetLane.leader && car.lane < targetLane.leader.lane) {
-    incentive += params.rightLaneBias;
+  // Optional: Slight incentive for lane preference (right or left depending on traffic rule)
+  if (targetLane.leader) {
+    if (
+      (trafficRule === "american" && car.lane < targetLane.leader.lane) ||
+      (trafficRule === "european" && car.lane > targetLane.leader.lane)
+    ) {
+      incentive += params.rightLaneBias;
+    }
   }
 
   return incentive;

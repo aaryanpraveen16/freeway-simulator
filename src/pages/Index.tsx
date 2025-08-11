@@ -771,7 +771,7 @@ const Index = () => {
 
         {/* Additional info sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <CarStatsCard cars={cars} laneLength={laneLength} showPackInfo={showPackFormation} unitSystem={unitSystem} />
+          <CarStatsCard cars={cars} laneLength={laneLength} params={params} showPackInfo={showPackFormation} unitSystem={unitSystem} />
           
           <div className="bg-white rounded-xl shadow-sm p-6">
             <SimulationInfo />

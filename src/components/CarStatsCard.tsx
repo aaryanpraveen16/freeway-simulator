@@ -7,6 +7,7 @@ import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 interface CarStatsCardProps {
   cars: Car[];
   laneLength: number;
+  params: import("@/utils/trafficSimulation").SimulationParams;
   showPackInfo?: boolean;
   unitSystem?: UnitSystem;
 }
@@ -86,7 +87,7 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
   return { packs, carPackMap };
 };
 
-const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, showPackInfo = true, unitSystem = 'imperial' }) => {
+const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, showPackInfo = true, unitSystem = 'imperial' }) => {
   const conversions = getUnitConversions(unitSystem);
   const { packs, carPackMap } = identifyPacks(cars);
   
@@ -181,6 +182,29 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, showPackI
                        <span className="text-muted-foreground">Current Speed:</span>
                        <span className="font-medium ml-1">{Math.round(conversions.speed.toDisplay(car.speed))} {conversions.speed.unit}</span>
                      </div>
+                     <div className="col-span-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-muted-foreground">Driver Type:</span>
+                        <span className="font-medium ml-1 capitalize">{car.driverType}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-muted-foreground">Lane Change Prob:</span>
+                        <span className="font-medium ml-1">{(car.laneChangeProbability * 100).toFixed(0)}%</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Max Deceleration:</span>
+                        <span className="font-medium ml-1">{params.aMax.toFixed(1)} m/s²</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Desired Speed:</span>
+                        <span className="font-medium ml-1">{Math.round(conversions.speed.toDisplay(car.desiredSpeed))} {conversions.speed.unit}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Vehicle Length:</span>
+                        <span className="font-medium ml-1">{(params.lengthCar * 3.28084).toFixed(1)} ft ({(params.lengthCar).toFixed(1)} m)</span>
+                      </div>
+                    </div>
                      <div>
                        <span className="text-muted-foreground">Distance to Car Ahead:</span>
                        <span className="font-medium ml-1">

@@ -2,6 +2,8 @@ import React, { useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer } from "@/components/ui/chart";
+import SimulationParameters from "./SimulationParameters";
+import { UnitSystem } from "@/utils/unitConversion";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
@@ -20,6 +22,9 @@ interface DensityThroughputChartProps {
   elapsedTime: number;
   dataHistory: DensityThroughputDataPoint[];
   numLanes: number;
+  trafficRule: 'american' | 'european';
+  unitSystem?: UnitSystem;
+  simulationParams: any;
 }
 
 const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
@@ -27,7 +32,10 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
   laneLength,
   elapsedTime,
   dataHistory,
-  numLanes
+  numLanes,
+  trafficRule,
+  unitSystem = 'imperial',
+  simulationParams
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -36,23 +44,22 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
     if (cars.length === 0) return null;
     
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
-    // Calculate overall density (cars per mile)
-    const density = parseFloat((cars.length / laneLength).toFixed(2)); // Match StatsDisplay's density calculation
-    
-    // Calculate freeway throughput (cars per hour per lane)
+    const density = cars.length / laneLength;
     const throughputPerLane = avgSpeed * density;
     const totalThroughput = throughputPerLane * (cars.length > 0 ? Math.max(...cars.map(c => c.lane)) + 1 : 1);
     
     return {
-      density,
-      throughput: Math.round(totalThroughput), // Match StatsDisplay's rounding
-      time: parseFloat(elapsedTime.toFixed(1))
+      time: parseFloat(elapsedTime.toFixed(2)),
+      throughput: parseFloat(totalThroughput.toFixed(2)),
+      density: parseFloat(density.toFixed(2))
     };
   }, [cars, laneLength, elapsedTime, numLanes]);
 
   const chartData = useMemo(() => {
     const historicalData = dataHistory.map(point => ({
-      ...point,
+      time: parseFloat(point.time.toFixed(2)),
+      throughput: parseFloat(point.throughput.toFixed(2)),
+      density: parseFloat(point.density.toFixed(2)),
       type: 'historical'
     }));
     
@@ -133,7 +140,7 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
           <div>
             <CardTitle className="text-lg">Density-Throughput Fundamental Diagram</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Relationship between traffic density and freeway throughput
+              Relationship between time and freeway throughput
             </p>
           </div>
           <Button 
@@ -173,15 +180,16 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
-                dataKey="density"
-                name="Density"
+                dataKey="time"
+                name="Time"
                 label={{ 
-                  value: "Traffic Density (cars/mile)", 
+                  value: "Time (seconds)", 
                   position: "insideBottom", 
                   offset: -40,
                   style: { fontWeight: 500 }
                 }}
-                domain={['dataMin - 0.01', 'dataMax + 0.01']}
+                domain={['dataMin - 10', 'dataMax + 10']}
+                tickFormatter={(value) => value.toFixed(2)}
               />
               <YAxis
                 dataKey="throughput"
@@ -193,9 +201,10 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
                   style: { fontWeight: 500 }
                 }}
                 domain={['dataMin - 100', 'dataMax + 100']}
+                tickFormatter={(value) => value.toFixed(2)}
               />
               <Tooltip 
-                formatter={(value, name, props) => {
+                formatter={(value, name) => {
                   if (name === 'throughput') {
                     return [
                       `${Math.round(Number(value)).toLocaleString()} cars/hour`,
@@ -206,13 +215,18 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
                       `${Number(value).toFixed(2)} cars/mile`,
                       'Density'
                     ];
+                  } else if (name === 'time') {
+                    return [
+                      `${Number(value).toFixed(2)} seconds`,
+                      'Time'
+                    ];
                   }
                   return [value, name];
                 }}
                 labelFormatter={(label, payload) => {
                   if (!payload || payload.length === 0) return '';
                   const time = payload[0]?.payload?.time;
-                  return time !== undefined ? `Time: ${time.toFixed(1)} sec` : '';
+                  return time !== undefined ? `Time: ${time.toFixed(2)} seconds` : '';
                 }}
                 contentStyle={{
                   backgroundColor: 'white',
@@ -269,6 +283,12 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
           <p>• Red dot: Current simulation state</p>
           <p>• Optimal throughput typically occurs at moderate densities</p>
         </div>
+        
+        <SimulationParameters 
+          params={simulationParams} 
+          trafficRule={trafficRule}
+          unitSystem={unitSystem}
+        />
       </CardContent>
     </Card>
   );

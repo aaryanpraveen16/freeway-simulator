@@ -26,19 +26,6 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
       <div className="container mx-auto flex items-center justify-between">
         <h2 className="text-xl font-medium">Freeway Simulator</h2>
         <div className="flex items-center gap-3">
-          {onUnitSystemChange && (
-            <div className="flex items-center gap-2">
-              <Label htmlFor="unit-toggle" className="text-sm">
-                {unitSystem === 'imperial' ? 'Imperial' : 'Metric'}
-              </Label>
-              <Switch
-                id="unit-toggle"
-                checked={unitSystem === 'metric'}
-                onCheckedChange={(checked) => onUnitSystemChange(checked ? 'metric' : 'imperial')}
-              />
-            </div>
-          )}
-          
           {onSaveSimulation && (
             <SaveSimulationDialog
               onSave={onSaveSimulation}

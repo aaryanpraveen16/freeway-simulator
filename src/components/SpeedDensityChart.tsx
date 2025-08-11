@@ -3,6 +3,7 @@ import React, { useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer } from "@/components/ui/chart";
+import SimulationParameters from "./SimulationParameters";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
@@ -24,6 +25,7 @@ interface SpeedDensityChartProps {
   trafficRule: 'american' | 'european';
   laneLength: number;
   unitSystem?: UnitSystem;
+  simulationParams: any; // Add simulationParams prop
 }
 
 const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
@@ -33,7 +35,8 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
   numLanes,
   trafficRule,
   laneLength,
-  unitSystem = 'imperial'
+  unitSystem = 'imperial',
+  simulationParams
 }) => {
   const conversions = getUnitConversions(unitSystem);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -43,21 +46,19 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
     if (cars.length === 0) return null;
     
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
-    // Calculate overall density (cars per mile) - internal units
-    const densityInternal = cars.length / laneLength; // cars per mile (overall freeway density)
     
     return {
-      density: parseFloat(conversions.density.toDisplay(densityInternal).toFixed(3)),
-      speed: parseFloat(conversions.speed.toDisplay(avgSpeed).toFixed(1)),
-      time: parseFloat(elapsedTime.toFixed(1))
+      time: parseFloat(elapsedTime.toFixed(2)),
+      speed: parseFloat(conversions.speed.toDisplay(avgSpeed).toFixed(2)),
+      density: parseFloat(conversions.density.toDisplay(cars.length / laneLength).toFixed(2))
     };
-  }, [cars, elapsedTime, laneLength, numLanes, conversions]);
+  }, [cars, elapsedTime, laneLength, conversions]);
 
   const chartData = useMemo(() => {
     const historicalData = dataHistory.map(point => ({
-      density: conversions.density.toDisplay(point.density),
-      speed: conversions.speed.toDisplay(point.speed),
-      time: point.time,
+      time: parseFloat(point.time.toFixed(2)),
+      speed: parseFloat(conversions.speed.toDisplay(point.speed).toFixed(2)),
+      density: parseFloat(conversions.density.toDisplay(point.density).toFixed(2)),
       type: 'historical'
     }));
     
@@ -168,14 +169,15 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
-                dataKey="density"
-                name="Density"
+                dataKey="time"
+                name="Time"
                 label={{ 
-                  value: `Traffic Density (${conversions.density.unit})`, 
+                  value: "Time (seconds)", 
                   position: "insideBottom", 
                   offset: -40 
                 }}
-                domain={['dataMin - 0.01', 'dataMax + 0.01']}
+                domain={['dataMin - 10', 'dataMax + 10']}
+                tickFormatter={(value) => value.toFixed(2)}
               />
               <YAxis
                 dataKey="speed"
@@ -186,15 +188,17 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
                   position: "insideLeft" 
                 }}
                 domain={['dataMin - 5', 'dataMax + 5']}
+                tickFormatter={(value) => value.toFixed(2)}
               />
               <Tooltip 
                 formatter={(value, name) => [
-                  `${value}`, 
-                  name === 'speed' ? `Speed (${conversions.speed.unit})` : name
+                  typeof value === 'number' ? value.toFixed(2) : value, 
+                  name === 'speed' ? `Speed (${conversions.speed.unit})` : 
+                  name === 'time' ? 'Time (seconds)' : name
                 ]}
                 labelFormatter={(label, payload) => {
                   if (payload && payload[0]) {
-                    return `Density: ${payload[0].payload.density} ${conversions.density.unit}`;
+                    return `Time: ${payload[0].payload.time.toFixed(2)} seconds`;
                   }
                   return '';
                 }}
@@ -241,10 +245,17 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
         </div>
         
         <div className="mt-4 text-xs text-muted-foreground">
-          <p>• Blue dots: Historical data points</p>
+          <p>• Blue dots: Historical speed measurements</p>
           <p>• Red dot: Current simulation state</p>
-          <p>• Typical pattern: Speed decreases as density increases (congestion)</p>
+          <p>• X-axis shows simulation time in seconds</p>
+          <p>• Y-axis shows average speed in {conversions.speed.unit}</p>
         </div>
+        
+        <SimulationParameters 
+          params={simulationParams} 
+          trafficRule={trafficRule}
+          unitSystem={unitSystem}
+        />
       </CardContent>
     </Card>
   );
