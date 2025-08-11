@@ -9,6 +9,7 @@ import { Download } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
+import { getUnitConversions } from "@/utils/unitConversion";
 
 interface DensityThroughputDataPoint {
   density: number;
@@ -39,6 +40,7 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const conversions = getUnitConversions(unitSystem);
 
   const currentPoint = useMemo(() => {
     if (cars.length === 0) return null;
@@ -261,14 +263,18 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
             <div className="flex justify-between">
               <span>Density:</span>
               <span className={`font-mono ${stabilizedValues.density?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.density?.value?.toFixed(3) || 'N/A'} cars/mile
+                {stabilizedValues.density?.value ? 
+                  `${conversions.density.toDisplay(stabilizedValues.density.value).toFixed(3)} ${conversions.density.unit}` : 
+                  'N/A'}
                 {stabilizedValues.density?.isStabilized && ' ✓'}
               </span>
             </div>
             <div className="flex justify-between">
               <span>Throughput:</span>
               <span className={`font-mono ${stabilizedValues.throughput?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.throughput?.value?.toFixed(0) || 'N/A'} cars/hr
+                {stabilizedValues.throughput?.value ? 
+                  `${Math.round(stabilizedValues.throughput.value)} ${unitSystem === 'metric' ? 'veh/h' : 'veh/h'}` : 
+                  'N/A'}
                 {stabilizedValues.throughput?.isStabilized && ' ✓'}
               </span>
             </div>

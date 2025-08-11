@@ -95,40 +95,38 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <SpeedDensityChart 
-                    cars={cars}
-                    elapsedTime={elapsedTime}
-                    dataHistory={speedDensityHistory}
-                    numLanes={params.numLanes}
-                    trafficRule={trafficRule}
-                    laneLength={laneLength}
-                    unitSystem={unitSystem}
-                    simulationParams={params}
-                  />
-                  <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
-                    <strong>Speed-Density Relationship:</strong> Shows the fundamental traffic engineering relationship. 
-                    As density increases, speed typically decreases due to congestion effects.
-                  </div>
+            <CardContent className="space-y-8">
+              <div className="space-y-4">
+                <SpeedDensityChart 
+                  cars={cars}
+                  elapsedTime={elapsedTime}
+                  dataHistory={speedDensityHistory}
+                  numLanes={params.numLanes}
+                  trafficRule={trafficRule}
+                  laneLength={laneLength}
+                  unitSystem={unitSystem}
+                  simulationParams={params}
+                />
+                <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
+                  <strong>Speed-Density Relationship:</strong> Shows the fundamental traffic engineering relationship. 
+                  As density increases, speed typically decreases due to congestion effects.
                 </div>
-                
-                <div className="space-y-4">
-                  <DensityThroughputChart 
-                    cars={cars}
-                    laneLength={laneLength}
-                    elapsedTime={elapsedTime}
-                    dataHistory={densityThroughputHistory}
-                    numLanes={params.numLanes}
-                    trafficRule={trafficRule}
-                    unitSystem={unitSystem}
-                    simulationParams={params}
-                  />
-                  <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
-                    <strong>Flow Efficiency:</strong> Relationship between traffic density and throughput. 
-                    Optimal flow occurs at moderate densities before congestion reduces throughput.
-                  </div>
+              </div>
+              
+              <div className="space-y-4">
+                <DensityThroughputChart 
+                  cars={cars}
+                  laneLength={laneLength}
+                  elapsedTime={elapsedTime}
+                  dataHistory={densityThroughputHistory}
+                  numLanes={params.numLanes}
+                  trafficRule={trafficRule}
+                  unitSystem={unitSystem}
+                  simulationParams={params}
+                />
+                <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
+                  <strong>Flow Efficiency:</strong> Relationship between traffic density and throughput. 
+                  Optimal flow occurs at moderate densities before congestion reduces throughput.
                 </div>
               </div>
             </CardContent>
