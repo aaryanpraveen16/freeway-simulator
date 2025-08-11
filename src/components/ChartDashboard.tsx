@@ -106,6 +106,7 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                     trafficRule={trafficRule}
                     laneLength={laneLength}
                     unitSystem={unitSystem}
+                    simulationParams={params}
                   />
                   <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
                     <strong>Speed-Density Relationship:</strong> Shows the fundamental traffic engineering relationship. 
@@ -120,6 +121,9 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                     elapsedTime={elapsedTime}
                     dataHistory={densityThroughputHistory}
                     numLanes={params.numLanes}
+                    trafficRule={trafficRule}
+                    unitSystem={unitSystem}
+                    simulationParams={params}
                   />
                   <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
                     <strong>Flow Efficiency:</strong> Relationship between traffic density and throughput. 

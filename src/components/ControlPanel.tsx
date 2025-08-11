@@ -11,6 +11,7 @@ import { SimulationParams } from "@/utils/trafficSimulation";
 import { JsonImportExport } from "./JsonImportExport";
 import { InfoTooltip } from "./InfoTooltip";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
+import { CollapsibleSection } from "./ui/CollapsibleSection";
 
 interface BatchSimulation {
   name?: string;
@@ -333,13 +334,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             <Separator />
 
-            {/* Speed Settings */}
-            <div className="space-y-3">
-              <div className="flex items-center">
-                <Label className="text-sm font-medium">Simulation Settings</Label>
-                <InfoTooltip content="Settings for the simulation duration and speed" />
-              </div>
-              
+            {/* Simulation Settings */}
+            <CollapsibleSection title="Simulation Settings" defaultCollapsed={true}>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -390,14 +386,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   ))}
                 </div>
               </div>
+            </CollapsibleSection>
 
-              <div className="space-y-2 pt-2">
-                <div className="flex items-center">
-                  <Label className="text-sm font-medium">Speed Settings</Label>
-                  <InfoTooltip content="Settings for vehicle speeds in the simulation" />
-                </div>
-              </div>
+            <Separator />
 
+            {/* Speed Settings */}
+            <CollapsibleSection title="Speed Settings" defaultCollapsed={true}>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
@@ -419,9 +413,51 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     className="w-20 h-8 text-right"
                   />
                 </div>
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center">
+                    <Label className="text-xs">Desired Speed Std Dev ({conversions.speed.unit}):</Label>
+                    <InfoTooltip content="Standard deviation of desired speeds. Higher values mean more variation in driver speeds." />
+                  </div>
+                  <Input
+                    type="number"
+                    value={Math.round(conversions.speed.toDisplay(params.stdSpeed))}
+                    onChange={(e) => {
+                      const displayValue = Number(e.target.value) || 10;
+                      const internalValue = conversions.speed.fromDisplay(displayValue);
+                      // Clamp stdSpeed to reasonable range (5 to 60)
+                      const value = Math.min(60, Math.max(5, internalValue));
+                      onUpdateParams({ stdSpeed: value });
+                    }}
+                    min={Math.round(conversions.speed.toDisplay(5))}
+                    max={Math.round(conversions.speed.toDisplay(60))}
+                    step={1}
+                    className="w-20 h-8 text-right"
+                  />
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center">
+                    <Label className="text-xs">Trip Length Std Dev ({conversions.distance.unit}):</Label>
+                    <InfoTooltip content="Standard deviation of trip lengths (how much individual car trips vary). Lower values mean most cars travel similar distances; higher values mean more variation." />
+                  </div>
+                  <Input
+                    type="number"
+                    value={conversions.distance.toDisplay(params.sigmaDistTripPlanned).toFixed(2)}
+                    onChange={(e) => {
+                      const displayValue = Number(e.target.value) || 0.1;
+                      const internalValue = conversions.distance.fromDisplay(displayValue);
+                      // Clamp sigmaDistTripPlanned to reasonable range (0.05 to 2 km or mi)
+                      const value = Math.min(2, Math.max(0.05, internalValue));
+                      onUpdateParams({ sigmaDistTripPlanned: value });
+                    }}
+                    min={conversions.distance.toDisplay(0.05)}
+                    max={conversions.distance.toDisplay(2)}
+                    step={0.01}
+                    className="w-20 h-8 text-right"
+                  />
+                </div>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-2 pt-4">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
                     <Label>Speed Limit ({conversions.speed.unit})</Label>
@@ -466,106 +502,73 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   </ToggleGroup>
                 </div>
               </div>
-            </div>
-
-            <Separator />
-
-            {/* Simulation Duration */}
-            <div className="space-y-3">
-              <div className="flex items-center">
-                <Label className="text-sm font-medium">Simulation Duration</Label>
-                <InfoTooltip content="How long the simulation should run in seconds" />
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={params.simulationDuration || 60}
-                    onChange={(e) => onUpdateParams({ simulationDuration: Number(e.target.value) || 60 })}
-                    className="flex-1"
-                    min="10"
-                    max="600"
-                    step="10"
-                  />
-                  <span className="text-xs text-gray-500">seconds</span>
-                </div>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <span className="text-xs text-muted-foreground">Presets:</span>
-                  <ToggleGroup type="single" size="sm" className="gap-1">
-                    {[30, 60, 120, 300].map((duration) => (
-                      <ToggleGroupItem 
-                        key={duration}
-                        value={duration.toString()}
-                        onClick={() => onUpdateParams({ simulationDuration: duration })}
-                        className="h-6 px-2 text-xs"
-                      >
-                        {duration}s
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
-                </div>
-              </div>
-            </div>
+            </CollapsibleSection>
 
             <Separator />
 
             {/* Advanced Parameters */}
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Advanced Parameters</Label>
-              
-              <div className="space-y-2">
-                <Label className="text-xs">Freeway Length: {conversions.distance.toDisplay(params.freewayLength).toFixed(1)} {conversions.distance.unit}</Label>
-                <Slider
-                  value={[params.freewayLength]}
-                  onValueChange={([value]) => onUpdateParams({ freewayLength: value })}
-                  min={1}
-                  max={20}
-                  step={1}
-                  className="w-full"
-                />
+            <CollapsibleSection title="Advanced Parameters" defaultCollapsed={true}>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">Freeway Length</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {conversions.distance.toDisplay(params.freewayLength).toFixed(1)} {conversions.distance.unit}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[params.freewayLength]}
+                    onValueChange={([value]) => onUpdateParams({ freewayLength: value })}
+                    min={1}
+                    max={20}
+                    step={1}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">Time Headway</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {params.tDist} seconds
+                    </span>
+                  </div>
+                  <Slider
+                    value={[params.tDist]}
+                    onValueChange={([value]) => onUpdateParams({ tDist: value })}
+                    min={1}
+                    max={5}
+                    step={0.5}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">Mean Trip Distance</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {conversions.distance.toDisplay(params.meanDistTripPlanned).toFixed(1)} {conversions.distance.unit}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[params.meanDistTripPlanned]}
+                    onValueChange={([value]) => onUpdateParams({ meanDistTripPlanned: value })}
+                    min={1}
+                    max={50}
+                    step={1}
+                  />
+                </div>
               </div>
-              
-              <div className="space-y-2">
-                <Label className="text-xs">Time Headway: {params.tDist} seconds</Label>
-                <Slider
-                  value={[params.tDist]}
-                  onValueChange={([value]) => onUpdateParams({ tDist: value })}
-                  min={1}
-                  max={5}
-                  step={0.5}
-                  className="w-full"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-xs">Trip Distance: {conversions.distance.toDisplay(params.meanDistTripPlanned).toFixed(1)} {conversions.distance.unit}</Label>
-                <Slider
-                  value={[params.meanDistTripPlanned]}
-                  onValueChange={([value]) => onUpdateParams({ meanDistTripPlanned: value })}
-                  min={1}
-                  max={50}
-                  step={1}
-                  className="w-full"
-                />
-              </div>
-            </div>
+            </CollapsibleSection>
 
             <Separator />
 
             {/* Car Display Size */}
             {onCarSizeChange && (
-              <div className="space-y-3">
-                <div className="flex items-center">
-                  <Label className="text-sm font-medium">Car Display Size</Label>
-                  <InfoTooltip content="Adjust the visual size of cars to make them easier to see" />
-                </div>
-                
+              <CollapsibleSection title="Display Settings" defaultCollapsed={true}>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs">Size: {carSize}px</Label>
+                    <Label className="text-xs">Car Size: {carSize}px</Label>
                     <span className="text-xs text-muted-foreground">
-                      ({carSize < 20 ? 'Small' : carSize > 30 ? 'Large' : 'Medium'})
+                      {carSize < 20 ? 'Small' : carSize > 30 ? 'Large' : 'Medium'}
                     </span>
                   </div>
                   <Slider
@@ -574,10 +577,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     min={12}
                     max={48}
                     step={2}
-                    className="w-full"
                   />
                 </div>
-              </div>
+              </CollapsibleSection>
             )}
 
             <Separator />
