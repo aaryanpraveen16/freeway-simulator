@@ -560,6 +560,49 @@ export function updateSimulation(
       potentialMove = Math.max(potentialMove, minMove);
     }
     
+    // Decide on lane change before final movement calculation
+    const adjacentLanes = findAdjacentCars(car, updatedCars, laneLength, params);
+    const { shouldChange, targetLane } = shouldChangeLaneWithExitBehavior(
+      car,
+      aheadCar,
+      adjacentLanes,
+      params,
+      laneLength,
+      currentTime,
+      trafficRule,
+      shouldMoveToExitLane
+    );
+
+    if (shouldChange && targetLane !== null) {
+      // Perform lane change
+      updatedCars[carIndex].lane = targetLane;
+      updatedCars[carIndex].lastLaneChange = currentTime;
+
+      events.push({
+        type: "laneChange",
+        carId: car.id,
+        carName: car.name,
+        position: car.position,
+        speed: car.speed,
+        lane: targetLane,
+      });
+
+      // After lane change, we need to re-calculate the car ahead and the gap.
+      currentLane = targetLane;
+      sameLaneCars = updatedCars.filter((c) => c.lane === currentLane);
+      sortedSameLaneCars = sameLaneCars.sort((a, b) => {
+        const distA = (a.position - car.position + laneLength) % laneLength;
+        const distB = (b.position - car.position + laneLength) % laneLength;
+        return distA - distB;
+      });
+      aheadCar = sortedSameLaneCars.find(
+        (c) => (c.position - car.position + laneLength) % laneLength > 0
+      );
+      gap = aheadCar
+        ? (aheadCar.position - car.position + laneLength) % laneLength
+        : laneLength;
+    }
+
     // Ensure we don't move past the car ahead
     if (aheadCar) {
       const distanceToCarAhead = (aheadCar.position - car.position + laneLength) % laneLength;
@@ -569,74 +612,13 @@ export function updateSimulation(
 
     // Final check: prevent moving too close to car ahead (gap is in km)
     if (gap - potentialMove < safeGap) {
-      // Try lane change first
-      const adjacentLanes = findAdjacentCars(
-        car,
-        updatedCars,
-        laneLength,
-        params
-      );
+      // No lane change was possible or desired, so we must brake.
+      const emergencyDeceleration = params.aMax * 1.2 * 3.6;
+      carSpeed = Math.max(carSpeed - emergencyDeceleration * effectiveDt, 0);
       
-      // Enhanced lane change logic for exit behavior
-      const { shouldChange, targetLane } = shouldChangeLaneWithExitBehavior(
-        car,
-        aheadCar,
-        adjacentLanes,
-        params,
-        laneLength,
-        currentTime,
-        trafficRule,
-        shouldMoveToExitLane
-      );
-
-      if (shouldChange && targetLane !== null) {
-        // Perform lane change
-        updatedCars[carIndex].lane = targetLane;
-        updatedCars[carIndex].lastLaneChange = currentTime;
-        
-        // Add lane change event
-        events.push({
-          type: "laneChange",
-          carId: car.id,
-          carName: car.name,
-          position: car.position,
-          speed: car.speed,
-          lane: targetLane,
-        });
-
-        // Recalculate aheadCar and gap in new lane
-        currentLane = targetLane;
-        sameLaneCars = updatedCars.filter((c) => c.lane === currentLane);
-        sortedSameLaneCars = sameLaneCars.sort((a, b) => {
-          const distA = (a.position - car.position + laneLength) % laneLength;
-          const distB = (b.position - car.position + laneLength) % laneLength;
-          return distA - distB;
-        });
-        aheadCar = sortedSameLaneCars.find(
-          (c) => (c.position - car.position + laneLength) % laneLength > 0
-        );
-        gap = aheadCar
-          ? (aheadCar.position - car.position + laneLength) % laneLength
-          : laneLength;
-
-        // Recalculate potential move and gap again
-        if (gap - potentialMove < safeGap) {
-          // Still too close after lane change - apply gradual braking
-          const emergencyBraking = Math.max(carSpeed * 0.6, 5);
-          carSpeed = Math.max(emergencyBraking, 0);
-          potentialMove = carSpeed * (1/3600) * effectiveDt;
-          // Maintain safe gap with a small buffer
-          potentialMove = Math.min(potentialMove, Math.max(0, gap - safeGap * 0.9));
-        }
-      } else {
-        // No valid lane change - apply gradual braking
-        const emergencyDeceleration = params.aMax * 1.2 * 3.6;
-        carSpeed = Math.max(carSpeed - emergencyDeceleration * effectiveDt, 0);
-        
-        // Calculate movement to maintain safe gap
-        potentialMove = carSpeed * (1/3600) * effectiveDt;
-        potentialMove = Math.min(potentialMove, Math.max(0, gap - safeGap * 0.9));
-      }
+      // Recalculate movement
+      potentialMove = carSpeed * (1/3600) * effectiveDt;
+      potentialMove = Math.min(potentialMove, Math.max(0, gap - safeGap * 0.9));
     }
 
     // Calculate new position in km
@@ -836,9 +818,10 @@ export function calculateLaneChangeIncentive(
   car: Car,
   currentLeader: Car | undefined,
   targetLane: { leader?: Car; follower?: Car },
+  targetLaneIndex: number,
   params: SimulationParams,
   laneLength: number,
-  trafficRule: "american" | "european" = "american"
+  trafficRule: "american" | "european"
 ): number {
   // Calculate current acceleration in current lane
   const currentGap = currentLeader
@@ -904,13 +887,11 @@ export function calculateLaneChangeIncentive(
     incentive += 3; // Strong incentive to change lanes
   }
 
-  // Optional: Slight incentive for lane preference (right or left depending on traffic rule)
-  if (targetLane.leader) {
-    if (
-      (trafficRule === "american" && car.lane < targetLane.leader.lane) ||
-      (trafficRule === "european" && car.lane > targetLane.leader.lane)
-    ) {
-      incentive += params.rightLaneBias;
+  // Add incentive for lane preference based on traffic rules
+  if (trafficRule === 'european') {
+    // For European rules, there's a strong incentive to move to the right-most lane available.
+    if (targetLaneIndex > car.lane) { // Moving right
+      incentive += params.rightLaneBias * 1.5; // Stronger bias for moving right
     }
   }
 
@@ -949,8 +930,10 @@ function shouldChangeLane(
           car,
           currentLeader,
           adjacentLanes.leftLane,
+          car.lane - 1,
           params,
-          laneLength
+          laneLength,
+          trafficRule
         )
       : -Infinity;
 
@@ -960,8 +943,10 @@ function shouldChangeLane(
           car,
           currentLeader,
           adjacentLanes.rightLane,
+          car.lane + 1,
           params,
-          laneLength
+          laneLength,
+          trafficRule
         )
       : -Infinity;
 
@@ -1033,7 +1018,7 @@ function shouldChangeLane(
     if (
       canReturnRight &&
       (!slowerLeader || car.speed >= car.desiredSpeed) && // Don't switch back if we are trying to overtake, unless we are at desired speed
-      adjustedRight > params.accelerationThreshold * 0.3 && // Lower threshold to return right
+      rightIncentive > params.accelerationThreshold * 0.3 && // Use rightIncentive directly, ignoring laneStickiness
       Math.random() < car.laneChangeProbability * 1.5 // Higher probability to return right
     ) {
       return { shouldChange: true, targetLane: car.lane + 1 };
