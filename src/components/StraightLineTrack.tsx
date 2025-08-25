@@ -60,7 +60,8 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
     
     // Calculate average speed for the lane
     const totalSpeed = carsInLane.reduce((sum, car) => sum + car.speed, 0);
-    const avgSpeed = carsInLane.length > 0 ? totalSpeed / carsInLane.length : 0;
+    const avgSpeedKmh = carsInLane.length > 0 ? totalSpeed / carsInLane.length : 0;
+    const avgSpeedDisplay = conversions.speed.toDisplay(avgSpeedKmh);
     
     return {
       density: {
@@ -68,9 +69,10 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
         unit: conversions.density.unit
       },
       carCount,
-      avgSpeed: avgSpeed.toFixed(1)
+      avgSpeed: avgSpeedDisplay.toFixed(1),
+      speedUnit: conversions.speed.unit
     };
-  }, [cars, laneLength, conversions.density]);
+  }, [cars, laneLength, conversions.density, conversions.speed]);
   
   // Memoize the lane statistics
   const laneStats = React.useMemo(() => {
@@ -157,7 +159,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
                     <div className="space-y-0.5">
                       <div className="text-gray-500">Avg Speed</div>
                       <div className={`font-medium ${getSpeedColor(parseFloat(laneStats[i]?.avgSpeed || '0'))}`}>
-                        {laneStats[i]?.avgSpeed} m/s
+                        {laneStats[i]?.avgSpeed} {laneStats[i]?.speedUnit}
                       </div>
                     </div>
                   </div>
@@ -207,12 +209,16 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
                       {(() => {
                         // Calculate average speed for this lane
                         const laneCars = cars.filter(car => car.lane === i);
-                        const avgSpeed = laneCars.length > 0 
-                          ? Math.round(laneCars.reduce((sum, car) => sum + car.speed, 0) / laneCars.length)
+                        const avgSpeedKmh = laneCars.length > 0 
+                          ? laneCars.reduce((sum, car) => sum + car.speed, 0) / laneCars.length
                           : 0;
-                        return unitSystem === 'imperial' 
-                          ? `${avgSpeed} mph` 
-                          : `${Math.round(avgSpeed * 1.60934)} km/h`;
+                        
+                        if (unitSystem === 'imperial') {
+                          const mph = avgSpeedKmh * 0.621371; // Convert km/h to mph
+                          return `${Math.round(mph)} mph`;
+                        } else {
+                          return `${Math.round(avgSpeedKmh)} km/h`;
+                        }
                       })()}
                     </div>
                   </div>
