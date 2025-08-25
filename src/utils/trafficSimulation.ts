@@ -1032,7 +1032,7 @@ function shouldChangeLane(
     // If not actively passing, try to return right
     if (
       canReturnRight &&
-      (!slowerLeader || car.lane === 0) && // Either no slower leader or already in left lane
+      (!slowerLeader || car.speed >= car.desiredSpeed) && // Don't switch back if we are trying to overtake, unless we are at desired speed
       adjustedRight > params.accelerationThreshold * 0.3 && // Lower threshold to return right
       Math.random() < car.laneChangeProbability * 1.5 // Higher probability to return right
     ) {
