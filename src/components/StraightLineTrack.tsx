@@ -240,6 +240,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
                     onStopCar={onStopCar}
                     onResumeCar={onResumeCar}
                     carSize={carSize}
+                    unitSystem={unitSystem}
                   />
                 ))}
               </div>

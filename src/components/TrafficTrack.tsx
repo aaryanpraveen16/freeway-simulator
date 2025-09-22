@@ -100,6 +100,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
                     onStopCar={onStopCar}
                     onResumeCar={onResumeCar}
                     carSize={carSize}
+                    unitSystem={unitSystem}
                   />
                 ))}
               </div>
