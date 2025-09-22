@@ -1184,6 +1184,86 @@ function shouldChangeLane(
     // American rules: prefer left-lane passing but allow right-lane passing
     // NEW: Also change lanes when slowed down significantly, if safe
     
+    // EUROPEAN CONDITION: Overtaking logic - same as European rules
+    const currentSpeed = car.speed || 0;
+    const safeDistKm = calculateSafeDistance(currentSpeed, params.tDist || 3) / 1000;
+    const safeGap = safeDistKm + 0.005;
+    
+    const gapToLeader = !currentLeader ? Infinity : 
+      ((currentLeader.position - car.position + laneLength) % laneLength);
+    
+    // More realistic overtaking conditions based on safeGap and speed difference
+    const speedDifference = currentLeader ? (desiredSpeed - currentLeader.speed) : 0;
+    const isBlockedBySlowCar = currentLeader && 
+      speedDifference >= 5 && // Need at least 5 km/h speed benefit
+      gapToLeader <= safeGap * 1.2; // Within 1.2x safe following distance
+    
+    const canReachDesiredSpeedInCurrentLane = !currentLeader || 
+      (currentLeader.speed >= desiredSpeed * 0.8 && gapToLeader > safeGap);
+    
+    // Check if left lane is safe for overtaking  
+    const leftLaneLeader = adjacentLanes.leftLane.leader;
+    const leftLaneFollower = adjacentLanes.leftLane.follower;
+    const leftGapAhead = !leftLaneLeader ? Infinity : 
+      ((leftLaneLeader.position - car.position + laneLength) % laneLength);
+    const leftGapBehind = !leftLaneFollower ? Infinity : 
+      ((car.position - leftLaneFollower.position + laneLength) % laneLength);
+    
+    const leftLaneIsSafe = leftGapAhead > safeGap && leftGapBehind > safeGap;
+    
+    // EUROPEAN OVERTAKING CONDITION: Same logic as European rules
+    if (!canReachDesiredSpeedInCurrentLane && car.lane > 0 && leftLaneIsSafe && adjustedLeft > 0.1) {
+      console.log(`[AMERICAN EUROPEAN OVERTAKE] Car ${car.id} moving LEFT to overtake slow car (gap: ${gapToLeader.toFixed(3)}km, safeGap: ${safeGap.toFixed(3)}km, speedDiff: ${speedDifference.toFixed(1)}km/h), from lane ${car.lane} to ${car.lane - 1}`);
+      return { shouldChange: true, targetLane: car.lane - 1 };
+    }
+    
+    // EUROPEAN RIGHT LANE PRIORITY CONDITIONS
+    const numLanes = params.numLanes || 3;
+    
+    // European rule can override cooldown for rightward movement
+    const canOverrideCooldown = true;
+    
+    // Check if we can move to the right lane (toward higher lane numbers - more right)
+    if (car.lane < numLanes - 1 && (!cooldownActive || canOverrideCooldown)) {
+      const rightLaneLeader = adjacentLanes.rightLane.leader;
+      const rightLaneFollower = adjacentLanes.rightLane.follower;
+      
+      // Calculate gaps in right lane
+      const gapAhead = !rightLaneLeader ? Infinity : 
+        ((rightLaneLeader.position - car.position + laneLength) % laneLength);
+      const gapBehind = !rightLaneFollower ? Infinity : 
+        ((car.position - rightLaneFollower.position + laneLength) % laneLength);
+      
+      // Use current speed vs desired speed comparison for more realistic behavior
+      const currentSpeed = car.speed || 0;
+      const targetSpeed = Math.min(desiredSpeed, currentSpeed + 10); // Don't expect huge speed increases
+      
+      // Calculate safe gap for this car's speed
+      const carSpeed = car.speed || 0;
+      const safeDistKm = calculateSafeDistance(carSpeed, params.tDist || 3) / 1000;
+      const safeGapForRight = safeDistKm + 0.005; // Same calculation as in main simulation
+      
+      // Can maintain reasonable speed in right lane? (More aggressive - accept slower speeds)
+      const canMaintainSpeed = !rightLaneLeader || 
+        (rightLaneLeader.speed >= targetSpeed * 0.6 && gapAhead > safeGapForRight * 0.8);
+      
+      // Very aggressive safety requirements for European "keep right" principle
+      const safeToChange = gapAhead > safeGapForRight && gapBehind > safeGapForRight && 
+        (!rightLaneFollower || rightLaneFollower.speed <= currentSpeed + 30);
+      
+      // EUROPEAN PRIORITY 1: If right lane is completely empty, always move there
+      if (!rightLaneLeader && !rightLaneFollower) {
+        console.log(`[AMERICAN EUROPEAN FIX] Car ${car.id} moving RIGHT - empty lane, from lane ${car.lane} to ${car.lane + 1}`);
+        return { shouldChange: true, targetLane: car.lane + 1 };
+      }
+      
+      // EUROPEAN PRIORITY 2: If right lane allows reasonable speed and is safe, move there
+      if (canMaintainSpeed && safeToChange) {
+        console.log(`[AMERICAN EUROPEAN FIX] Car ${car.id} moving RIGHT - can maintain speed, from lane ${car.lane} to ${car.lane + 1}`);
+        return { shouldChange: true, targetLane: car.lane + 1 };
+      }
+    }
+    
     // Check if we should move left to pass (preferred)
     const shouldPassLeft = 
       car.lane < (params.numLanes || 3) - 1 &&
