@@ -1,7 +1,9 @@
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { Car, calculateDistanceToCarAhead, getCarColor } from "@/utils/trafficSimulation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 
 interface CarStatsCardProps {
@@ -88,11 +90,38 @@ const identifyPacks = (cars: Car[]): { packs: PackInfo[], carPackMap: Record<num
 };
 
 const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, showPackInfo = true, unitSystem = 'imperial' }) => {
+  const [searchTerm, setSearchTerm] = useState('');
   const conversions = getUnitConversions(unitSystem);
   const { packs, carPackMap } = identifyPacks(cars);
   
   // Filter packs to only show those with more than 1 car
   const multiCarPacks = packs.filter(pack => pack.carCount > 1);
+
+  // Filter cars based on search term
+  const filteredCars = useMemo(() => {
+    if (!searchTerm.trim()) return cars;
+    
+    const term = searchTerm.toLowerCase().trim();
+    return cars.filter(car => {
+      // Search by car name
+      if (car.name.toLowerCase().includes(term)) return true;
+      
+      // Search by car ID
+      if (car.id.toString().includes(term)) return true;
+      
+      // Search by driver type
+      if (car.driverType.toLowerCase().includes(term)) return true;
+      
+      // Search by lane number
+      if (`lane ${car.lane + 1}`.includes(term) || (car.lane + 1).toString().includes(term)) return true;
+      
+      // Search by speed (current or desired)
+      if (Math.round(car.speed).toString().includes(term)) return true;
+      if (Math.round(car.desiredSpeed).toString().includes(term)) return true;
+      
+      return false;
+    });
+  }, [cars, searchTerm]);
 
   return (
     <div className="space-y-4">
@@ -139,10 +168,28 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, s
           <CardTitle className="text-lg">Individual Car Stats</CardTitle>
         </CardHeader>
         <CardContent className="max-h-[400px] overflow-y-auto">
+          {/* Search Input */}
+          <div className="mb-4 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search cars by name, ID, driver type, lane, or speed..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+            {searchTerm && (
+              <div className="text-sm text-muted-foreground mt-1">
+                Showing {filteredCars.length} of {cars.length} cars
+              </div>
+            )}
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {cars.map((car, index) => {
+            {filteredCars.map((car) => {
+              // Find the original index of this car in the full cars array for distance calculation
+              const originalIndex = cars.findIndex(c => c.id === car.id);
               const distanceToCarAhead = calculateDistanceToCarAhead(
-                index,
+                originalIndex,
                 cars,
                 laneLength,
                 params.lengthCar // Pass the car length in meters
@@ -188,7 +235,6 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, s
                         <span className="text-muted-foreground">Driver Type:</span>
                         <span className="font-medium ml-1 capitalize">{car.driverType}</span>
                       </div>
-
                       <div>
                         <span className="text-muted-foreground">Lane Change Prob:</span>
                         <span className="font-medium ml-1">{(car.laneChangeProbability * 100).toFixed(0)}%</span>
@@ -196,10 +242,6 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, s
                       <div>
                         <span className="text-muted-foreground">Max Deceleration:</span>
                         <span className="font-medium ml-1">{params.aMax.toFixed(1)} m/s²</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Desired Speed:</span>
-                        <span className="font-medium ml-1">{Math.round(conversions.speed.toDisplay(car.desiredSpeed))} {conversions.speed.unit}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Vehicle Length:</span>
@@ -230,10 +272,6 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, s
                       <span className="font-medium ml-1">Lane {car.lane + 1}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Lane Change Prob.:</span>
-                      <span className="font-medium ml-1">{car.laneChangeProbability?.toFixed(2)}</span>
-                    </div>
-                    <div>
                       <span className="text-muted-foreground">Lane Stickiness:</span>
                       <span className="font-medium ml-1">{car.laneStickiness?.toFixed(2)}</span>
                     </div>
@@ -256,6 +294,11 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, s
                 </div>
               );
             })}
+            {filteredCars.length === 0 && (
+              <div className="col-span-2 text-center text-muted-foreground py-8">
+                No cars match your search criteria
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

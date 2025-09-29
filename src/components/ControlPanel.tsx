@@ -40,7 +40,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onTrafficRuleChange,
   carSize = 24,
   onCarSizeChange,
-  unitSystem = 'imperial',
+  unitSystem = 'metric',
   onUnitSystemChange,
 }) => {
   const conversions = getUnitConversions(unitSystem);

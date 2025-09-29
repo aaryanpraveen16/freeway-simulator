@@ -23,7 +23,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
   laneLength,
   elapsedTime,
   laneChanges,
-  unitSystem = 'imperial',
+  unitSystem = 'metric',
 }) => {
   const conversions = getUnitConversions(unitSystem);
   const stats = useMemo(() => {

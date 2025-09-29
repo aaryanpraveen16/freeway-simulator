@@ -25,7 +25,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   onStopCar,
   onResumeCar,
   carSize = 24,
-  unitSystem = 'imperial',
+  unitSystem = 'metric',
 }) => {
   const conversions = getUnitConversions(unitSystem);
   const laneHeight = 80; // Height of each lane in pixels

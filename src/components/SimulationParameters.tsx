@@ -13,7 +13,7 @@ interface SimulationParametersProps {
 const SimulationParameters: React.FC<SimulationParametersProps> = ({
   params,
   trafficRule,
-  unitSystem = 'imperial'
+  unitSystem = 'metric'
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   

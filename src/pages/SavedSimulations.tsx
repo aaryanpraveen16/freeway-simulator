@@ -144,12 +144,10 @@ const SavedSimulations: React.FC = () => {
     // Calculate total cars based on traffic density and freeway length
     const numLanes = simulation.params.numLanes || 2;
     const freewayLength = simulation.params.freewayLength || 10;
-    let totalCars = 0;
+    const trafficDensity = simulation.params.trafficDensity || 0.62;
     
-    for (let lane = 0; lane < numLanes; lane++) {
-      const densityForLane = simulation.params.trafficDensity[lane] || simulation.params.trafficDensity[0] || 3;
-      totalCars += Math.round(densityForLane * freewayLength);
-    }
+    // Total cars = density (cars/km) * freeway length (km) * number of lanes
+    const totalCars = Math.round(trafficDensity * freewayLength * numLanes);
     
     return totalCars;
   };

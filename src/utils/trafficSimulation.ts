@@ -97,7 +97,7 @@ export const defaultParams: SimulationParams = {
   accelerationThreshold: 0.2, // threshold for lane change
   laneChangeCooldown: 2, // seconds
   simulationDuration: 600, // 10 minutes by default, 0 would be unlimited but we're setting a max
-  uniformDriverBehavior: false, // default to having different driver types
+  uniformDriverBehavior: true, // default to uniform driver behavior for deterministic lane changes
 };
 
 // Generate random number from normal distribution

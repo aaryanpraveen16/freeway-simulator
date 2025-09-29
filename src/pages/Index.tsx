@@ -102,7 +102,7 @@ const Index = () => {
   const [showPackFormation, setShowPackFormation] = useState<boolean>(false);
   const [laneChanges, setLaneChanges] = useState<number>(0);
   const [carSize, setCarSize] = useState<number>(24);
-  const [unitSystem, setUnitSystem] = useState<UnitSystem>('imperial');
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
   const [showNotifications, setShowNotifications] = useState<boolean>(true);
 
   // Chart history state variables - moved here to be declared before use
@@ -139,21 +139,25 @@ const Index = () => {
       localStorage.setItem('freewaySimulator_savedRuns', JSON.stringify(runs));
     } catch (error) {
       console.error("Error saving runs:", error);
-      toast({
-        title: "Save Failed",
-        description: "Could not save simulation runs.",
-        variant: "destructive",
-      });
+      if (showNotifications) {
+        toast({
+          title: "Save Failed",
+          description: "Could not save simulation runs.",
+          variant: "destructive",
+        });
+      }
     }
-  }, [toast]);
+  }, [toast, showNotifications]);
 
   const handleSaveCurrentRun = useCallback(() => {
     if (packHistory.length === 0) {
-      toast({
-        title: "Nothing to Save",
-        description: "Run the simulation first to generate data.",
-        variant: "default",
-      });
+      if (showNotifications) {
+        toast({
+          title: "Nothing to Save",
+          description: "Run the simulation first to generate data.",
+          variant: "default",
+        });
+      }
       return;
     }
     
@@ -171,12 +175,14 @@ const Index = () => {
       return updatedRuns;
     });
     
-    toast({
-      title: "Run Saved",
-      description: "Current simulation run has been saved.",
-      duration: 3000,
-    });
-  }, [packHistory, packLengthHistory, params, saveRunToLocalStorage, toast]);
+    if (showNotifications) {
+      toast({
+        title: "Run Saved",
+        description: "Current simulation run has been saved.",
+        duration: 3000,
+      });
+    }
+  }, [packHistory, packLengthHistory, params, saveRunToLocalStorage, toast, showNotifications]);
 
   const togglePreviousRuns = useCallback(() => {
     setShowPreviousRuns(prev => !prev);
@@ -275,12 +281,14 @@ const Index = () => {
 
   const handleStopCar = useCallback((carId: number) => {
     setStoppedCars(prev => new Set([...prev, carId]));
-    toast({
-      title: "Car Stopped",
-      description: `Car ${carId + 1} has been stopped for testing`,
-      duration: 2000,
-    });
-  }, [toast]);
+    if (showNotifications) {
+      toast({
+        title: "Car Stopped",
+        description: `Car ${carId + 1} has been stopped for testing`,
+        duration: 2000,
+      });
+    }
+  }, [toast, showNotifications]);
 
   const handleResumeCar = useCallback((carId: number) => {
     setStoppedCars(prev => {
@@ -288,12 +296,14 @@ const Index = () => {
       newSet.delete(carId);
       return newSet;
     });
-    toast({
-      title: "Car Resumed",
-      description: `Car ${carId + 1} has resumed normal driving`,
-      duration: 2000,
-    });
-  }, [toast]);
+    if (showNotifications) {
+      toast({
+        title: "Car Resumed",
+        description: `Car ${carId + 1} has resumed normal driving`,
+        duration: 2000,
+      });
+    }
+  }, [toast, showNotifications]);
 
   const recordPackData = useCallback((newCars: Car[], time: number, currentLaneLength: number) => {
     if (time - lastPackRecordTimeRef.current >= 0.5) {
@@ -463,27 +473,33 @@ const Index = () => {
   const handleSimulationEvents = useCallback((events: SimulationEvent[]) => {
     events.forEach(event => {
       if (event.type === 'exit') {
-        toast({
-          title: "Car Exited",
-          description: `${event.carName} has completed its trip and exited the freeway.`,
-          variant: "default",
-        });
+        if (showNotifications) {
+          toast({
+            title: "Car Exited",
+            description: `${event.carName} has completed its trip and exited the freeway.`,
+            variant: "default",
+          });
+        }
       } else if (event.type === 'enter') {
-        toast({
-          title: "Car Entered",
-          description: `${event.carName} has entered the freeway at position ${(event.position / 5280).toFixed(2)} mi.`,
-          variant: "default",
-        });
+        if (showNotifications) {
+          toast({
+            title: "Car Entered",
+            description: `${event.carName} has entered the freeway at position ${(event.position / 5280).toFixed(2)} mi.`,
+            variant: "default",
+          });
+        }
       } else if (event.type === 'laneChange') {
         setLaneChanges(prev => prev + 1);
-        toast({
-          title: "Lane Change",
-          description: `${event.carName} has changed to lane ${event.lane! + 1}.`,
-          variant: "default",
-        });
+        if (showNotifications) {
+          toast({
+            title: "Lane Change",
+            description: `${event.carName} has changed to lane ${event.lane! + 1}.`,
+            variant: "default",
+          });
+        }
       }
     });
-  }, [toast]);
+  }, [toast, showNotifications]);
 
   const animationLoop = useCallback((timestamp: number) => {
     if (!lastTimestampRef.current) {
@@ -530,11 +546,13 @@ const Index = () => {
 
   const handleSaveSimulation = useCallback(async (name: string) => {
     if (elapsedTime === 0 || cars.length === 0) {
-      toast({
-        title: "Nothing to Save",
-        description: "Run the simulation first to generate data.",
-        variant: "default",
-      });
+      if (showNotifications) {
+        toast({
+          title: "Nothing to Save",
+          description: "Run the simulation first to generate data.",
+          variant: "default",
+        });
+      }
       return;
     }
 
@@ -572,20 +590,24 @@ const Index = () => {
 
       await indexedDBService.saveSimulation(savedSimulation);
       
-      toast({
-        title: "Simulation Saved",
-        description: `"${name}" has been saved successfully.`,
-        duration: 3000,
-      });
+      if (showNotifications) {
+        toast({
+          title: "Simulation Saved",
+          description: `"${name}" has been saved successfully.`,
+          duration: 3000,
+        });
+      }
     } catch (error) {
       console.error('Error saving simulation:', error);
-      toast({
-        title: "Save Failed",
-        description: "Could not save the simulation. Please try again.",
-        variant: "destructive",
-      });
+      if (showNotifications) {
+        toast({
+          title: "Save Failed",
+          description: "Could not save the simulation. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
-  }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast]);
+  }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast, showNotifications]);
 
   const handleBatchImport = useCallback((simulations: BatchSimulation[]) => {
     console.log('Starting batch import:', simulations);
@@ -595,11 +617,13 @@ const Index = () => {
     const runNextSimulation = () => {
       if (currentIndex >= simulations.length) {
         console.log('All batch simulations completed');
-        toast({
-          title: "Batch Complete",
-          description: `All ${simulations.length} simulations have been completed.`,
-          variant: "default",
-        });
+        if (showNotifications) {
+          toast({
+            title: "Batch Complete",
+            description: `All ${simulations.length} simulations have been completed.`,
+            variant: "default",
+          });
+        }
         return;
       }
       
@@ -622,11 +646,13 @@ const Index = () => {
         const name = simulation.name || `Batch Sim ${currentIndex + 1}`;
         handleSaveSimulation(name);
         
-        toast({
-          title: "Simulation Complete",
-          description: `"${name}" completed and saved.`,
-          variant: "default",
-        });
+        if (showNotifications) {
+          toast({
+            title: "Simulation Complete",
+            description: `"${name}" completed and saved.`,
+            variant: "default",
+          });
+        }
         
         currentIndex++;
         // Wait a bit before starting the next simulation

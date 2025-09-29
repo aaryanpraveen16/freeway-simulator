@@ -35,7 +35,7 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
   dataHistory,
   numLanes,
   trafficRule,
-  unitSystem = 'imperial',
+  unitSystem = 'metric',
   simulationParams
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);

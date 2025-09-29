@@ -20,13 +20,12 @@ interface NavbarProps {
   onNotificationsToggle?: (enabled: boolean) => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'imperial', onUnitSystemChange, showNotifications = true, onNotificationsToggle }) => {
+const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'metric', onUnitSystemChange, showNotifications = true, onNotificationsToggle }) => {
   const [showCredits, setShowCredits] = useState(false);
 
   return (
     <div className="bg-primary text-primary-foreground py-2 px-4 mb-6 shadow-md">
       <div className="container mx-auto flex items-center justify-between">
-        <h2 className="text-xl font-medium">Freeway Simulator</h2>
         <div className="flex items-center gap-3">
           {onSaveSimulation && (
             <SaveSimulationDialog
