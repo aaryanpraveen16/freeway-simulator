@@ -16,9 +16,11 @@ interface NavbarProps {
   canSave?: boolean;
   unitSystem?: UnitSystem;
   onUnitSystemChange?: (system: UnitSystem) => void;
+  showNotifications?: boolean;
+  onNotificationsToggle?: (enabled: boolean) => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'imperial', onUnitSystemChange }) => {
+const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'imperial', onUnitSystemChange, showNotifications = true, onNotificationsToggle }) => {
   const [showCredits, setShowCredits] = useState(false);
 
   return (
@@ -39,6 +41,24 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
               View Saved
             </Button>
           </Link>
+          
+          <div className="flex items-center gap-2 bg-secondary/30 px-3 py-2 rounded-lg border border-secondary/50">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="notifications-toggle"
+                checked={showNotifications}
+                onCheckedChange={onNotificationsToggle}
+                className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-400"
+              />
+              <Label htmlFor="notifications-toggle" className="text-sm font-medium cursor-pointer">
+                {showNotifications ? (
+                  <span className="text-green-400">🔔 Notifications On</span>
+                ) : (
+                  <span className="text-gray-400">🔕 Notifications Off</span>
+                )}
+              </Label>
+            </div>
+          </div>
           
           <Button 
             variant="secondary" 

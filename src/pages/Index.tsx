@@ -103,6 +103,7 @@ const Index = () => {
   const [laneChanges, setLaneChanges] = useState<number>(0);
   const [carSize, setCarSize] = useState<number>(24);
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('imperial');
+  const [showNotifications, setShowNotifications] = useState<boolean>(true);
 
   // Chart history state variables - moved here to be declared before use
   const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
@@ -182,7 +183,7 @@ const Index = () => {
   }, []);
 
   const initSimulation = useCallback(() => {
-    const { cars, laneLength } = initializeSimulation(params);
+    const { cars, laneLength } = initializeSimulation(params, showNotifications);
     setCars(cars);
     setLaneLength(laneLength);
     setElapsedTime(0);
@@ -227,7 +228,7 @@ const Index = () => {
     lastDensityUpdateTimeRef.current = 0;
     
     // Reinitialize simulation with new parameters
-    const { cars, laneLength } = initializeSimulation(params);
+    const { cars, laneLength } = initializeSimulation(params, showNotifications);
     setCars(cars);
     setLaneLength(laneLength);
     
@@ -512,7 +513,8 @@ const Index = () => {
       newElapsedTime, 
       trafficRule, 
       simulationSpeed,
-      stoppedCars // Pass stopped cars to simulation
+      stoppedCars, // Pass stopped cars to simulation
+      showNotifications
     );
     setCars(updatedCars);
     
@@ -671,6 +673,8 @@ const Index = () => {
         canSave={packHistory.length > 0}
         unitSystem={unitSystem}
         onUnitSystemChange={setUnitSystem}
+        showNotifications={showNotifications}
+        onNotificationsToggle={setShowNotifications}
       />
       
       {/* Sticky Control Bar */}
