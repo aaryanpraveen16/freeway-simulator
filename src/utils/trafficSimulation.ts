@@ -59,6 +59,7 @@ export interface SimulationParams {
   accelerationThreshold?: number; // threshold for lane change
   laneChangeCooldown?: number; // min time between lane changes (seconds)
   simulationDuration?: number; // simulation duration in seconds (0 = unlimited)
+  uniformDriverBehavior?: boolean; // if true, all drivers have same lane change probability (default false)
 }
 
 // Default simulation parameters
@@ -96,6 +97,7 @@ export const defaultParams: SimulationParams = {
   accelerationThreshold: 0.2, // threshold for lane change
   laneChangeCooldown: 2, // seconds
   simulationDuration: 600, // 10 minutes by default, 0 would be unlimited but we're setting a max
+  uniformDriverBehavior: false, // default to having different driver types
 };
 
 // Generate random number from normal distribution
@@ -147,11 +149,14 @@ export function calculateVirtualLength(
 }
 
 // Generate driver type and associated properties
-function generateDriverProperties(driverTypeDensity: {
-  aggressive: number;
-  normal: number;
-  conservative: number;
-}): {
+function generateDriverProperties(
+  driverTypeDensity: {
+    aggressive: number;
+    normal: number;
+    conservative: number;
+  },
+  uniformDriverBehavior: boolean = false
+): {
   driverType: "aggressive" | "normal" | "conservative";
   laneChangeProbability: number;
   laneStickiness: number;
@@ -162,6 +167,34 @@ function generateDriverProperties(driverTypeDensity: {
   const aggressiveThreshold = driverTypeDensity.aggressive / 100;
   const normalThreshold = aggressiveThreshold + (driverTypeDensity.normal / 100);
 
+  // Uniform behavior: all drivers change lanes deterministically when conditions are favorable
+  if (uniformDriverBehavior) {
+    const uniformLaneChangeProbability = 1.0; // Always change lanes when conditions are favorable
+    const uniformLaneStickiness = 0.0; // No stickiness - don't resist lane changes
+    
+    // Still assign driver types for visualization/identification purposes
+    if (rand < aggressiveThreshold) {
+      return {
+        driverType: "aggressive",
+        laneChangeProbability: uniformLaneChangeProbability,
+        laneStickiness: uniformLaneStickiness,
+      };
+    } else if (rand < normalThreshold) {
+      return {
+        driverType: "normal",
+        laneChangeProbability: uniformLaneChangeProbability,
+        laneStickiness: uniformLaneStickiness,
+      };
+    } else {
+      return {
+        driverType: "conservative",
+        laneChangeProbability: uniformLaneChangeProbability,
+        laneStickiness: uniformLaneStickiness,
+      };
+    }
+  }
+
+  // Normal behavior: different probabilities for different driver types
   if (rand < aggressiveThreshold) {
     // Aggressive driver
     return {
@@ -293,7 +326,7 @@ export function initializeSimulation(params: SimulationParams): {
       );
 
       // Generate driver properties
-      const driverProps = generateDriverProperties(params.driverTypeDensity);
+      const driverProps = generateDriverProperties(params.driverTypeDensity, params.uniformDriverBehavior);
 
       cars.push({
         id: carId,
@@ -562,35 +595,53 @@ export function updateSimulation(
           const leftGapBehind = !leftLaneFollower ? Infinity : 
             ((car.position - leftLaneFollower.position + laneLength) % laneLength);
           
-          // Stricter safety requirements: 1.5x safeGap ahead and behind
+          // Stricter safety requirements: 1.5x safeGap ahead and behind for more conservative lane changes (using follower's speed)
           const safetyBuffer = 1.5;
+          
+          // Calculate follower's safe gap for more accurate safety check
+          let leftFollowerSafeGap = safeGap; // Default to car's safe gap if no follower
+          if (leftLaneFollower) {
+            const leftFollowerSpeed = leftLaneFollower.speed || 0;
+            const leftFollowerSafeDist = calculateSafeDistance(leftFollowerSpeed, params.tDist || 3) / 1000;
+            leftFollowerSafeGap = leftFollowerSafeDist + 0.005;
+          }
+          
           const leftLaneIsSafe = leftGapAhead > safeGap * safetyBuffer && 
-                                leftGapBehind > safeGap * safetyBuffer;
+                                leftGapBehind > leftFollowerSafeGap * safetyBuffer;
           
           // Additional safety check: don't move if follower is approaching fast
           const followerSpeedCheck = !leftLaneFollower || 
             leftLaneFollower.speed <= car.speed + 10; // Follower not more than 10 km/h faster
           
-          if (leftLaneIsSafe && followerSpeedCheck) {
+          // NEW: Check if lane change would cause car behind to slow down
+          const willCauseBehindToSlowDown = (follower: Car | undefined, gapBehind: number, currentSpeed: number) => {
+            if (!follower) return false; // No follower, no issue
+            
+            // Calculate the safe following distance the follower would need
+            const followerSafeDist = calculateSafeDistance(follower.speed, params.tDist || 3) / 1000;
+            const followerSafeGap = followerSafeDist + 0.005;
+            
+            // If the gap behind is less than what the follower needs, they would have to slow down
+            const wouldNeedToSlowDown = gapBehind < followerSafeGap * 1.2;
+            
+            // Also check if our speed is significantly lower than follower's speed
+            const speedDifference = follower.speed - currentSpeed;
+            const isMuchSlower = speedDifference > 15; // If we're 15+ km/h slower
+            
+            return wouldNeedToSlowDown || isMuchSlower;
+          };
+          
+          const willCauseLeftBehindToSlow = willCauseBehindToSlowDown(leftLaneFollower, leftGapBehind, car.speed);
+          
+          if (leftLaneIsSafe && followerSpeedCheck && !willCauseLeftBehindToSlow) {
             console.log(`[EUROPEAN OVERTAKE] Car ${car.id} moving LEFT early to overtake (gap: ${gap.toFixed(3)}km, safeGap: ${safeGap.toFixed(3)}km, speedDiff: ${speedDifference.toFixed(1)}km/h), from lane ${car.lane} to ${car.lane - 1}`);
             
             // Perform the lane change immediately
             updatedCars[carIndex].lane = car.lane - 1;
             updatedCars[carIndex].lastLaneChange = currentTime;
-            
-            // Mark this as an overtaking maneuver to prevent immediate return to right
             updatedCars[carIndex].isOvertaking = true;
             updatedCars[carIndex].overtakeStartTime = currentTime;
-            
-            // Add lane change event
-            events.push({
-              type: "laneChange",
-              carId: car.id,
-              carName: car.name,
-              position: car.position,
-              speed: car.speed,
-              lane: car.lane - 1,
-            });
+            currentLane = car.lane - 1; // Update currentLane for subsequent calculations
             
             // Recalculate aheadCar and gap in new lane
             currentLane = car.lane - 1;
@@ -606,6 +657,9 @@ export function updateSimulation(
             gap = aheadCar
               ? (aheadCar.position - car.position + laneLength) % laneLength
               : laneLength;
+          } else if (leftLaneIsSafe && followerSpeedCheck && willCauseLeftBehindToSlow) {
+            // Log when we would have overtaken but didn't due to safety concern
+            console.log(`[EUROPEAN SAFETY] Car ${car.id} NOT overtaking LEFT early - would cause car behind to slow down (gap: ${leftGapBehind.toFixed(3)}km, follower speed: ${leftLaneFollower?.speed.toFixed(1) || 'N/A'} km/h, our speed: ${car.speed.toFixed(1)} km/h)`);
           }
         }
       }
@@ -787,6 +841,48 @@ export function updateSimulation(
     console.log(`[RULE VERIFICATION] Traffic rule is: ${rule} (original: ${trafficRule})`);
   }
 
+  // EUROPEAN OVERTAKING STATE MANAGEMENT: Clear overtaking state when maneuver is complete
+  // This prevents cars from being stuck in overtaking mode forever
+  if (rule === "european") {
+    for (let i = 0; i < updatedCars.length; i++) {
+      const car = updatedCars[i];
+      
+      // Check if car is in overtaking state and should be cleared
+      if (car.isOvertaking && car.overtakeStartTime) {
+        const overtakeTime = currentTime - car.overtakeStartTime;
+        const minOvertakeDuration = 8; // Minimum 8 seconds to complete overtaking
+        
+        if (car.id === 0) {
+          console.log(`[OVERTAKING DEBUG] Car ${car.id} isOvertaking: ${car.isOvertaking}, overtakeTime: ${overtakeTime.toFixed(1)}s`);
+        }
+        
+        // Find cars in the lane to the right (original lane)
+        const rightLaneCars = updatedCars.filter(c => c.lane === car.lane + 1);
+        
+        // Check if we've successfully passed the slower car(s)
+        const hasPassedSlowerCars = rightLaneCars.every(rightCar => {
+          const distance = ((car.position - rightCar.position + laneLength) % laneLength);
+          return distance > 0.1; // We're at least 100m ahead of cars in the right lane
+        });
+        
+        // Clear overtaking state if:
+        // 1. Minimum time has passed AND we've passed slower cars, OR
+        // 2. A very long time has passed (safety net)
+        const shouldClearOvertaking = (overtakeTime >= minOvertakeDuration && hasPassedSlowerCars) || 
+                                     (overtakeTime >= 20); // Safety net: clear after 20 seconds
+        
+        if (shouldClearOvertaking) {
+          updatedCars[i].isOvertaking = false;
+          updatedCars[i].overtakeStartTime = undefined;
+          
+          if (car.id === 0) {
+            console.log(`[OVERTAKING COMPLETE] Car ${car.id} cleared overtaking state after ${overtakeTime.toFixed(1)}s`);
+          }
+        }
+      }
+    }
+  }
+
   // EUROPEAN PROACTIVE LANE CHANGE: Check if cars can move rightward
   // This runs independently of traffic pressure to enforce "keep right" principle
   // BUT respects overtaking maneuvers to prevent oscillation
@@ -797,17 +893,33 @@ export function updateSimulation(
       // Only check cars not in rightmost lane
       // NOTE: Lane 0 = leftmost, highest lane number = rightmost
       const numLanes = params.numLanes || 3;
+      
+      if (car.id === 0) {
+        console.log(`[PROACTIVE ENTRY] Car ${car.id} - lane: ${car.lane}, numLanes: ${numLanes}, rightmost: ${numLanes - 1}, shouldCheck: ${car.lane < numLanes - 1}`);
+      }
+      
       if (car.lane < numLanes - 1) {
         // Check if car is currently overtaking and should wait before returning right
         const isCurrentlyOvertaking = car.isOvertaking && car.overtakeStartTime;
         const overtakeTime = isCurrentlyOvertaking ? currentTime - car.overtakeStartTime : 0;
-        const minOvertakeTime = 5; // Minimum 5 seconds to complete overtake
+        const minOvertakeTime = 10; // Increased to 10 seconds to complete overtaking properly
+        
+        if (car.id === 0) {
+          console.log(`[PROACTIVE DEBUG] Car ${car.id} isOvertaking: ${isCurrentlyOvertaking}, overtakeTime: ${overtakeTime.toFixed(1)}s, lane: ${car.lane}`);
+        }
         
         // Respect lane change cooldowns and overtaking state
         const timeSinceLastChange = currentTime - (car.lastLaneChange || 0);
-        const minCooldown = 3; // Minimum 3 seconds between lane changes
+        const minCooldown = 8; // Increased to 8 seconds between lane changes to prevent oscillation
+        
+        // Additional check: only move right if car can maintain reasonable speed in current lane
+        const desiredSpeed = car.desiredSpeed || (params.speedLimit || 130);
+        const currentSpeed = car.speed || 0;
+        const canMaintainCurrentSpeed = currentSpeed >= desiredSpeed * 0.8; // 80% of desired speed
+        
         const canMoveRight = timeSinceLastChange >= minCooldown && 
-                           (!isCurrentlyOvertaking || overtakeTime >= minOvertakeTime);
+                           (!isCurrentlyOvertaking || overtakeTime >= minOvertakeTime) &&
+                           canMaintainCurrentSpeed; // Only move right if not significantly slowed down
         
         if (canMoveRight) {
           const adjacentLanes = findAdjacentCars(car, updatedCars, laneLength, params);
@@ -826,16 +938,28 @@ export function updateSimulation(
             rule,
             false // Not exiting
           );
+          
+          if (car.id === 0) {
+            console.log(`[LANE CHANGE RESULT] Car ${car.id} - shouldChange: ${shouldChange}, targetLane: ${targetLane}, currentLane: ${car.lane}`);
+          }
 
           if (shouldChange && targetLane !== null && targetLane > car.lane) {
             // Additional check: make sure we're not moving back into the path of a slow car we just overtook
             const rightLaneCars = updatedCars.filter(c => c.lane === targetLane);
             const nearbySlowCars = rightLaneCars.filter(otherCar => {
               const distance = Math.abs((otherCar.position - car.position + laneLength) % laneLength);
-              return distance < 0.2 && otherCar.speed < car.speed - 10; // Within 200m and significantly slower
+              return distance < 0.3 && otherCar.speed < car.speed - 15; // Increased distance and speed difference
             });
             
-            if (nearbySlowCars.length === 0) {
+            // Additional safety check: ensure right lane has reasonable speed potential
+            const rightLaneLeader = rightLaneCars.find(c => {
+              const distance = ((c.position - car.position + laneLength) % laneLength);
+              return distance > 0 && distance < 0.5; // Within 500m ahead
+            });
+            
+            const rightLaneHasGoodSpeed = !rightLaneLeader || rightLaneLeader.speed >= desiredSpeed * 0.7;
+            
+            if (nearbySlowCars.length === 0 && rightLaneHasGoodSpeed) {
               updatedCars[i].lane = targetLane;
               updatedCars[i].lastLaneChange = currentTime;
               
@@ -910,7 +1034,7 @@ export function updateSimulation(
     );
 
     // Generate driver properties for new car
-    const driverProps = generateDriverProperties(params.driverTypeDensity);
+    const driverProps = generateDriverProperties(params.driverTypeDensity, params.uniformDriverBehavior);
 
     const newId =
       updatedCars.length > 0
@@ -1063,6 +1187,22 @@ export function calculateLaneChangeIncentive(
 
   const targetLeaderSpeed = targetLane.leader?.speed ?? params.maxSpeed;
 
+  // NEW: For European rules, apply 2x safe distance buffer for car behind
+  let safeGapCheck = true;
+  if (trafficRule === "european" && targetLane.follower) {
+    const gapBehind = (car.position - targetLane.follower.position + laneLength) % laneLength;
+    const followerSpeed = targetLane.follower.speed || 0;
+    const followerSafeDist = calculateSafeDistance(followerSpeed, params.tDist || 3) / 1000;
+    const followerSafeGap = followerSafeDist + 0.005;
+    
+    // Apply 1.5x safe distance buffer for car behind in European rules (using follower's speed)
+    safeGapCheck = gapBehind > followerSafeGap * 1.5;
+    
+    if (!safeGapCheck) {
+      console.log(`[EUROPEAN SAFETY] Car ${car.id} blocked from lane change - insufficient gap behind (${gapBehind.toFixed(3)}km < ${(followerSafeGap * 1.5).toFixed(3)}km, follower speed: ${followerSpeed.toFixed(1)} km/h)`);
+    }
+  }
+
   const targetAccel = calculateAcceleration(
     car,
     targetGap,
@@ -1100,6 +1240,11 @@ export function calculateLaneChangeIncentive(
   // Base MOBIL incentive calculation
   let incentive =
     targetAccel - currentAccel + (params.politenessFactor || 0.3) * followerAccelChange;
+
+  // NEW: For European rules, if safety check fails, return very low incentive
+  if (trafficRule === "european" && !safeGapCheck) {
+    return -10; // Very low incentive to prevent lane change
+  }
 
   // ✅ KEY ADDITION: Encourage lane change if current leader is stopped
   if (currentLeader && currentLeader.speed === 0) {
@@ -1146,9 +1291,16 @@ function shouldChangeLane(
 
   // NEW: Check if car is slowed down significantly below desired speed
   const desiredSpeed = car.desiredSpeed || (params.speedLimit || 130);
-  const isSlowedDown = car.speed < desiredSpeed - 15 && // At least 15 km/h below desired speed
-    currentLeader && // Only if there's a car ahead causing the slowdown
-    currentLeader.speed < car.speed; // Leader is slower than us
+  const isSlowedDown = params.uniformDriverBehavior 
+    ? car.speed < desiredSpeed - 1 // Very aggressive threshold for deterministic behavior (1 km/h instead of 15)
+    : car.speed < desiredSpeed - 15 && // At least 15 km/h below desired speed
+      currentLeader && // Only if there's a car ahead causing the slowdown
+      currentLeader.speed < car.speed; // Leader is slower than us
+
+  // Debug logging for slowdown detection
+  if (params.uniformDriverBehavior) {
+    console.log(`[SLOWDOWN DEBUG] Car ${car.id}: uniformDriverBehavior=${params.uniformDriverBehavior}, speed=${car.speed.toFixed(1)}, desiredSpeed=${desiredSpeed.toFixed(1)}, isSlowedDown=${isSlowedDown}, hasLeader=${!!currentLeader}`);
+  }
 
   const leftIncentive =
     car.lane > 0
@@ -1181,157 +1333,73 @@ function shouldChangeLane(
   }
 
   if (trafficRule === "american") {
-    // American rules: prefer left-lane passing but allow right-lane passing
-    // NEW: Also change lanes when slowed down significantly, if safe
+    // American rules: no lane preference for overtaking, no automatic return to right lane
+    // Change lanes when slowed down significantly or when overtaking is beneficial
     
-    // EUROPEAN CONDITION: Overtaking logic - same as European rules
-    const currentSpeed = car.speed || 0;
-    const safeDistKm = calculateSafeDistance(currentSpeed, params.tDist || 3) / 1000;
-    const safeGap = safeDistKm + 0.005;
-    
-    const gapToLeader = !currentLeader ? Infinity : 
-      ((currentLeader.position - car.position + laneLength) % laneLength);
-    
-    // More realistic overtaking conditions based on safeGap and speed difference
-    const speedDifference = currentLeader ? (desiredSpeed - currentLeader.speed) : 0;
-    const isBlockedBySlowCar = currentLeader && 
-      speedDifference >= 5 && // Need at least 5 km/h speed benefit
-      gapToLeader <= safeGap * 1.2; // Within 1.2x safe following distance
-    
-    const canReachDesiredSpeedInCurrentLane = !currentLeader || 
-      (currentLeader.speed >= desiredSpeed * 0.8 && gapToLeader > safeGap);
-    
-    // Check if left lane is safe for overtaking  
-    const leftLaneLeader = adjacentLanes.leftLane.leader;
-    const leftLaneFollower = adjacentLanes.leftLane.follower;
-    const leftGapAhead = !leftLaneLeader ? Infinity : 
-      ((leftLaneLeader.position - car.position + laneLength) % laneLength);
-    const leftGapBehind = !leftLaneFollower ? Infinity : 
-      ((car.position - leftLaneFollower.position + laneLength) % laneLength);
-    
-    const leftLaneIsSafe = leftGapAhead > safeGap && leftGapBehind > safeGap;
-    
-    // EUROPEAN OVERTAKING CONDITION: Same logic as European rules
-    if (!canReachDesiredSpeedInCurrentLane && car.lane > 0 && leftLaneIsSafe && adjustedLeft > 0.1) {
-      console.log(`[AMERICAN EUROPEAN OVERTAKE] Car ${car.id} moving LEFT to overtake slow car (gap: ${gapToLeader.toFixed(3)}km, safeGap: ${safeGap.toFixed(3)}km, speedDiff: ${speedDifference.toFixed(1)}km/h), from lane ${car.lane} to ${car.lane - 1}`);
-      return { shouldChange: true, targetLane: car.lane - 1 };
-    }
-    
-    // EUROPEAN RIGHT LANE PRIORITY CONDITIONS
     const numLanes = params.numLanes || 3;
     
-    // European rule can override cooldown for rightward movement
-    const canOverrideCooldown = true;
-    
-    // Check if we can move to the right lane (toward higher lane numbers - more right)
-    if (car.lane < numLanes - 1 && (!cooldownActive || canOverrideCooldown)) {
-      const rightLaneLeader = adjacentLanes.rightLane.leader;
-      const rightLaneFollower = adjacentLanes.rightLane.follower;
-      
-      // Calculate gaps in right lane
-      const gapAhead = !rightLaneLeader ? Infinity : 
-        ((rightLaneLeader.position - car.position + laneLength) % laneLength);
-      const gapBehind = !rightLaneFollower ? Infinity : 
-        ((car.position - rightLaneFollower.position + laneLength) % laneLength);
-      
-      // Use current speed vs desired speed comparison for more realistic behavior
-      const currentSpeed = car.speed || 0;
-      const targetSpeed = Math.min(desiredSpeed, currentSpeed + 10); // Don't expect huge speed increases
-      
-      // Calculate safe gap for this car's speed
-      const carSpeed = car.speed || 0;
-      const safeDistKm = calculateSafeDistance(carSpeed, params.tDist || 3) / 1000;
-      const safeGapForRight = safeDistKm + 0.005; // Same calculation as in main simulation
-      
-      // Can maintain reasonable speed in right lane? (More aggressive - accept slower speeds)
-      const canMaintainSpeed = !rightLaneLeader || 
-        (rightLaneLeader.speed >= targetSpeed * 0.6 && gapAhead > safeGapForRight * 0.8);
-      
-      // Very aggressive safety requirements for European "keep right" principle
-      const safeToChange = gapAhead > safeGapForRight && gapBehind > safeGapForRight && 
-        (!rightLaneFollower || rightLaneFollower.speed <= currentSpeed + 30);
-      
-      // EUROPEAN PRIORITY 1: If right lane is completely empty, always move there
-      if (!rightLaneLeader && !rightLaneFollower) {
-        console.log(`[AMERICAN EUROPEAN FIX] Car ${car.id} moving RIGHT - empty lane, from lane ${car.lane} to ${car.lane + 1}`);
-        return { shouldChange: true, targetLane: car.lane + 1 };
-      }
-      
-      // EUROPEAN PRIORITY 2: If right lane allows reasonable speed and is safe, move there
-      if (canMaintainSpeed && safeToChange) {
-        console.log(`[AMERICAN EUROPEAN FIX] Car ${car.id} moving RIGHT - can maintain speed, from lane ${car.lane} to ${car.lane + 1}`);
-        return { shouldChange: true, targetLane: car.lane + 1 };
-      }
-    }
-    
-    // Check if we should move left to pass (preferred)
-    const shouldPassLeft = 
-      car.lane < (params.numLanes || 3) - 1 &&
-      adjustedLeft > (params.accelerationThreshold || 0.2) * 0.3 && // Reduced threshold for left
-      slowerLeader;
-      
-    // Check if we should move right to pass (less preferred)
-    const shouldPassRight = 
-      car.lane > 0 &&
-      adjustedRight > (params.accelerationThreshold || 0.2) * 0.5 && // Reduced threshold for right
-      slowerLeader &&
-      (car.lane === (params.numLanes || 3) - 1 || Math.random() > 0.7); // More likely to pass on right
-
-    // NEW: Check if we should change lanes because we're slowed down
+    // Check if we should change lanes because we're slowed down
     const shouldChangeLaneWhenSlowed = 
       isSlowedDown && // Car is significantly below desired speed
-      Math.random() < car.laneChangeProbability * 2.0; // Higher probability when slowed down
-
-    // Check if we should return to right lane when not passing
-    const rightLaneLeader = adjacentLanes.rightLane.leader;
-    const canReturnRight =
+      (params.uniformDriverBehavior || Math.random() < car.laneChangeProbability * 2.0); // Deterministic when uniform, probabilistic otherwise
+    
+    // Check if we should move left to pass (no preference)
+    const shouldPassLeft = 
+      car.lane < numLanes - 1 &&
+      adjustedLeft > (params.accelerationThreshold || 0.2) &&
+      slowerLeader;
+      
+    // Check if we should move right to pass (no preference)
+    const shouldPassRight = 
       car.lane > 0 &&
-      (!rightLaneLeader ||
-        (rightLaneLeader.speed >= car.speed &&
-          ((rightLaneLeader.position - car.position + laneLength) % laneLength > 200))); // Reduced gap requirement
+      adjustedRight > (params.accelerationThreshold || 0.2) &&
+      slowerLeader
 
     // NEW: Safety check for lane changes when slowed down
-    const isLeftLaneSafe = car.lane < (params.numLanes || 3) - 1 &&
-      adjacentLanes.leftLane.leader &&
-      ((adjacentLanes.leftLane.leader.position - car.position + laneLength) % laneLength) > 0.1 && // At least 100m gap
-      (!adjacentLanes.leftLane.follower ||
+    const isLeftLaneSafe = car.lane > 0 &&
+      (!adjacentLanes.leftLane.leader || // No leader means safe
+        ((adjacentLanes.leftLane.leader.position - car.position + laneLength) % laneLength) > 0.1) && // At least 100m gap if leader exists
+      (!adjacentLanes.leftLane.follower || // No follower means safe
         ((car.position - adjacentLanes.leftLane.follower.position + laneLength) % laneLength) > 0.1); // Safe from behind
 
-    const isRightLaneSafe = car.lane > 0 &&
-      adjacentLanes.rightLane.leader &&
-      ((adjacentLanes.rightLane.leader.position - car.position + laneLength) % laneLength) > 0.1 && // At least 100m gap
-      (!adjacentLanes.rightLane.follower ||
+    const isRightLaneSafe = car.lane < (params.numLanes || 3) - 1 &&
+      (!adjacentLanes.rightLane.leader || // No leader means safe
+        ((adjacentLanes.rightLane.leader.position - car.position + laneLength) % laneLength) > 0.1) && // At least 100m gap if leader exists
+      (!adjacentLanes.rightLane.follower || // No follower means safe
         ((car.position - adjacentLanes.rightLane.follower.position + laneLength) % laneLength) > 0.1); // Safe from behind
 
-    // Decision making with priority:
-    // 1. Change lanes when slowed down (if safe) - NEW HIGH PRIORITY
-    // 2. Return to right lane when safe (if not passing)
-    // 3. Pass on left if possible (preferred)
-    // 4. Pass on right if no other option (rare)
-    
-    // NEW: High priority for lane changes when slowed down
+    // Debug logging for safety checks
     if (shouldChangeLaneWhenSlowed) {
-      // Prefer left lane for overtaking when slowed down
+      console.log(`[SAFETY DEBUG] Car ${car.id} lane ${car.lane}: isLeftLaneSafe=${isLeftLaneSafe} (laneCheck: ${car.lane > 0}), isRightLaneSafe=${isRightLaneSafe} (laneCheck: ${car.lane < (params.numLanes || 3) - 1}), numLanes=${params.numLanes}`);
+    }
+
+    // Decision making with priority:
+    // 1. Change lanes when slowed down (if safe) - HIGH PRIORITY
+    // 2. Pass on left if safe and beneficial
+    // 3. Pass on right if safe and beneficial
+    
+    // High priority for lane changes when slowed down
+    if (shouldChangeLaneWhenSlowed) {
+      // No lane preference - check both directions equally
       // NOTE: Left = lower lane numbers, Right = higher lane numbers
-      if (isLeftLaneSafe && adjustedLeft > 0) {
-        console.log(`[AMERICAN SLOWDOWN] Car ${car.id} changing LEFT due to slowdown (speed: ${car.speed.toFixed(1)} km/h, desired: ${desiredSpeed.toFixed(1)} km/h)`);
+      // Safety checks are ALWAYS enforced, only incentive threshold is bypassed when uniform
+      if (isLeftLaneSafe && (params.uniformDriverBehavior || adjustedLeft > 0)) {
+        console.log(`[AMERICAN SLOWDOWN] Car ${car.id} in lane ${car.lane} changing LEFT to lane ${car.lane - 1} due to slowdown (speed: ${car.speed.toFixed(1)} km/h, desired: ${desiredSpeed.toFixed(1)} km/h, isLeftLaneSafe: ${isLeftLaneSafe}, numLanes: ${params.numLanes})`);
         return { shouldChange: true, targetLane: car.lane - 1 };
       }
       // Try right lane if left is not safe or not available
-      if (isRightLaneSafe && adjustedRight > 0) {
+      if (isRightLaneSafe && (params.uniformDriverBehavior || adjustedRight > 0)) {
         console.log(`[AMERICAN SLOWDOWN] Car ${car.id} changing RIGHT due to slowdown (speed: ${car.speed.toFixed(1)} km/h, desired: ${desiredSpeed.toFixed(1)} km/h)`);
         return { shouldChange: true, targetLane: car.lane + 1 };
       }
     }
     
-    if (canReturnRight && 
-        !slowerLeader && // Not actively trying to pass
-        adjustedRight > (params.accelerationThreshold || 0.2) * 0.2 &&
-        Math.random() < car.laneChangeProbability * 1.5) { // Increased probability
-      return { shouldChange: true, targetLane: car.lane + 1 };
-    } else if (shouldPassLeft && Math.random() < car.laneChangeProbability * 1.5) { // Increased probability
+    // Overtaking decisions - no lane preference, but with safety checks
+    if (shouldPassLeft && isLeftLaneSafe && (params.uniformDriverBehavior || Math.random() < car.laneChangeProbability)) {
+      console.log(`[AMERICAN PASS] Car ${car.id} changing LEFT to pass slower vehicle`);
       return { shouldChange: true, targetLane: car.lane - 1 };
-    } else if (shouldPassRight && Math.random() < car.laneChangeProbability * 0.8) { // Increased probability
+    } else if (shouldPassRight && isRightLaneSafe && (params.uniformDriverBehavior || Math.random() < car.laneChangeProbability)) {
+      console.log(`[AMERICAN PASS] Car ${car.id} changing RIGHT to pass slower vehicle`);
       return { shouldChange: true, targetLane: car.lane + 1 };
     }
   } else {
@@ -1347,6 +1415,24 @@ function shouldChangeLane(
     
     // European rule can ALWAYS override cooldown for rightward movement (aggressive keep right)
     const canOverrideCooldown = true; // Always override cooldown for European rule
+    
+    // Helper function to check if lane change would cause car behind to slow down
+    const willCauseBehindToSlowDown = (follower: Car | undefined, gapBehind: number, currentSpeed: number) => {
+      if (!follower) return false; // No follower, no issue
+      
+      // Calculate the safe following distance the follower would need
+      const followerSafeDist = calculateSafeDistance(follower.speed, params.tDist || 3) / 1000;
+      const followerSafeGap = followerSafeDist + 0.005;
+      
+      // If the gap behind is less than what the follower needs, they would have to slow down
+      const wouldNeedToSlowDown = gapBehind < followerSafeGap * 1.2;
+      
+      // Also check if our speed is significantly lower than follower's speed
+      const speedDifference = follower.speed - currentSpeed;
+      const isMuchSlower = speedDifference > 15; // If we're 15+ km/h slower
+      
+      return wouldNeedToSlowDown || isMuchSlower;
+    };
     
     // First check if we can move to the right lane (toward higher lane numbers - more right)
     if (car.lane < numLanes - 1 && (!cooldownActive || canOverrideCooldown)) {
@@ -1368,24 +1454,39 @@ function shouldChangeLane(
       const safeDistKm = calculateSafeDistance(carSpeed, params.tDist || 3) / 1000;
       const safeGap = safeDistKm + 0.005; // Same calculation as in main simulation
       
+      // NEW: Calculate follower's safe gap for more accurate safety check
+      let followerSafeGap = safeGap; // Default to car's safe gap if no follower
+      if (rightLaneFollower) {
+        const followerSpeed = rightLaneFollower.speed || 0;
+        const followerSafeDist = calculateSafeDistance(followerSpeed, params.tDist || 3) / 1000;
+        followerSafeGap = followerSafeDist + 0.005;
+      }
+      
       // Can maintain reasonable speed in right lane? (More aggressive - accept slower speeds)
       const canMaintainSpeed = !rightLaneLeader || 
         (rightLaneLeader.speed >= targetSpeed * 0.6 && gapAhead > safeGap * 0.8);
       
       // Very aggressive safety requirements for European "keep right" principle
-      const safeToChange = gapAhead > safeGap && gapBehind > safeGap && 
+      // Use 1.5x safe distance buffer for car behind to make lane changes more conservative (using follower's speed)
+      const safeToChange = gapAhead > safeGap && gapBehind > followerSafeGap * 1.5 && 
         (!rightLaneFollower || rightLaneFollower.speed <= currentSpeed + 30);
       
-      // PRIORITY 1: If right lane is completely empty, always move there
+      // NEW: Check if lane change would cause car behind to slow down
+      const willCauseRightBehindToSlow = willCauseBehindToSlowDown(rightLaneFollower, gapBehind, currentSpeed);
+      
+      // PRIORITY 1: If right lane is completely empty, always move there (unless it would cause behind to slow)
       if (!rightLaneLeader && !rightLaneFollower) {
         console.log(`[EUROPEAN FIX] Car ${car.id} moving RIGHT - empty lane, from lane ${car.lane} to ${car.lane + 1}`);
         return { shouldChange: true, targetLane: car.lane + 1 };
       }
       
-      // PRIORITY 2: If right lane allows reasonable speed and is safe, move there
-      if (canMaintainSpeed && safeToChange) {
+      // PRIORITY 2: If right lane allows reasonable speed and is safe, move there (but don't cause behind to slow)
+      if (canMaintainSpeed && safeToChange && !willCauseRightBehindToSlow) {
         console.log(`[EUROPEAN FIX] Car ${car.id} moving RIGHT - can maintain speed, from lane ${car.lane} to ${car.lane + 1}`);
         return { shouldChange: true, targetLane: car.lane + 1 };
+      } else if (canMaintainSpeed && safeToChange && willCauseRightBehindToSlow) {
+        // Log when we would have moved but didn't due to safety concern
+        console.log(`[EUROPEAN SAFETY] Car ${car.id} NOT moving RIGHT - would cause car behind to slow down (gap: ${gapBehind.toFixed(3)}km, follower speed: ${rightLaneFollower?.speed.toFixed(1) || 'N/A'} km/h, our speed: ${currentSpeed.toFixed(1)} km/h)`);
       }
     }
     
@@ -1418,13 +1519,27 @@ function shouldChangeLane(
       const leftGapBehind = !leftLaneFollower ? Infinity : 
         ((car.position - leftLaneFollower.position + laneLength) % laneLength);
       
-      const leftLaneIsSafe = leftGapAhead > safeGap && leftGapBehind > safeGap;
+      // Use 1.5x safe distance buffer for car behind to make lane changes more conservative (using follower's speed)
+      let leftFollowerSafeGap = safeGap; // Default to car's safe gap if no follower
+      if (leftLaneFollower) {
+        const leftFollowerSpeed = leftLaneFollower.speed || 0;
+        const leftFollowerSafeDist = calculateSafeDistance(leftFollowerSpeed, params.tDist || 3) / 1000;
+        leftFollowerSafeGap = leftFollowerSafeDist + 0.005;
+      }
+      
+      const leftLaneIsSafe = leftGapAhead > safeGap && leftGapBehind > leftFollowerSafeGap * 1.5;
+      
+      // NEW: Check if left lane change would cause car behind to slow down
+      const willCauseLeftBehindToSlow = willCauseBehindToSlowDown(leftLaneFollower, leftGapBehind, currentSpeed);
       
       // More aggressive leftward movement for European rule
       // NOTE: Left = lower lane numbers, Right = higher lane numbers
-      if (!canReachDesiredSpeedInCurrentLane && car.lane > 0 && leftLaneIsSafe && adjustedLeft > 0.1) {
+      if (!canReachDesiredSpeedInCurrentLane && car.lane > 0 && leftLaneIsSafe && adjustedLeft > 0.1 && !willCauseLeftBehindToSlow) {
         console.log(`[EUROPEAN OVERTAKE] Car ${car.id} moving LEFT to overtake slow car (gap: ${gapToLeader.toFixed(3)}km, safeGap: ${safeGap.toFixed(3)}km, speedDiff: ${speedDifference.toFixed(1)}km/h), from lane ${car.lane} to ${car.lane - 1}`);
         return { shouldChange: true, targetLane: car.lane - 1 };
+      } else if (!canReachDesiredSpeedInCurrentLane && car.lane > 0 && leftLaneIsSafe && adjustedLeft > 0.1 && willCauseLeftBehindToSlow) {
+        // Log when we would have overtaken but didn't due to safety concern
+        console.log(`[EUROPEAN SAFETY] Car ${car.id} NOT overtaking LEFT - would cause car behind to slow down (gap: ${leftGapBehind.toFixed(3)}km, follower speed: ${leftLaneFollower?.speed.toFixed(1) || 'N/A'} km/h, our speed: ${currentSpeed.toFixed(1)} km/h)`);
       }
     }
   }
@@ -1468,7 +1583,7 @@ function shouldChangeLaneWithExitBehavior(
         params,
         laneLength
       );
-      if (rightIncentive > -0.5) { // Lower threshold for exit lane changes
+      if (params.uniformDriverBehavior || rightIncentive > -0.5) { // Deterministic when uniform, lower threshold for exit lane changes
         return { shouldChange: true, targetLane: car.lane + 1 };
       }
     } else if (car.lane > preferredExitLane && adjacentLanes.leftLane.leader) {
@@ -1479,7 +1594,7 @@ function shouldChangeLaneWithExitBehavior(
         params,
         laneLength
       );
-      if (leftIncentive > -0.5) { // Lower threshold for exit lane changes
+      if (params.uniformDriverBehavior || leftIncentive > -0.5) { // Deterministic when uniform, lower threshold for exit lane changes
         return { shouldChange: true, targetLane: car.lane - 1 };
       }
     }
@@ -1493,7 +1608,7 @@ function shouldChangeLaneWithExitBehavior(
         params,
         laneLength
       );
-      if (rightIncentive > -0.3) {
+      if (params.uniformDriverBehavior || rightIncentive > -0.3) { // Deterministic when uniform
         return { shouldChange: true, targetLane: car.lane + 1 };
       }
     } else if (car.lane > alternativeExitLane && adjacentLanes.leftLane.leader) {
@@ -1504,7 +1619,7 @@ function shouldChangeLaneWithExitBehavior(
         params,
         laneLength
       );
-      if (leftIncentive > -0.3) {
+      if (params.uniformDriverBehavior || leftIncentive > -0.3) { // Deterministic when uniform
         return { shouldChange: true, targetLane: car.lane - 1 };
       }
     }
