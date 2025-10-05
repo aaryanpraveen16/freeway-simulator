@@ -5,10 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { BarChart3, Calendar, CheckSquare, Clock, Copy, Edit2, Eye, Gauge, Repeat, Square, Trash2, Users } from "lucide-react";
 import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
 import { useToast } from "@/hooks/use-toast";
-import { extractSimulationParams, formatParamsAsJson } from "../utils/simulationUtils";
+import { extractSimulationParams, formatParamsAsJson, formatParamsWithUnits } from "../utils/simulationUtils";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import ChartDashboard from "@/components/ChartDashboard";
 import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensityChart";
@@ -23,7 +25,10 @@ const SavedSimulations: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSimulation, setSelectedSimulation] = useState<SavedSimulation | null>(null);
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set());
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
   const { toast } = useToast();
+  
+  const unitConversions = getUnitConversions(unitSystem);
 
   useEffect(() => {
     loadSimulations();
@@ -32,8 +37,8 @@ const SavedSimulations: React.FC = () => {
   const copySimulationParams = async (simulation: SavedSimulation) => {
     try {
       const params = extractSimulationParams(simulation);
-      const jsonString = formatParamsAsJson(params);
-      await navigator.clipboard.writeText(jsonString);
+      const formattedString = formatParamsWithUnits(params, unitSystem);
+      await navigator.clipboard.writeText(formattedString);
       
       toast({
         title: "Success",
@@ -177,9 +182,19 @@ const SavedSimulations: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Saved Simulations</h1>
           <p className="text-gray-600 mt-2">View and analyze your previously saved traffic simulations</p>
         </div>
-        <Link to="/freeway-simulator">
-          <Button variant="outline">Back to Simulator</Button>
-        </Link>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Metric</span>
+            <Switch
+              checked={unitSystem === 'imperial'}
+              onCheckedChange={(checked) => setUnitSystem(checked ? 'imperial' : 'metric')}
+            />
+            <span className="text-sm text-gray-600">Imperial</span>
+          </div>
+          <Link to="/freeway-simulator">
+            <Button variant="outline">Back to Simulator</Button>
+          </Link>
+        </div>
       </div>
 
       {savedSimulations.length === 0 ? (
@@ -241,7 +256,7 @@ const SavedSimulations: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Gauge size={16} className="text-green-500" />
-                        <span>{simulation.finalStats.averageSpeed.toFixed(1)} mph avg</span>
+                        <span>{unitConversions.speed.toDisplay(simulation.finalStats.averageSpeed).toFixed(1)} {unitConversions.speed.unit} avg</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock size={16} className="text-purple-500" />
@@ -281,6 +296,7 @@ const SavedSimulations: React.FC = () => {
                                 laneLength={1000}
                                 params={simulation.params}
                                 trafficRule={simulation.trafficRule}
+                                unitSystem={unitSystem}
                                 speedDensityHistory={simulation.chartData.speedByLaneHistory}
                                 densityOfCarPacksHistory={simulation.chartData.densityOfCarPacksHistory}
                                 percentageByLaneHistory={simulation.chartData.percentageByLaneHistory}
