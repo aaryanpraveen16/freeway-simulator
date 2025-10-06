@@ -23,6 +23,7 @@ export interface SavedSimulation {
     maxSpeed: number;
     minSpeed: number;
     laneChanges: number;
+    perLaneThroughputs: number[];
   };
 }
 

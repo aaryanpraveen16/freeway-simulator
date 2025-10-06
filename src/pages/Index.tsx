@@ -53,6 +53,8 @@ interface DensityThroughputDataPoint {
   density: number;
   throughput: number;
   time: number;
+  laneThroughputs: number[];
+  laneDensities: number[];
 }
 
 interface PackFormationDataPoint {
@@ -328,19 +330,44 @@ const Index = () => {
 
       // Record density-throughput data
       if (newCars.length > 0) {
-        const avgSpeed = newCars.reduce((sum, car) => sum + car.speed, 0) / newCars.length;
-        // Calculate overall density (cars per mile)
-        const density = newCars.length / currentLaneLength;
-        // Throughput = average speed * density * number of lanes (cars per hour)
-        const numLanes = newCars.length > 0 ? Math.max(...newCars.map(c => c.lane)) + 1 : 1;
-        const throughputPerLane = avgSpeed * density;
-        const throughput = throughputPerLane * numLanes;
+        const numLanes = params.numLanes || 3; // Use the actual number of lanes from params
+        const laneThroughputs: number[] = [];
+        const laneDensities: number[] = [];
+        
+        // Calculate per-lane metrics
+        for (let lane = 0; lane < numLanes; lane++) {
+          const laneCars = newCars.filter(car => car.lane === lane);
+          const carCount = laneCars.length;
+          
+          if (carCount === 0) {
+            laneThroughputs.push(0);
+            laneDensities.push(0);
+            continue;
+          }
+          
+          // Calculate per-lane metrics
+          const avgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / carCount; // km/h
+          const laneDensity = carCount / currentLaneLength; // cars per km (currentLaneLength is in km)
+          
+          // Throughput = speed (km/h) * density (cars/km) = cars/hour
+          const throughput = avgSpeed * laneDensity;
+          
+          laneThroughputs.push(parseFloat(throughput.toFixed(2)));
+          laneDensities.push(parseFloat(laneDensity.toFixed(4)));
+        }
+        
+        // Calculate total metrics - match StatsDisplay calculation
+        const totalDensity = newCars.length / currentLaneLength; // cars per km (matches StatsDisplay)
+        const totalAvgSpeed = newCars.reduce((sum, car) => sum + car.speed, 0) / newCars.length; // km/h
+        const totalThroughput = totalAvgSpeed * totalDensity; // cars/hour
         
         setDensityThroughputHistory(prev => {
           const newHistory = [...prev, {
-            density: parseFloat((newCars.length / currentLaneLength).toFixed(2)), // Match current point precision
-            throughput: Math.round(throughput), // Use Math.round to match current point
-            time: parseFloat(time.toFixed(1))
+            density: parseFloat(totalDensity.toFixed(4)),
+            throughput: parseFloat(totalThroughput.toFixed(2)),
+            time: parseFloat(time.toFixed(1)),
+            laneThroughputs,
+            laneDensities
           }];
           if (newHistory.length > 100) {
             return newHistory.slice(-100);
@@ -348,29 +375,51 @@ const Index = () => {
           return newHistory;
         });
 
+        // Calculate overall average speed first
+        const overallAvgSpeed = newCars.reduce((sum, car) => sum + car.speed, 0) / newCars.length;
+        
+        // Calculate per-lane speeds and statistics
+        const laneSpeeds = Array(numLanes).fill(0).map((_, lane) => {
+          const laneCars = newCars.filter(car => car.lane === lane);
+          if (laneCars.length === 0) return 0;
+          
+          const laneAvgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / laneCars.length;
+          return laneAvgSpeed;
+        });
+        
+        const laneSpeedVariance = laneSpeeds.reduce((sum, speed) => sum + Math.pow(speed - overallAvgSpeed, 2), 0) / laneSpeeds.length;
+        const laneSpeedStdDev = Math.sqrt(laneSpeedVariance);
+        
         // Record speed-density data
         setSpeedDensityHistory(prev => {
           const newHistory = [...prev, {
-            density: parseFloat(density.toFixed(3)),
-            speed: parseFloat(avgSpeed.toFixed(1)),
-            time: parseFloat(time.toFixed(1))
+            time: parseFloat(time.toFixed(1)),
+            speed: parseFloat(overallAvgSpeed.toFixed(2)),
+            density: parseFloat(totalDensity.toFixed(4)),
+            trafficRule: trafficRule,
+            numLanes: numLanes,
+            trafficDensity: params.trafficDensity,
+            speedLimit: params.speedLimit,
+            vehicleTypeDensity: params.vehicleTypeDensity,
+            driverTypeDensity: params.driverTypeDensity,
+            uniformDriverBehavior: params.uniformDriverBehavior || false
           }];
+          
           if (newHistory.length > 100) {
             return newHistory.slice(-100);
           }
           return newHistory;
         });
-
-        // Record pack formation data
-        const speeds = newCars.map(car => car.speed);
-        const speedVariance = speeds.reduce((sum, speed) => sum + Math.pow(speed - avgSpeed, 2), 0) / speeds.length;
+        
+        const speedVariance = newCars.reduce((sum, car) => sum + Math.pow(car.speed - overallAvgSpeed, 2), 0) / newCars.length;
         const speedStdDev = Math.sqrt(speedVariance);
+        const density = newCars.length / currentLaneLength;
         
         setPackFormationHistory(prev => {
           const newHistory = [...prev, {
             density: parseFloat(density.toFixed(2)),
             speedStdDev: parseFloat(speedStdDev.toFixed(2)),
-            packCount,
+            packCount: packCount,
             time: parseFloat(time.toFixed(1))
           }];
           if (newHistory.length > 100) {
@@ -426,8 +475,8 @@ const Index = () => {
           }
           return newHistory;
         });
-      }
-      
+      } // End of if (newCars.length > 0) block
+    
       // Record lane utilization data as percentages
       const laneDistribution: { [key: string]: number } = {};
       const totalCars = newCars.length;
@@ -562,6 +611,26 @@ const Index = () => {
       const avgSpeed = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
       const maxSpeed = Math.max(...speeds);
       const minSpeed = Math.min(...speeds);
+      
+      // Calculate per-lane throughput
+      const perLaneThroughputs = [];
+      const numLanes = params.numLanes || 3;
+      const laneLength = params.freewayLength || 1; // km
+      
+      for (let lane = 0; lane < numLanes; lane++) {
+        const laneCars = cars.filter(car => car.lane === lane);
+        const carCount = laneCars.length;
+        
+        if (carCount === 0) {
+          perLaneThroughputs.push(0);
+          continue;
+        }
+        
+        const avgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / carCount;
+        const density = carCount / laneLength; // cars/km
+        const throughput = avgSpeed * density; // cars/hour for this lane
+        perLaneThroughputs.push(parseFloat(throughput.toFixed(2)));
+      }
 
       const savedSimulation: SavedSimulation = {
         id: `simulation-${Date.now()}`,
@@ -585,6 +654,7 @@ const Index = () => {
           maxSpeed: parseFloat(maxSpeed.toFixed(1)),
           minSpeed: parseFloat(minSpeed.toFixed(1)),
           laneChanges: laneChanges,
+          perLaneThroughputs: perLaneThroughputs,
         },
       };
 
@@ -781,6 +851,7 @@ const Index = () => {
             elapsedTime={elapsedTime}
             laneChanges={laneChanges}
             unitSystem={unitSystem}
+            trafficDensity={params.trafficDensity}
           />
           </div>
           
