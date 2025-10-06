@@ -105,7 +105,7 @@ const Index = () => {
   const [laneChanges, setLaneChanges] = useState<number>(0);
   const [carSize, setCarSize] = useState<number>(24);
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
-  const [showNotifications, setShowNotifications] = useState<boolean>(true);
+  const [showNotifications, setShowNotifications] = useState<boolean>(false);
 
   // Chart history state variables - moved here to be declared before use
   const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);

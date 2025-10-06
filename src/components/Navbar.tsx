@@ -51,9 +51,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
               />
               <Label htmlFor="notifications-toggle" className="text-sm font-medium cursor-pointer">
                 {showNotifications ? (
-                  <span className="text-green-400">🔔 Notifications On</span>
+                  <span className="text-green-400">🔔 Toasts On</span>
                 ) : (
-                  <span className="text-gray-400">🔕 Notifications Off</span>
+                  <span className="text-gray-400">🔕 Toasts Off</span>
                 )}
               </Label>
             </div>
