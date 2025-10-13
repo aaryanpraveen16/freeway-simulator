@@ -16,10 +16,7 @@ import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import ChartDashboard from "@/components/ChartDashboard";
 import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensityChart";
-import OverlaySpeedChart from "@/components/OverlaySpeedChart";
-import OverlayDensityChart from "@/components/OverlayDensityChart";
-import OverlayLaneUsageChart from "@/components/OverlayLaneUsageChart";
-import OverlayPackFormationChart from "@/components/OverlayPackFormationChart";
+import OverlaySpeedDensityChart from "@/components/OverlaySpeedDensityChart";
 
 const SavedSimulations: React.FC = () => {
   const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
@@ -618,19 +615,11 @@ const SavedSimulations: React.FC = () => {
               {/* Comparison Charts */}
               {selectedForComparison.size > 0 ? (
                 <div className="grid gap-6">
+                  <OverlaySpeedDensityChart 
+                    selectedSimulations={getSelectedSimulations()}
+                    unitSystem={unitSystem}
+                  />
                   <OverlayThroughputDensityChart 
-                    selectedSimulations={getSelectedSimulations()}
-                  />
-                  <OverlaySpeedChart
-                    selectedSimulations={getSelectedSimulations()}
-                  />
-                  <OverlayDensityChart
-                    selectedSimulations={getSelectedSimulations()}
-                  />
-                  <OverlayLaneUsageChart
-                    selectedSimulations={getSelectedSimulations()}
-                  />
-                  <OverlayPackFormationChart
                     selectedSimulations={getSelectedSimulations()}
                   />
                 </div>

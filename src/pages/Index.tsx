@@ -25,6 +25,7 @@ import {
 import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
 import { useToast } from "@/hooks/use-toast";
 import { UnitSystem } from "@/utils/unitConversion";
+import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
 interface SimulationEvent {
   type: 'exit' | 'enter' | 'laneChange';
@@ -754,32 +755,49 @@ const Index = () => {
       }
 
       if (!isBatch) {
-        const savedSimulation: SavedSimulation = {
-          id: `simulation-${Date.now()}`,
-          name: name,
-          timestamp: Date.now(),
-          simulationNumber,
-          params: { ...params },
-          trafficRule: trafficRule,
-          chartData: {
-            speedByLaneHistory: [...speedDensityHistory],
-            densityOfCarPacksHistory: [...densityOfCarPacksHistory],
-            percentageByLaneHistory: [...percentageByLaneHistory],
-            densityThroughputHistory: [...densityThroughputHistory],
-            packHistory: [...packHistory],
-            packLengthHistory: [...packLengthHistory],
-          },
-          duration: elapsedTime,
-          finalStats: {
-            totalCars: cars.length,
-            averageSpeed: parseFloat(avgSpeed.toFixed(1)),
-            maxSpeed: parseFloat(maxSpeed.toFixed(1)),
-            minSpeed: parseFloat(minSpeed.toFixed(1)),
-            laneChanges: laneChanges,
-            perLaneThroughputs: perLaneThroughputs,
-          },
-        };
-        await indexedDBService.saveSimulation(savedSimulation);
+        const stabilizedDensity = densityOfCarPacksHistory.length > 0
+        ? calculateStabilizedValue(extractDataValues(densityOfCarPacksHistory, 'overallDensity')).value
+        : 0;
+
+      const stabilizedSpeed = speedDensityHistory.length > 0
+        ? calculateStabilizedValue(extractDataValues(speedDensityHistory, 'speed')).value
+        : 0;
+
+      const stabilizedThroughput = densityThroughputHistory.length > 0
+        ? calculateStabilizedValue(extractDataValues(densityThroughputHistory, 'throughput')).value
+        : 0;
+
+      const savedSimulation: SavedSimulation = {
+        id: `simulation-${Date.now()}`,
+        name: name,
+        timestamp: Date.now(),
+        simulationNumber,
+        params: { ...params },
+        trafficRule: trafficRule,
+        chartData: {
+          speedByLaneHistory: [...speedDensityHistory],
+          densityOfCarPacksHistory: [...densityOfCarPacksHistory],
+          percentageByLaneHistory: [...percentageByLaneHistory],
+          densityThroughputHistory: [...densityThroughputHistory],
+          packHistory: [...packHistory],
+          packLengthHistory: [...packLengthHistory],
+        },
+        duration: elapsedTime,
+        finalStats: {
+          totalCars: cars.length,
+          averageSpeed: parseFloat(avgSpeed.toFixed(1)),
+          maxSpeed: parseFloat(maxSpeed.toFixed(1)),
+          minSpeed: parseFloat(minSpeed.toFixed(1)),
+          laneChanges: laneChanges,
+          perLaneThroughputs: perLaneThroughputs,
+          // Add stabilized metrics
+          stabilizedDensity: parseFloat(stabilizedDensity.toFixed(3)),
+          stabilizedAverageSpeed: parseFloat(stabilizedSpeed.toFixed(1)),
+          stabilizedThroughput: parseFloat(stabilizedThroughput.toFixed(1)),
+        },
+      };
+
+      await indexedDBService.saveSimulation(savedSimulation);
       }
       else {
 
