@@ -19,6 +19,7 @@ import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensityChart";
 import OverlaySpeedDensityChart from "@/components/OverlaySpeedDensityChart";
 import OverlayLaneChangesDensityChart from "@/components/OverlayLaneChangesDensityChart";
+import Footer from "@/components/Footer";
 
 const SavedSimulations: React.FC = () => {
   const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
@@ -680,6 +681,8 @@ const SavedSimulations: React.FC = () => {
           </TabsContent>
         </Tabs>
       )}
+      
+      <Footer />
     </div>
   );
 };
