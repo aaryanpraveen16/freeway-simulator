@@ -18,6 +18,11 @@ export interface UnitConversions {
     fromDisplay: (displayValue: number) => number;
     unit: string;
   };
+  flowRate: {
+    toDisplay: (vehiclesPerHour: number) => number;
+    fromDisplay: (displayValue: number) => number;
+    unit: string;
+  };
 }
 
 export const getUnitConversions = (unitSystem: UnitSystem): UnitConversions => {
@@ -37,6 +42,11 @@ export const getUnitConversions = (unitSystem: UnitSystem): UnitConversions => {
         toDisplay: (carsPerKm: number) => carsPerKm, // Already in cars/km
         fromDisplay: (carsPerKm: number) => carsPerKm, // Already in cars/km
         unit: 'cars/km'
+      },
+      flowRate: {
+        toDisplay: (vehiclesPerHour: number) => vehiclesPerHour, // Already in vehicles/hour
+        fromDisplay: (vehiclesPerHour: number) => vehiclesPerHour, // Already in vehicles/hour
+        unit: 'vehicles/hour'
       }
     };
   }
@@ -57,6 +67,11 @@ export const getUnitConversions = (unitSystem: UnitSystem): UnitConversions => {
       toDisplay: (carsPerKm: number) => carsPerKm * 1.60934, // cars/km to cars/mile
       fromDisplay: (carsPerMile: number) => carsPerMile / 1.60934, // cars/mile to cars/km
       unit: 'cars/mile'
+    },
+    flowRate: {
+      toDisplay: (vehiclesPerHour: number) => vehiclesPerHour, // Keep as vehicles/hour in both systems
+      fromDisplay: (vehiclesPerHour: number) => vehiclesPerHour, // Keep as vehicles/hour in both systems
+      unit: 'vehicles/hour'
     }
   };
 };

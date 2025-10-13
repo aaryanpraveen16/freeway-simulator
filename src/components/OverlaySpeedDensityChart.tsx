@@ -4,8 +4,9 @@ import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { SavedSimulation } from "@/services/indexedDBService";
 
-interface OverlayThroughputDensityChartProps {
+interface OverlaySpeedDensityChartProps {
   selectedSimulations: SavedSimulation[];
+  unitSystem: 'metric' | 'imperial';
 }
 
 // Generate distinct colors for different simulations
@@ -34,47 +35,75 @@ const generateColors = (count: number): string[] => {
   return colors.slice(0, count);
 };
 
-const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps> = ({
-  selectedSimulations
+interface ChartDataPoint {
+  density: number;
+  speed: number;
+  time: number;
+  simulationIndex: number;
+  simulationName: string;
+  color: string;
+  trafficRule: string;
+}
+
+const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
+  selectedSimulations,
+  unitSystem
 }) => {
+  const unitLabel = unitSystem === 'metric' ? 'km/h' : 'mph';
+  
   const { chartData, colors, simulationNames } = useMemo(() => {
     const colors = generateColors(selectedSimulations.length);
     const simulationNames: string[] = [];
-    const allDataPoints: any[] = [];
+    const allDataPoints: ChartDataPoint[] = [];
     
     selectedSimulations.forEach((simulation, index) => {
       const simName = simulation.name || `Simulation ${index + 1}`;
       simulationNames.push(simName);
       
-      // Use stabilized values from finalStats if available
+      // Debug: Log available data keys for this simulation
+      console.log(`Simulation ${index} (${simName}) has keys:`, {
+        hasChartData: !!simulation.chartData,
+        chartDataKeys: simulation.chartData ? Object.keys(simulation.chartData) : 'none',
+        hasSpeedByLaneHistory: !!(simulation.chartData?.speedByLaneHistory),
+        hasFinalStats: !!simulation.finalStats,
+        finalStatsKeys: simulation.finalStats ? Object.keys(simulation.finalStats) : 'none'
+      });
+      
+      // Try to get data from different possible locations
+      let points: Array<{density: number; speed: number; time: number}> = [];
+      
+      // Always use stabilized values from finalStats if available
       if (simulation.finalStats?.stabilizedDensity !== undefined && 
-          simulation.finalStats?.stabilizedThroughput !== undefined) {
-        allDataPoints.push({
+          simulation.finalStats?.stabilizedAverageSpeed !== undefined) {
+        points = [{
           density: simulation.finalStats.stabilizedDensity,
-          throughput: simulation.finalStats.stabilizedThroughput,
-          time: 0,
-          simulationIndex: index,
-          simulationName: simName,
-          color: colors[index],
-          trafficRule: simulation.trafficRule || 'unknown'
-        });
+          speed: simulation.finalStats.stabilizedAverageSpeed,
+          time: 0
+        }];
       }
       // Fallback to history data if no stabilized values
-      else if (simulation.chartData?.densityThroughputHistory) {
-        const lastPoint = simulation.chartData.densityThroughputHistory.slice(-1)[0];
-        if (lastPoint) {
-          allDataPoints.push({
-            density: lastPoint.density,
-            throughput: lastPoint.throughput,
-            time: lastPoint.time,
-            simulationIndex: index,
-            simulationName: simName,
-            color: colors[index],
-            trafficRule: simulation.trafficRule || 'unknown'
-          });
-        }
+      else if (simulation.chartData?.speedByLaneHistory) {
+        points = simulation.chartData.speedByLaneHistory.map((point: any) => ({
+          density: point.density || 0,
+          speed: point.averageSpeed || 0,
+          time: point.time || 0
+        }));
       }
+      
+      // Add all points with metadata
+      points.forEach(point => {
+        allDataPoints.push({
+          ...point,
+          simulationIndex: index,
+          simulationName: simName,
+          color: simulation.trafficRule === 'american' ? '#ff4d4f' : '#1890ff',
+          trafficRule: simulation.trafficRule || 'unknown'
+        });
+      });
     });
+    
+    // Debug: Log the first few data points
+    console.log('First 3 data points:', allDataPoints.slice(0, 3));
     
     return {
       chartData: allDataPoints,
@@ -87,11 +116,11 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Throughput vs Density Comparison</CardTitle>
+          <CardTitle>Average Speed vs Density Comparison</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center text-muted-foreground py-8">
-            Select simulations to compare their throughput vs density patterns
+            Select simulations to compare their average speed vs density patterns
           </div>
         </CardContent>
       </Card>
@@ -110,10 +139,10 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
             <span className="font-medium">Density:</span> {data.density.toFixed(2)} cars/mile
           </p>
           <p className="text-sm">
-            <span className="font-medium">Throughput:</span> {Math.round(data.throughput).toLocaleString()} cars/hour
+            <span className="font-medium">Average Speed:</span> {data.speed.toFixed(1)} {unitLabel}
           </p>
           <p className="text-sm text-gray-500">
-            Time: {data.time.toFixed(1)}s
+            Traffic Rule: {data.trafficRule}
           </p>
         </div>
       );
@@ -124,7 +153,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Throughput vs Density Comparison</CardTitle>
+        <CardTitle>Average Speed vs Density Comparison</CardTitle>
         <div className="text-sm text-muted-foreground">
           Comparing {selectedSimulations.length} simulation{selectedSimulations.length !== 1 ? 's' : ''}
         </div>
@@ -132,56 +161,72 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
       <CardContent>
         <ChartContainer className="h-[400px]" config={{}}>
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+            <ScatterChart 
+              margin={{ top: 20, right: 40, bottom: 40, left: 60 }}
+              onClick={(data) => console.log('Chart clicked:', data)}
+            >
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis
                 type="number"
                 dataKey="density"
                 name="Density"
-                unit=" cars/mile"
+                unit=" cars/km"
                 tick={{ fontSize: 12 }}
+                domain={['auto', 'auto']}
                 label={{
-                  value: 'Density (cars/mile)',
-                  position: 'insideBottom',
-                  offset: -10,
+                  value: `Density (cars/km)`,
+                  position: 'bottom',
+                  offset: 10,
                   style: { textAnchor: 'middle', fontWeight: 500 }
                 }}
               />
               <YAxis
                 type="number"
-                dataKey="throughput"
-                name="Throughput"
-                unit=" cars/hour"
+                dataKey="speed"
+                name="Average Speed"
+                unit={` ${unitLabel}`}
                 tick={{ fontSize: 12 }}
+                domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
                 label={{
-                  value: 'Throughput (cars/hour)',
+                  value: `Average Speed (${unitLabel})`,
                   angle: -90,
-                  position: 'insideLeft',
+                  position: 'left',
+                  offset: 10,
                   style: { textAnchor: 'middle', fontWeight: 500 }
                 }}
-                tickFormatter={(value) => Math.round(value).toLocaleString()}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip 
+                content={<CustomTooltip />}
+                formatter={(value: any, name: any, props: any) => {
+                  if (name === 'speed') {
+                    return [`${value.toFixed(1)} ${unitLabel}`, 'Speed'];
+                  }
+                  if (name === 'density') {
+                    return [value.toFixed(2), 'Density (cars/km)'];
+                  }
+                  return [value, name];
+                }}
+              />
               
               {/* Create a separate Scatter for each simulation */}
-              {selectedSimulations.map((simulation, index) => {
+              {selectedSimulations.map((_, index) => {
                 const simulationData = chartData.filter(point => point.simulationIndex === index);
-                const trafficRule = simulation.trafficRule || 'american';
-                const color = trafficRule === 'american' ? '#ff4d4f' : '#1890ff';
-                
-                return (
+                return simulationData.length > 0 ? (
                   <Scatter
                     key={index}
+                    name={simulationNames[index]}
                     data={simulationData}
-                    fill={color}
+                    fill={simulationData[0]?.trafficRule === 'american' ? '#ff4d4f' : '#1890ff'}
                     fillOpacity={0.7}
-                    line={{ stroke: color, strokeWidth: 2 }}
+                    line={{ 
+                      stroke: simulationData[0]?.trafficRule === 'american' ? '#ff4d4f' : '#1890ff', 
+                      strokeWidth: 2 
+                    }}
                     lineType="joint"
                     isAnimationActive={false}
                     shape="circle"
-                    r={6}
                   />
-                );
+                ) : null;
               })}
             </ScatterChart>
           </ResponsiveContainer>
@@ -190,13 +235,13 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
         <div className="mt-4 text-sm text-gray-600 space-y-1">
           <p className="font-medium">Understanding the Chart:</p>
           <p>• Each color represents a different simulation</p>
-          <p>• Points show the relationship between traffic density and throughput over time</p>
-          <p>• Optimal throughput typically occurs at moderate densities</p>
-          <p>• Higher densities often lead to congestion and reduced throughput</p>
+          <p>• Points show the relationship between traffic density and average speed over time</p>
+          <p>• Higher densities typically lead to reduced speeds due to congestion</p>
+          <p>• The shape of the curve can indicate traffic flow characteristics</p>
         </div>
       </CardContent>
     </Card>
   );
 };
 
-export default OverlayThroughputDensityChart;
+export default OverlaySpeedDensityChart;

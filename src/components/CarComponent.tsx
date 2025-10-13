@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { Car as CarIcon, Truck, Bike, AlertCircle, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { UnitSystem, convertSpeed } from "@/utils/unitConversion";
 
 interface CarComponentProps {
   car: Car;
@@ -19,6 +20,7 @@ interface CarComponentProps {
   onStopCar?: (carId: number) => void;
   onResumeCar?: (carId: number) => void;
   carSize?: number;
+  unitSystem?: UnitSystem;
 }
 
 const CarComponent: React.FC<CarComponentProps> = ({
@@ -33,6 +35,7 @@ const CarComponent: React.FC<CarComponentProps> = ({
   onStopCar,
   onResumeCar,
   carSize = 24,
+  unitSystem = 'imperial',
 }) => {
   
   // Calculate position based on track type
@@ -143,7 +146,14 @@ const CarComponent: React.FC<CarComponentProps> = ({
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400">Speed:</span>
-                  <span className="font-mono text-gray-100">{car.speed.toFixed(1)} m/s</span>
+                  <span className="font-mono text-gray-100">
+                    {(() => {
+                      // car.speed is already in km/h, just apply unit conversion
+                      const convertedSpeed = convertSpeed(car.speed, 'metric', unitSystem);
+                      const unit = unitSystem === 'metric' ? 'km/h' : 'mph';
+                      return `${convertedSpeed.toFixed(1)} ${unit}`;
+                    })()}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400">Gap:</span>

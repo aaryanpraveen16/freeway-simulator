@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { SavedSimulation } from "@/services/indexedDBService";
 
 interface OverlaySpeedChartProps {
@@ -149,21 +149,6 @@ const OverlaySpeedChart: React.FC<OverlaySpeedChartProps> = ({
                 }}
               />
               <ChartTooltip content={<CustomTooltip />} />
-              <Legend
-                content={(props) => (
-                  <div className="flex flex-wrap gap-4 justify-center mt-4">
-                    {simulationNames.map((name, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: colors[index] }}
-                        />
-                        <span className="text-sm">{name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              />
               
               {selectedSimulations.map((_, index) => (
                 <Line

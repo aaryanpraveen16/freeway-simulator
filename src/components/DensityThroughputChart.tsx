@@ -35,7 +35,7 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
   dataHistory,
   numLanes,
   trafficRule,
-  unitSystem = 'imperial',
+  unitSystem = 'metric',
   simulationParams
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -45,15 +45,29 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
   const currentPoint = useMemo(() => {
     if (cars.length === 0) return null;
     
-    const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
-    const density = cars.length / laneLength;
-    const throughputPerLane = avgSpeed * density;
-    const totalThroughput = throughputPerLane * (cars.length > 0 ? Math.max(...cars.map(c => c.lane)) + 1 : 1);
+    // Calculate per-lane throughput and density
+    let totalThroughput = 0;
+    let totalDensity = 0;
+    
+    // Calculate for each lane
+    for (let lane = 0; lane < numLanes; lane++) {
+      const laneCars = cars.filter(car => car.lane === lane);
+      const carCount = laneCars.length;
+      
+      if (carCount > 0) {
+        const avgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / carCount;
+        const density = carCount / laneLength; // cars/km
+        totalThroughput += avgSpeed * density; // cars/hour for this lane
+      }
+    }
+    
+    // Calculate total density (cars/km across all lanes)
+    totalDensity = cars.length / laneLength;
     
     return {
       time: parseFloat(elapsedTime.toFixed(2)),
       throughput: parseFloat(totalThroughput.toFixed(2)),
-      density: parseFloat(density.toFixed(2))
+      density: parseFloat(totalDensity.toFixed(4))
     };
   }, [cars, laneLength, elapsedTime, numLanes]);
 
@@ -74,14 +88,21 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
 
   // Calculate stabilized values for density and throughput
   const stabilizedValues = useMemo(() => {
-    const densityData = extractDataValues(dataHistory, 'density');
-    const throughputData = extractDataValues(dataHistory, 'throughput');
+    // Only use recent history to calculate stabilized values (last 30 seconds)
+    const recentHistory = dataHistory.filter(point => point.time > (elapsedTime - 30));
+    if (recentHistory.length === 0) return { density: 0, throughput: 0 };
+    
+    // Calculate average of recent values
+    const sum = recentHistory.reduce((acc, point) => ({
+      density: acc.density + point.density,
+      throughput: acc.throughput + point.throughput
+    }), { density: 0, throughput: 0 });
     
     return {
-      density: calculateStabilizedValue(densityData),
-      throughput: calculateStabilizedValue(throughputData)
+      density: parseFloat((sum.density / recentHistory.length).toFixed(4)),
+      throughput: parseFloat((sum.throughput / recentHistory.length).toFixed(2))
     };
-  }, [dataHistory]);
+  }, [dataHistory, elapsedTime]);
 
   const handleExportImage = () => {
     if (!chartRef.current) return;
@@ -202,7 +223,7 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
                   position: "insideLeft",
                   style: { fontWeight: 500 }
                 }}
-                domain={['dataMin - 100', 'dataMax + 100']}
+                domain={[0, (dataMax: number) => dataMax * 1.1]}
                 tickFormatter={(value) => value.toFixed(2)}
               />
               <Tooltip 
@@ -258,29 +279,27 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
         
         {/* Stabilized Values Display */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-          <h4 className="text-sm font-semibold mb-2">Stabilized Operating Point:</h4>
+          <h4 className="text-sm font-semibold mb-2">Average Operating Point (Last 30s):</h4>
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div className="flex justify-between">
               <span>Density:</span>
-              <span className={`font-mono ${stabilizedValues.density?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.density?.value ? 
-                  `${conversions.density.toDisplay(stabilizedValues.density.value).toFixed(3)} ${conversions.density.unit}` : 
+              <span className="font-mono text-green-600">
+                {stabilizedValues.density > 0 ? 
+                  `${conversions.density.toDisplay(stabilizedValues.density).toFixed(3)} ${conversions.density.unit}` : 
                   'N/A'}
-                {stabilizedValues.density?.isStabilized && ' ✓'}
               </span>
             </div>
             <div className="flex justify-between">
               <span>Throughput:</span>
-              <span className={`font-mono ${stabilizedValues.throughput?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
-                {stabilizedValues.throughput?.value ? 
-                  `${Math.round(stabilizedValues.throughput.value)} ${unitSystem === 'metric' ? 'veh/h' : 'veh/h'}` : 
+              <span className="font-mono text-green-600">
+                {stabilizedValues.throughput > 0 ? 
+                  `${Math.round(stabilizedValues.throughput)} cars/h` : 
                   'N/A'}
-                {stabilizedValues.throughput?.isStabilized && ' ✓'}
               </span>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            ✓ indicates stabilized operating conditions. This shows the steady-state flow characteristics.
+            Shows average values over the last 30 seconds of simulation time.
           </p>
         </div>
         
