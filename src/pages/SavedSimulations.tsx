@@ -369,6 +369,7 @@ const SavedSimulations: React.FC = () => {
                                       <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-muted/20 cursor-help">
                                         <span className="text-xs font-medium text-muted-foreground">{laneName}:</span>
                                         <span className="text-sm font-bold">{Math.round(throughput)}</span>
+                                        <span className="text-xs text-muted-foreground">cars/hr</span>
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-[300px] p-3 text-sm" side="top">
