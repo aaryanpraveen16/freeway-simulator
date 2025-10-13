@@ -24,6 +24,10 @@ export interface SavedSimulation {
     minSpeed: number;
     laneChanges: number;
     perLaneThroughputs: number[];
+    // Optional stabilized metrics
+    stabilizedDensity?: number;
+    stabilizedAverageSpeed?: number;
+    stabilizedThroughput?: number;
   };
 }
 

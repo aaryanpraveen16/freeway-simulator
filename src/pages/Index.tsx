@@ -25,6 +25,7 @@ import {
 import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
 import { useToast } from "@/hooks/use-toast";
 import { UnitSystem } from "@/utils/unitConversion";
+import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
 interface SimulationEvent {
   type: 'exit' | 'enter' | 'laneChange';
@@ -632,6 +633,19 @@ const Index = () => {
         perLaneThroughputs.push(parseFloat(throughput.toFixed(2)));
       }
 
+      // Calculate stabilized values
+      const stabilizedDensity = densityOfCarPacksHistory.length > 0
+        ? calculateStabilizedValue(extractDataValues(densityOfCarPacksHistory, 'overallDensity')).value
+        : 0;
+
+      const stabilizedSpeed = speedDensityHistory.length > 0
+        ? calculateStabilizedValue(extractDataValues(speedDensityHistory, 'speed')).value
+        : 0;
+
+      const stabilizedThroughput = densityThroughputHistory.length > 0
+        ? calculateStabilizedValue(extractDataValues(densityThroughputHistory, 'throughput')).value
+        : 0;
+
       const savedSimulation: SavedSimulation = {
         id: `simulation-${Date.now()}`,
         name: name,
@@ -655,6 +669,10 @@ const Index = () => {
           minSpeed: parseFloat(minSpeed.toFixed(1)),
           laneChanges: laneChanges,
           perLaneThroughputs: perLaneThroughputs,
+          // Add stabilized metrics
+          stabilizedDensity: parseFloat(stabilizedDensity.toFixed(3)),
+          stabilizedAverageSpeed: parseFloat(stabilizedSpeed.toFixed(1)),
+          stabilizedThroughput: parseFloat(stabilizedThroughput.toFixed(1)),
         },
       };
 
