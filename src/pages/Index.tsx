@@ -132,6 +132,7 @@ const Index = () => {
   const packHistoryRef = useRef<any[]>([]);
   const showPackFormationRef = useRef<boolean>(false);
   const carsRef = useRef<Car[]>([]);
+  let paramsRef;
   
   // Load saved runs from localStorage on component mount
   useEffect(() => {
@@ -505,7 +506,7 @@ const Index = () => {
           const newHistory = [...prev, {
             density: parseFloat(density.toFixed(2)),
             speedStdDev: parseFloat(speedStdDev.toFixed(2)),
-            packCount: packCount,
+            packCount,
             time: parseFloat(time.toFixed(1))
           }];
           packFormationHistoryRef.current = newHistory
@@ -731,6 +732,9 @@ const Index = () => {
       
       // Calculate per-lane throughput
       const perLaneThroughputs = [];
+      console.log("paramsRef inside save simulation: ", paramsRef);
+      console.log("paramsRef lane ", paramsRef.numLanes);
+      console.log("paramsRef freewayLength ", paramsRef.freewayLength);
       const numLanes = params.numLanes || 3;
       const laneLength = params.freewayLength || 1; // km
       
@@ -778,16 +782,19 @@ const Index = () => {
         await indexedDBService.saveSimulation(savedSimulation);
       }
       else {
+
         const speeds = carsRef.current.map(car => car.speed);
         const avgSpeed = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
         const maxSpeed = Math.max(...speeds);
         const minSpeed = Math.min(...speeds);
+        //console.clear();
+        console.log("?????\n", paramsRef)
         const savedSimulation: SavedSimulation = {
           id: `simulation-${Date.now()}`,
           name: name,
           timestamp: Date.now(),
           simulationNumber,
-          params: { ...params },
+          params: { ...paramsRef },
           trafficRule: trafficRule,
           chartData: {
             speedByLaneHistory: [...speedDensityHistoryRef.current],
@@ -852,9 +859,12 @@ const Index = () => {
       console.log(`Starting simulation ${currentIndex + 1}/${simulations.length}:`, simulation);
 
       // Update parameters
+      // debugger;
+      paramsRef = [];
       const mergedParams = { ...params, ...simulation.params };
       setParams(mergedParams);
       resetSimulation(mergedParams);
+      paramsRef = mergedParams;
 
       // Start the simulation
       setIsRunning(true);
@@ -875,7 +885,7 @@ const Index = () => {
 
         currentIndex++;
         // Wait a bit before starting the next simulation
-        setTimeout(runNextSimulation, 1000);
+        setTimeout(runNextSimulation, 5000);
       }, simulation.duration * 1000);
     };
 
