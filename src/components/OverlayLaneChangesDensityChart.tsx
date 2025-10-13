@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { SavedSimulation } from "@/services/indexedDBService";
 
 interface OverlayLaneChangesDensityChartProps {
@@ -153,25 +153,6 @@ const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartPro
                 tickFormatter={(value) => Math.round(value).toLocaleString()}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend
-                content={(props) => (
-                  <div className="flex flex-wrap gap-4 justify-center mt-4">
-                    {simulationNames.map((name, index) => {
-                      const sim = selectedSimulations[index];
-                      const color = sim.trafficRule === 'american' ? '#ff4d4f' : '#1890ff';
-                      return (
-                        <div key={index} className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: color }}
-                          />
-                          <span className="text-sm">{name}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              />
               
               {/* Create a separate Scatter for each simulation */}
               {selectedSimulations.map((simulation, index) => {
