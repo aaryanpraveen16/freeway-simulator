@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { BarChart3, Calendar, CheckSquare, Clock, Copy, Edit2, Eye, Gauge, Info, Repeat, Square, Trash2, Users } from "lucide-react";
+import { BarChart3, Calendar, CheckSquare, Clock, Copy, Edit2, Eye, FileDown, FileUp, Gauge, Info, Plus, Repeat, Square, Trash2, Users } from "lucide-react";
+import { exportSimulation, importSimulation, triggerFileInput } from "@/utils/simulationExport";
 import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
 import { useToast } from "@/hooks/use-toast";
 import { extractSimulationParams, formatParamsWithUnits } from "../utils/simulationUtils";
@@ -31,6 +32,56 @@ const SavedSimulations: React.FC = () => {
   useEffect(() => {
     loadSimulations();
   }, []);
+
+  const handleExportSimulation = (simulation: SavedSimulation) => {
+    try {
+      exportSimulation(simulation);
+      toast({
+        title: "Success",
+        description: "Simulation exported successfully",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error exporting simulation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export simulation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleImportSimulation = async (file: File) => {
+    try {
+      const simulation = await importSimulation(file);
+      
+      // Check if simulation with same ID already exists
+      const exists = savedSimulations.some(s => s.id === simulation.id);
+      
+      if (exists) {
+        // Add a timestamp to make the ID unique
+        simulation.id = `${simulation.id}_${Date.now()}`;
+        simulation.name = `${simulation.name} (Imported)`;
+      }
+      
+      // Save the imported simulation
+      await indexedDBService.saveSimulation(simulation);
+      await loadSimulations();
+      
+      toast({
+        title: "Success",
+        description: "Simulation imported successfully",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error importing simulation:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to import simulation",
+        variant: "destructive",
+      });
+    }
+  };
 
   const copySimulationParams = async (simulation: SavedSimulation) => {
     try {
@@ -190,8 +241,19 @@ const SavedSimulations: React.FC = () => {
             />
             <span className="text-sm text-gray-600">Imperial</span>
           </div>
+          <Button 
+            variant="outline" 
+            onClick={() => triggerFileInput(handleImportSimulation)}
+            className="flex items-center gap-2"
+          >
+            <FileUp className="h-4 w-4" />
+            Import
+          </Button>
           <Link to="/freeway-simulator">
-            <Button variant="outline">Back to Simulator</Button>
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              New Simulation
+            </Button>
           </Link>
         </div>
       </div>
@@ -348,6 +410,17 @@ const SavedSimulations: React.FC = () => {
                         {simulation.trafficRule}
                       </Badge>
                       <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExportSimulation(simulation);
+                          }}
+                          title="Export simulation"
+                        >
+                          <FileDown size={16} />
+                        </Button>
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button
