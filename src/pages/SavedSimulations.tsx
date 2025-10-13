@@ -18,6 +18,7 @@ import ChartDashboard from "@/components/ChartDashboard";
 import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensityChart";
 import OverlaySpeedDensityChart from "@/components/OverlaySpeedDensityChart";
+import OverlayLaneChangesDensityChart from "@/components/OverlayLaneChangesDensityChart";
 
 const SavedSimulations: React.FC = () => {
   const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
@@ -693,6 +694,9 @@ const SavedSimulations: React.FC = () => {
                     unitSystem={unitSystem}
                   />
                   <OverlayThroughputDensityChart 
+                    selectedSimulations={getSelectedSimulations()}
+                  />
+                  <OverlayLaneChangesDensityChart 
                     selectedSimulations={getSelectedSimulations()}
                   />
                 </div>
