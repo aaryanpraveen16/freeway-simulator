@@ -96,7 +96,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
           ...point,
           simulationIndex: index,
           simulationName: simName,
-          color: colors[index],
+          color: simulation.trafficRule === 'american' ? '#ff4d4f' : '#1890ff',
           trafficRule: simulation.trafficRule || 'unknown'
         });
       });
@@ -231,9 +231,12 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
                     key={index}
                     name={simulationNames[index]}
                     data={simulationData}
-                    fill={colors[index]}
+                    fill={simulationData[0]?.trafficRule === 'american' ? '#ff4d4f' : '#1890ff'}
                     fillOpacity={0.7}
-                    line={{ stroke: colors[index], strokeWidth: 2 }}
+                    line={{ 
+                      stroke: simulationData[0]?.trafficRule === 'american' ? '#ff4d4f' : '#1890ff', 
+                      strokeWidth: 2 
+                    }}
                     lineType="joint"
                     isAnimationActive={false}
                     shape="circle"

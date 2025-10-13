@@ -179,15 +179,25 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
               />
               
               {/* Create a separate Scatter for each simulation */}
-              {selectedSimulations.map((_, index) => (
-                <Scatter
-                  key={index}
-                  data={chartData.filter(point => point.simulationIndex === index)}
-                  fill={colors[index]}
-                  opacity={0.7}
-                  r={4}
-                />
-              ))}
+              {selectedSimulations.map((simulation, index) => {
+                const simulationData = chartData.filter(point => point.simulationIndex === index);
+                const trafficRule = simulation.trafficRule || 'american';
+                const color = trafficRule === 'american' ? '#ff4d4f' : '#1890ff';
+                
+                return (
+                  <Scatter
+                    key={index}
+                    data={simulationData}
+                    fill={color}
+                    fillOpacity={0.7}
+                    line={{ stroke: color, strokeWidth: 2 }}
+                    lineType="joint"
+                    isAnimationActive={false}
+                    shape="circle"
+                    r={6}
+                  />
+                );
+              })}
             </ScatterChart>
           </ResponsiveContainer>
         </ChartContainer>
