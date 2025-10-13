@@ -19,6 +19,7 @@ import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensityChart";
 import OverlaySpeedDensityChart from "@/components/OverlaySpeedDensityChart";
 import OverlayLaneChangesDensityChart from "@/components/OverlayLaneChangesDensityChart";
+import DensityLaneDistributionChart from "@/components/DensityLaneDistributionChart";
 import Footer from "@/components/Footer";
 
 const SavedSimulations: React.FC = () => {
@@ -664,6 +665,9 @@ const SavedSimulations: React.FC = () => {
                     selectedSimulations={getSelectedSimulations()}
                   />
                   <OverlayLaneChangesDensityChart 
+                    selectedSimulations={getSelectedSimulations()}
+                  />
+                  <DensityLaneDistributionChart
                     selectedSimulations={getSelectedSimulations()}
                   />
                 </div>
