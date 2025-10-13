@@ -24,7 +24,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
   onStopCar,
   onResumeCar,
   carSize = 24,
-  unitSystem = 'imperial',
+  unitSystem = 'metric',
 }) => {
   const [activeView, setActiveView] = useState<"circular" | "straight">("straight");
   const trackRadius = 180; // radius in pixels
@@ -100,6 +100,7 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
                     onStopCar={onStopCar}
                     onResumeCar={onResumeCar}
                     carSize={carSize}
+                    unitSystem={unitSystem}
                   />
                 ))}
               </div>

@@ -16,15 +16,16 @@ interface NavbarProps {
   canSave?: boolean;
   unitSystem?: UnitSystem;
   onUnitSystemChange?: (system: UnitSystem) => void;
+  showNotifications?: boolean;
+  onNotificationsToggle?: (enabled: boolean) => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'imperial', onUnitSystemChange }) => {
+const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'metric', onUnitSystemChange, showNotifications = true, onNotificationsToggle }) => {
   const [showCredits, setShowCredits] = useState(false);
 
   return (
     <div className="bg-primary text-primary-foreground py-2 px-4 mb-6 shadow-md">
       <div className="container mx-auto flex items-center justify-between">
-        <h2 className="text-xl font-medium">Freeway Simulator</h2>
         <div className="flex items-center gap-3">
           {onSaveSimulation && (
             <SaveSimulationDialog
@@ -39,6 +40,24 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
               View Saved
             </Button>
           </Link>
+          
+          <div className="flex items-center gap-2 bg-secondary/30 px-3 py-2 rounded-lg border border-secondary/50">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="notifications-toggle"
+                checked={showNotifications}
+                onCheckedChange={onNotificationsToggle}
+                className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-400"
+              />
+              <Label htmlFor="notifications-toggle" className="text-sm font-medium cursor-pointer">
+                {showNotifications ? (
+                  <span className="text-green-400">🔔 Toasts On</span>
+                ) : (
+                  <span className="text-gray-400">🔕 Toasts Off</span>
+                )}
+              </Label>
+            </div>
+          </div>
           
           <Button 
             variant="secondary" 

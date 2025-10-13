@@ -35,7 +35,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
   numLanes,
   trafficRule,
   laneLength,
-  unitSystem = 'imperial',
+  unitSystem = 'metric',
   simulationParams
 }) => {
   const conversions = getUnitConversions(unitSystem);

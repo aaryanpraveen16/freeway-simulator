@@ -53,6 +53,8 @@ interface DensityThroughputDataPoint {
   density: number;
   throughput: number;
   time: number;
+  laneThroughputs: number[];
+  laneDensities: number[];
 }
 
 interface PackFormationDataPoint {
@@ -102,7 +104,8 @@ const Index = () => {
   const [showPackFormation, setShowPackFormation] = useState<boolean>(false);
   const [laneChanges, setLaneChanges] = useState<number>(0);
   const [carSize, setCarSize] = useState<number>(24);
-  const [unitSystem, setUnitSystem] = useState<UnitSystem>('imperial');
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
+  const [showNotifications, setShowNotifications] = useState<boolean>(false);
 
   // Chart history state variables - moved here to be declared before use
   const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
@@ -150,21 +153,25 @@ const Index = () => {
       localStorage.setItem('freewaySimulator_savedRuns', JSON.stringify(runs));
     } catch (error) {
       console.error("Error saving runs:", error);
-      toast({
-        title: "Save Failed",
-        description: "Could not save simulation runs.",
-        variant: "destructive",
-      });
+      if (showNotifications) {
+        toast({
+          title: "Save Failed",
+          description: "Could not save simulation runs.",
+          variant: "destructive",
+        });
+      }
     }
-  }, [toast]);
+  }, [toast, showNotifications]);
 
   const handleSaveCurrentRun = useCallback(() => {
     if (packHistory.length === 0) {
-      toast({
-        title: "Nothing to Save",
-        description: "Run the simulation first to generate data.",
-        variant: "default",
-      });
+      if (showNotifications) {
+        toast({
+          title: "Nothing to Save",
+          description: "Run the simulation first to generate data.",
+          variant: "default",
+        });
+      }
       return;
     }
 
@@ -181,20 +188,22 @@ const Index = () => {
       saveRunToLocalStorage(updatedRuns);
       return updatedRuns;
     });
-
-    toast({
-      title: "Run Saved",
-      description: "Current simulation run has been saved.",
-      duration: 3000,
-    });
-  }, [packHistory, packLengthHistory, params, saveRunToLocalStorage, toast]);
+    
+    if (showNotifications) {
+      toast({
+        title: "Run Saved",
+        description: "Current simulation run has been saved.",
+        duration: 3000,
+      });
+    }
+  }, [packHistory, packLengthHistory, params, saveRunToLocalStorage, toast, showNotifications]);
 
   const togglePreviousRuns = useCallback(() => {
     setShowPreviousRuns(prev => !prev);
   }, []);
 
   const initSimulation = useCallback(() => {
-    const { cars, laneLength } = initializeSimulation(params);
+    const { cars, laneLength } = initializeSimulation(params, showNotifications);
     setCars(cars);
     carsRef.current = cars;
     setLaneLength(laneLength);
@@ -240,7 +249,7 @@ const Index = () => {
     lastDensityUpdateTimeRef.current = 0;
 
     // Reinitialize simulation with new parameters
-    const { cars, laneLength } = initializeSimulation(params);
+    const { cars, laneLength } = initializeSimulation(params, showNotifications);
     setCars(cars);
     carsRef.current = cars;
     setLaneLength(laneLength);
@@ -288,12 +297,14 @@ const Index = () => {
 
   const handleStopCar = useCallback((carId: number) => {
     setStoppedCars(prev => new Set([...prev, carId]));
-    toast({
-      title: "Car Stopped",
-      description: `Car ${carId + 1} has been stopped for testing`,
-      duration: 2000,
-    });
-  }, [toast]);
+    if (showNotifications) {
+      toast({
+        title: "Car Stopped",
+        description: `Car ${carId + 1} has been stopped for testing`,
+        duration: 2000,
+      });
+    }
+  }, [toast, showNotifications]);
 
   const handleResumeCar = useCallback((carId: number) => {
     setStoppedCars(prev => {
@@ -301,12 +312,14 @@ const Index = () => {
       newSet.delete(carId);
       return newSet;
     });
-    toast({
-      title: "Car Resumed",
-      description: `Car ${carId + 1} has resumed normal driving`,
-      duration: 2000,
-    });
-  }, [toast]);
+    if (showNotifications) {
+      toast({
+        title: "Car Resumed",
+        description: `Car ${carId + 1} has resumed normal driving`,
+        duration: 2000,
+      });
+    }
+  }, [toast, showNotifications]);
 
   const recordPackData = useCallback((newCars: Car[], time: number, currentLaneLength: number) => {
     if (time - lastPackRecordTimeRef.current >= 0.5) {
@@ -353,19 +366,44 @@ const Index = () => {
 
       // Record density-throughput data
       if (newCars.length > 0) {
-        const avgSpeed = newCars.reduce((sum, car) => sum + car.speed, 0) / newCars.length;
-        // Calculate overall density (cars per mile)
-        const density = newCars.length / currentLaneLength;
-        // Throughput = average speed * density * number of lanes (cars per hour)
-        const numLanes = newCars.length > 0 ? Math.max(...newCars.map(c => c.lane)) + 1 : 1;
-        const throughputPerLane = avgSpeed * density;
-        const throughput = throughputPerLane * numLanes;
-
+        const numLanes = params.numLanes || 3; // Use the actual number of lanes from params
+        const laneThroughputs: number[] = [];
+        const laneDensities: number[] = [];
+        
+        // Calculate per-lane metrics
+        for (let lane = 0; lane < numLanes; lane++) {
+          const laneCars = newCars.filter(car => car.lane === lane);
+          const carCount = laneCars.length;
+          
+          if (carCount === 0) {
+            laneThroughputs.push(0);
+            laneDensities.push(0);
+            continue;
+          }
+          
+          // Calculate per-lane metrics
+          const avgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / carCount; // km/h
+          const laneDensity = carCount / currentLaneLength; // cars per km (currentLaneLength is in km)
+          
+          // Throughput = speed (km/h) * density (cars/km) = cars/hour
+          const throughput = avgSpeed * laneDensity;
+          
+          laneThroughputs.push(parseFloat(throughput.toFixed(2)));
+          laneDensities.push(parseFloat(laneDensity.toFixed(4)));
+        }
+        
+        // Calculate total metrics - match StatsDisplay calculation
+        const totalDensity = newCars.length / currentLaneLength; // cars per km (matches StatsDisplay)
+        const totalAvgSpeed = newCars.reduce((sum, car) => sum + car.speed, 0) / newCars.length; // km/h
+        const totalThroughput = totalAvgSpeed * totalDensity; // cars/hour
+        
         setDensityThroughputHistory(prev => {
           const newHistory = [...prev, {
-            density: parseFloat((newCars.length / currentLaneLength).toFixed(2)), // Match current point precision
-            throughput: Math.round(throughput), // Use Math.round to match current point
-            time: parseFloat(time.toFixed(1))
+            density: parseFloat(totalDensity.toFixed(4)),
+            throughput: parseFloat(totalThroughput.toFixed(2)),
+            time: parseFloat(time.toFixed(1)),
+            laneThroughputs,
+            laneDensities
           }];
           if (newHistory.length > 100) {
             return newHistory.slice(-100);
@@ -375,8 +413,8 @@ const Index = () => {
 
         setDensityThroughputHistory(prev => {
           const newHistory = [...prev, {
-            density: parseFloat((newCars.length / currentLaneLength).toFixed(2)),
-            throughput: Math.round(throughput),
+            density: parseFloat(totalDensity.toFixed(4)),
+            throughput: parseFloat(totalThroughput.toFixed(2)),
             time: parseFloat(time.toFixed(1))
           }];
           densityThroughputHistoryRef.current = newHistory;
@@ -386,13 +424,36 @@ const Index = () => {
           return densityThroughputHistoryRef.current;
         });
 
+        // Calculate overall average speed first
+        const overallAvgSpeed = newCars.reduce((sum, car) => sum + car.speed, 0) / newCars.length;
+        
+        // Calculate per-lane speeds and statistics
+        const laneSpeeds = Array(numLanes).fill(0).map((_, lane) => {
+          const laneCars = newCars.filter(car => car.lane === lane);
+          if (laneCars.length === 0) return 0;
+          
+          const laneAvgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / laneCars.length;
+          return laneAvgSpeed;
+        });
+        
+        const laneSpeedVariance = laneSpeeds.reduce((sum, speed) => sum + Math.pow(speed - overallAvgSpeed, 2), 0) / laneSpeeds.length;
+        const laneSpeedStdDev = Math.sqrt(laneSpeedVariance);
+        
         // Record speed-density data
         setSpeedDensityHistory(prev => {
           const newHistory = [...prev, {
-            density: parseFloat(density.toFixed(3)),
-            speed: parseFloat(avgSpeed.toFixed(1)),
-            time: parseFloat(time.toFixed(1))
+            time: parseFloat(time.toFixed(1)),
+            speed: parseFloat(overallAvgSpeed.toFixed(2)),
+            density: parseFloat(totalDensity.toFixed(4)),
+            trafficRule: trafficRule,
+            numLanes: numLanes,
+            trafficDensity: params.trafficDensity,
+            speedLimit: params.speedLimit,
+            vehicleTypeDensity: params.vehicleTypeDensity,
+            driverTypeDensity: params.driverTypeDensity,
+            uniformDriverBehavior: params.uniformDriverBehavior || false
           }];
+          
           if (newHistory.length > 100) {
             return newHistory.slice(-100);
           }
@@ -400,9 +461,17 @@ const Index = () => {
         });
 
         setSpeedDensityHistory(prev => {
-          const newHistory = [...prev, {density: parseFloat(density.toFixed(3)),
-            speed: parseFloat(avgSpeed.toFixed(1)),
-            time: parseFloat(time.toFixed(1)) }];
+          const newHistory = [...prev, {
+            time: parseFloat(time.toFixed(1)),
+            speed: parseFloat(overallAvgSpeed.toFixed(2)),
+            density: parseFloat(totalDensity.toFixed(4)),
+            trafficRule: trafficRule,
+            numLanes: numLanes,
+            trafficDensity: params.trafficDensity,
+            speedLimit: params.speedLimit,
+            vehicleTypeDensity: params.vehicleTypeDensity,
+            driverTypeDensity: params.driverTypeDensity,
+            uniformDriverBehavior: params.uniformDriverBehavior || false }];
           speedDensityHistoryRef.current = newHistory;
           if (newHistory.length > 100) {
             speedDensityHistoryRef.current = newHistory.slice(-100);
@@ -414,14 +483,15 @@ const Index = () => {
 
         // Record pack formation data
         const speeds = newCars.map(car => car.speed);
-        const speedVariance = speeds.reduce((sum, speed) => sum + Math.pow(speed - avgSpeed, 2), 0) / speeds.length;
+        const speedVariance = newCars.reduce((sum, car) => sum + Math.pow(car.speed - overallAvgSpeed, 2), 0) / newCars.length;
         const speedStdDev = Math.sqrt(speedVariance);
+        const density = newCars.length / currentLaneLength;
 
         setPackFormationHistory(prev => {
           const newHistory = [...prev, {
             density: parseFloat(density.toFixed(2)),
             speedStdDev: parseFloat(speedStdDev.toFixed(2)),
-            packCount,
+            packCount: packCount,
             time: parseFloat(time.toFixed(1))
           }];
           if (newHistory.length > 100) {
@@ -435,7 +505,7 @@ const Index = () => {
           const newHistory = [...prev, {
             density: parseFloat(density.toFixed(2)),
             speedStdDev: parseFloat(speedStdDev.toFixed(2)),
-            packCount,
+            packCount: packCount,
             time: parseFloat(time.toFixed(1))
           }];
           packFormationHistoryRef.current = newHistory
@@ -570,27 +640,33 @@ const Index = () => {
   const handleSimulationEvents = useCallback((events: SimulationEvent[]) => {
     events.forEach(event => {
       if (event.type === 'exit') {
-        toast({
-          title: "Car Exited",
-          description: `${event.carName} has completed its trip and exited the freeway.`,
-          variant: "default",
-        });
+        if (showNotifications) {
+          toast({
+            title: "Car Exited",
+            description: `${event.carName} has completed its trip and exited the freeway.`,
+            variant: "default",
+          });
+        }
       } else if (event.type === 'enter') {
-        toast({
-          title: "Car Entered",
-          description: `${event.carName} has entered the freeway at position ${(event.position / 5280).toFixed(2)} mi.`,
-          variant: "default",
-        });
+        if (showNotifications) {
+          toast({
+            title: "Car Entered",
+            description: `${event.carName} has entered the freeway at position ${(event.position / 5280).toFixed(2)} mi.`,
+            variant: "default",
+          });
+        }
       } else if (event.type === 'laneChange') {
         setLaneChanges(prev => prev + 1);
-        toast({
-          title: "Lane Change",
-          description: `${event.carName} has changed to lane ${event.lane! + 1}.`,
-          variant: "default",
-        });
+        if (showNotifications) {
+          toast({
+            title: "Lane Change",
+            description: `${event.carName} has changed to lane ${event.lane! + 1}.`,
+            variant: "default",
+          });
+        }
       }
     });
-  }, [toast]);
+  }, [toast, showNotifications]);
 
   const animationLoop = useCallback((timestamp: number) => {
     if (!lastTimestampRef.current) {
@@ -620,7 +696,8 @@ const Index = () => {
       newElapsedTime,
       trafficRule,
       simulationSpeed,
-      stoppedCars // Pass stopped cars to simulation
+      stoppedCars, // Pass stopped cars to simulation
+      showNotifications
     );
     setCars(updatedCars);
     carsRef.current = updatedCars;
@@ -651,6 +728,26 @@ const Index = () => {
       const avgSpeed = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
       const maxSpeed = Math.max(...speeds);
       const minSpeed = Math.min(...speeds);
+      
+      // Calculate per-lane throughput
+      const perLaneThroughputs = [];
+      const numLanes = params.numLanes || 3;
+      const laneLength = params.freewayLength || 1; // km
+      
+      for (let lane = 0; lane < numLanes; lane++) {
+        const laneCars = cars.filter(car => car.lane === lane);
+        const carCount = laneCars.length;
+        
+        if (carCount === 0) {
+          perLaneThroughputs.push(0);
+          continue;
+        }
+        
+        const avgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / carCount;
+        const density = carCount / laneLength; // cars/km
+        const throughput = avgSpeed * density; // cars/hour for this lane
+        perLaneThroughputs.push(parseFloat(throughput.toFixed(2)));
+      }
 
       if (!isBatch) {
         const savedSimulation: SavedSimulation = {
@@ -675,6 +772,7 @@ const Index = () => {
             maxSpeed: parseFloat(maxSpeed.toFixed(1)),
             minSpeed: parseFloat(minSpeed.toFixed(1)),
             laneChanges: laneChanges,
+            perLaneThroughputs: perLaneThroughputs,
           },
         };
         await indexedDBService.saveSimulation(savedSimulation);
@@ -706,6 +804,7 @@ const Index = () => {
             maxSpeed: parseFloat(maxSpeed.toFixed(1)),
             minSpeed: parseFloat(minSpeed.toFixed(1)),
             laneChanges: laneChanges,
+            perLaneThroughputs: perLaneThroughputs,
           },
         };
         await indexedDBService.saveSimulation(savedSimulation);
@@ -721,13 +820,15 @@ const Index = () => {
       });
     } catch (error) {
       console.error('Error saving simulation:', error);
-      toast({
-        title: "Save Failed",
-        description: "Could not save the simulation. Please try again.",
-        variant: "destructive",
-      });
+      if (showNotifications) {
+        toast({
+          title: "Save Failed",
+          description: "Could not save the simulation. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
-  }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast]);
+  }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast, showNotifications]);
 
   const handleBatchImport = useCallback((simulations: BatchSimulation[]) => {
     console.log('Starting batch import:', simulations);
@@ -737,11 +838,13 @@ const Index = () => {
     const runNextSimulation = () => {
       if (currentIndex >= simulations.length) {
         console.log('All batch simulations completed');
-        toast({
-          title: "Batch Complete",
-          description: `All ${simulations.length} simulations have been completed.`,
-          variant: "default",
-        });
+        if (showNotifications) {
+          toast({
+            title: "Batch Complete",
+            description: `All ${simulations.length} simulations have been completed.`,
+            variant: "default",
+          });
+        }
         return;
       }
 
@@ -815,6 +918,8 @@ const Index = () => {
         canSave={packHistory.length > 0}
         unitSystem={unitSystem}
         onUnitSystemChange={setUnitSystem}
+        showNotifications={showNotifications}
+        onNotificationsToggle={setShowNotifications}
       />
 
       {/* Sticky Control Bar */}
@@ -889,13 +994,14 @@ const Index = () => {
         {/* Stats and controls row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           <div className="lg:col-span-2">
-            <StatsDisplay
-              cars={cars}
-              laneLength={laneLength}
-              elapsedTime={elapsedTime}
-              laneChanges={laneChanges}
-              unitSystem={unitSystem}
-            />
+          <StatsDisplay 
+            cars={cars} 
+            laneLength={laneLength} 
+            elapsedTime={elapsedTime}
+            laneChanges={laneChanges}
+            unitSystem={unitSystem}
+            trafficDensity={params.trafficDensity}
+          />
           </div>
 
           <div>

@@ -7,6 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Switch } from "@/components/ui/switch";
 import { SimulationParams } from "@/utils/trafficSimulation";
 import { JsonImportExport } from "./JsonImportExport";
 import { InfoTooltip } from "./InfoTooltip";
@@ -39,7 +40,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onTrafficRuleChange,
   carSize = 24,
   onCarSizeChange,
-  unitSystem = 'imperial',
+  unitSystem = 'metric',
   onUnitSystemChange,
 }) => {
   const conversions = getUnitConversions(unitSystem);
@@ -135,6 +136,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <SelectItem value="european">European</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <Separator />
+
+            {/* Driver Behavior */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Label className="text-sm font-medium">Uniform Driver Behavior</Label>
+                  <InfoTooltip content="When enabled, all drivers change lanes deterministically when conditions are favorable (no randomness). When disabled, drivers have different behaviors (aggressive, normal, conservative) with probability-based decisions." />
+                </div>
+                <Switch
+                  checked={params.uniformDriverBehavior || false}
+                  onCheckedChange={(checked) => onUpdateParams({ uniformDriverBehavior: checked })}
+                />
+              </div>
             </div>
 
             <Separator />
