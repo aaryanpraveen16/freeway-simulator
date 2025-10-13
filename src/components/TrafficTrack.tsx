@@ -88,21 +88,29 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
               
               {/* Cars container with high z-index to ensure tooltips appear above all */}
               <div className="relative" style={{ zIndex: 2 }}>
-                {cars.map((car, index) => (
-                  <CarComponent 
-                    key={car.id} 
-                    car={car} 
-                    laneLength={laneLength} 
-                    trackRadius={trackRadius}
-                    trackType="circular"
-                    distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
-                    isStopped={stoppedCars.has(car.id)}
-                    onStopCar={onStopCar}
-                    onResumeCar={onResumeCar}
-                    carSize={carSize}
-                    unitSystem={unitSystem}
-                  />
-                ))}
+                {cars.length > 200 ? (
+                  <div className="text-center text-sm text-muted-foreground p-2">
+                    Too many cars to display ({cars.length} cars)
+                  </div>
+                ) : (
+                  <div className="relative" style={{ zIndex: 2 }}>
+                    {cars.map((car, index) => (
+                      <CarComponent 
+                        key={car.id} 
+                        car={car} 
+                        laneLength={laneLength} 
+                        trackRadius={trackRadius}
+                        trackType="circular"
+                        distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
+                        isStopped={stoppedCars.has(car.id)}
+                        onStopCar={onStopCar}
+                        onResumeCar={onResumeCar}
+                        carSize={carSize}
+                        unitSystem={unitSystem}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
               
               {/* Center info */}

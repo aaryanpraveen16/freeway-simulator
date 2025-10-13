@@ -227,22 +227,30 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
               
               {/* Cars */}
               <div className="absolute inset-0 overflow-visible">
-                {cars.map((car, index) => (
-                  <CarComponent 
-                    key={car.id} 
-                    car={car} 
-                    laneLength={laneLength} 
-                    trackLength={trackContentWidth}
-                    trackType="straight"
-                    distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
-                    laneOffset={car.lane * laneHeight + laneCenterOffset + carHeight / 2 + trackPadding}
-                    isStopped={stoppedCars.has(car.id)}
-                    onStopCar={onStopCar}
-                    onResumeCar={onResumeCar}
-                    carSize={carSize}
-                    unitSystem={unitSystem}
-                  />
-                ))}
+                {cars.length > 200 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center text-sm text-muted-foreground p-2 bg-white/80 rounded">
+                      Too many cars to display ({cars.length} cars)
+                    </div>
+                  </div>
+                ) : (
+                  cars.map((car, index) => (
+                    <CarComponent 
+                      key={car.id} 
+                      car={car} 
+                      laneLength={laneLength} 
+                      trackLength={trackContentWidth}
+                      trackType="straight"
+                      distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
+                      laneOffset={car.lane * laneHeight + laneCenterOffset + carHeight / 2 + trackPadding}
+                      isStopped={stoppedCars.has(car.id)}
+                      onStopCar={onStopCar}
+                      onResumeCar={onResumeCar}
+                      carSize={carSize}
+                      unitSystem={unitSystem}
+                    />
+                  ))
+                )}
               </div>
               
               {/* Grid lines for better spatial reference */}

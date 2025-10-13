@@ -331,7 +331,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <span className="text-xs text-gray-500">{conversions.density.unit}</span>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {[10, 20, 30, 40, 50, 60, 70, 80].map((density) => (
+                  {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((density) => (
                     <Button
                       key={density}
                       variant="outline"
