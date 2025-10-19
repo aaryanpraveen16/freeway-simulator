@@ -4,7 +4,7 @@ import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { SavedSimulation } from "@/services/indexedDBService";
 
-interface OverlayThroughputDensityChartProps {
+interface OverlayLaneChangesDensityChartProps {
   selectedSimulations: SavedSimulation[];
 }
 
@@ -34,7 +34,7 @@ const generateColors = (count: number): string[] => {
   return colors.slice(0, count);
 };
 
-const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps> = ({
+const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartProps> = ({
   selectedSimulations
 }) => {
   const { chartData, colors, simulationNames } = useMemo(() => {
@@ -48,33 +48,20 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
       
       // Use stabilized values from finalStats if available
       if (simulation.finalStats?.stabilizedDensity !== undefined && 
-          simulation.finalStats?.stabilizedThroughput !== undefined) {
+          simulation.finalStats?.laneChanges !== undefined) {
         allDataPoints.push({
           density: simulation.finalStats.stabilizedDensity,
-          throughput: simulation.finalStats.stabilizedThroughput,
-          time: 0,
+          laneChanges: simulation.finalStats.laneChanges,
           simulationIndex: index,
           simulationName: simName,
-          color: colors[index],
+          color: simulation.trafficRule === 'american' ? '#ff4d4f' : '#1890ff',
           trafficRule: simulation.trafficRule || 'unknown'
         });
       }
-      // Fallback to history data if no stabilized values
-      else if (simulation.chartData?.densityThroughputHistory) {
-        const lastPoint = simulation.chartData.densityThroughputHistory.slice(-1)[0];
-        if (lastPoint) {
-          allDataPoints.push({
-            density: lastPoint.density,
-            throughput: lastPoint.throughput,
-            time: lastPoint.time,
-            simulationIndex: index,
-            simulationName: simName,
-            color: colors[index],
-            trafficRule: simulation.trafficRule || 'unknown'
-          });
-        }
-      }
     });
+    
+    // Sort data points by density for proper line rendering
+    allDataPoints.sort((a, b) => a.density - b.density);
     
     return {
       chartData: allDataPoints,
@@ -87,11 +74,11 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Throughput vs Density Comparison</CardTitle>
+          <CardTitle>Lane Changes vs Density Comparison</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center text-muted-foreground py-8">
-            Select simulations to compare their throughput vs density patterns
+            Select simulations to compare their lane changes vs density patterns
           </div>
         </CardContent>
       </Card>
@@ -107,13 +94,13 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
             {data.simulationName}
           </p>
           <p className="text-sm">
-            <span className="font-medium">Density:</span> {data.density.toFixed(2)} cars/mile
+            <span className="font-medium">Density:</span> {data.density.toFixed(2)} cars/km
           </p>
           <p className="text-sm">
-            <span className="font-medium">Throughput:</span> {Math.round(data.throughput).toLocaleString()} cars/hour
+            <span className="font-medium">Lane Changes:</span> {data.laneChanges.toLocaleString()}
           </p>
           <p className="text-sm text-gray-500">
-            Time: {data.time.toFixed(1)}s
+            Traffic Rule: {data.trafficRule}
           </p>
         </div>
       );
@@ -124,7 +111,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Throughput vs Density Comparison</CardTitle>
+        <CardTitle>Lane Changes vs Density Comparison</CardTitle>
         <div className="text-sm text-muted-foreground">
           Comparing {selectedSimulations.length} simulation{selectedSimulations.length !== 1 ? 's' : ''}
         </div>
@@ -132,31 +119,35 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
       <CardContent>
         <ChartContainer className="h-[400px]" config={{}}>
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+            <ScatterChart 
+              margin={{ top: 20, right: 40, bottom: 40, left: 60 }}
+            >
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis
                 type="number"
                 dataKey="density"
                 name="Density"
-                unit=" cars/mile"
+                unit=" cars/km"
                 tick={{ fontSize: 12 }}
+                domain={['auto', 'auto']}
                 label={{
-                  value: 'Density (cars/mile)',
-                  position: 'insideBottom',
-                  offset: -10,
+                  value: 'Density (cars/km)',
+                  position: 'bottom',
+                  offset: 10,
                   style: { textAnchor: 'middle', fontWeight: 500 }
                 }}
               />
               <YAxis
                 type="number"
-                dataKey="throughput"
-                name="Throughput"
-                unit=" cars/hour"
+                dataKey="laneChanges"
+                name="Lane Changes"
                 tick={{ fontSize: 12 }}
+                domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
                 label={{
-                  value: 'Throughput (cars/hour)',
+                  value: 'Number of Lane Changes',
                   angle: -90,
-                  position: 'insideLeft',
+                  position: 'left',
+                  offset: 10,
                   style: { textAnchor: 'middle', fontWeight: 500 }
                 }}
                 tickFormatter={(value) => Math.round(value).toLocaleString()}
@@ -169,7 +160,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
                 const trafficRule = simulation.trafficRule || 'american';
                 const color = trafficRule === 'american' ? '#ff4d4f' : '#1890ff';
                 
-                return (
+                return simulationData.length > 0 ? (
                   <Scatter
                     key={index}
                     data={simulationData}
@@ -181,7 +172,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
                     shape="circle"
                     r={6}
                   />
-                );
+                ) : null;
               })}
             </ScatterChart>
           </ResponsiveContainer>
@@ -190,13 +181,13 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
         <div className="mt-4 text-sm text-gray-600 space-y-1">
           <p className="font-medium">Understanding the Chart:</p>
           <p>• Each color represents a different simulation</p>
-          <p>• Points show the relationship between traffic density and throughput over time</p>
-          <p>• Optimal throughput typically occurs at moderate densities</p>
-          <p>• Higher densities often lead to congestion and reduced throughput</p>
+          <p>• Points show the relationship between traffic density and total lane changes</p>
+          <p>• Higher densities may lead to more lane changes as drivers seek faster lanes</p>
+          <p>• Traffic rules (American vs European) can significantly affect lane change behavior</p>
         </div>
       </CardContent>
     </Card>
   );
 };
 
-export default OverlayThroughputDensityChart;
+export default OverlayLaneChangesDensityChart;

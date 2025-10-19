@@ -4,7 +4,7 @@ import ControlPanel from "@/components/ControlPanel";
 import StickyControlBar from "@/components/StickyControlBar";
 import StatsDisplay from "@/components/StatsDisplay";
 import CarStatsCard from "@/components/CarStatsCard";
-import SimulationInfo from "@/components/SimulationInfo";
+import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import ChartDashboard from "@/components/ChartDashboard";
 import PackFormationChart, { identifyPacks, PackHistoryItem } from "@/components/PackFormationChart";
@@ -1017,21 +1017,6 @@ const Index = () => {
 
 
       <div className="container mx-auto px-4 py-8 pt-16">
-        <header className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Freeway Simulator
-          </h1>
-          <div className="max-w-2xl mx-auto">
-            <p className="text-gray-600">
-              A real-time simulation of traffic flow in a closed loop, demonstrating how
-              traffic jams can emerge from the dynamics of car following behavior.
-            </p>
-            <div className="mt-4 p-3 bg-white/80 text-xs text-gray-600 rounded border border-gray-200 shadow-sm">
-              <div className="font-medium text-gray-700">Note</div>
-              <p className="mt-1">This is a work in progress. Cars may appear to overlap visually, but they maintain safe distances in the simulation logic.</p>
-            </div>
-          </div>
-        </header>
 
         {/* Full width track */}
         <div className="mb-8">
@@ -1078,12 +1063,8 @@ const Index = () => {
         </div>
 
         {/* Additional info sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="mb-8">
           <CarStatsCard cars={cars} laneLength={laneLength} params={params} showPackInfo={showPackFormation} unitSystem={unitSystem} />
-
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <SimulationInfo />
-          </div>
         </div>
 
         {/* New Chart Dashboard replacing individual charts */}
@@ -1141,6 +1122,8 @@ const Index = () => {
           />
         </div> */}
       </div>
+      
+      <Footer />
     </div>
   );
 };

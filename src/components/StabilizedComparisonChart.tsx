@@ -42,7 +42,7 @@ const StabilizedComparisonChart: React.FC<StabilizedComparisonChartProps> = ({
         trafficRule: sim.trafficRule,
         density,
         avgSpeed: unitConversions.speed.toDisplay(avgSpeed),
-        color: `hsl(${Math.random() * 360}, 70%, 50%)`
+        color: sim.trafficRule === 'american' ? '#ff4d4f' : '#1890ff'
       };
     });
   };

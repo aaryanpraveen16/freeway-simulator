@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { SavedSimulation } from "@/services/indexedDBService";
 
 interface OverlaySpeedDensityChartProps {
@@ -96,7 +96,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
           ...point,
           simulationIndex: index,
           simulationName: simName,
-          color: colors[index],
+          color: simulation.trafficRule === 'american' ? '#ff4d4f' : '#1890ff',
           trafficRule: simulation.trafficRule || 'unknown'
         });
       });
@@ -207,21 +207,6 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
                   return [value, name];
                 }}
               />
-              <Legend
-                content={(props) => (
-                  <div className="flex flex-wrap gap-4 justify-center mt-4">
-                    {simulationNames.map((name, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: colors[index] }}
-                        />
-                        <span className="text-sm">{name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              />
               
               {/* Create a separate Scatter for each simulation */}
               {selectedSimulations.map((_, index) => {
@@ -231,9 +216,12 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
                     key={index}
                     name={simulationNames[index]}
                     data={simulationData}
-                    fill={colors[index]}
+                    fill={simulationData[0]?.trafficRule === 'american' ? '#ff4d4f' : '#1890ff'}
                     fillOpacity={0.7}
-                    line={{ stroke: colors[index], strokeWidth: 2 }}
+                    line={{ 
+                      stroke: simulationData[0]?.trafficRule === 'american' ? '#ff4d4f' : '#1890ff', 
+                      strokeWidth: 2 
+                    }}
                     lineType="joint"
                     isAnimationActive={false}
                     shape="circle"

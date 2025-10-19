@@ -194,64 +194,34 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {perLaneStats.map(({ lane, throughput, calculation, avgSpeed, carCount, density }) => (
-                <div key={lane} className="space-y-1 border rounded-lg p-3 bg-muted/20">
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {lane === 0 ? 'Left' : lane === perLaneStats.length - 1 ? 'Right' : `Lane ${lane + 1}`}
-                    </p>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button 
-                            className="text-muted-foreground hover:text-foreground"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Info className="h-3.5 w-3.5" />
-                            <span className="sr-only">Calculation details</span>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent 
-                          className="max-w-[300px] p-3 text-sm whitespace-pre-line"
-                          side="top"
-                          sideOffset={5}
-                        >
-                          <p className="font-medium mb-1">Lane {lane + 1} Calculation:</p>
-                          <p className="text-sm">{calculation}</p>
-                          <p className="mt-2 text-muted-foreground text-xs">
-                            Formula: Throughput = (Avg Speed × Density) × 3600
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <TooltipProvider>
+            <div className="flex flex-wrap gap-2">
+              {perLaneStats.map(({ lane, throughput, calculation, avgSpeed, carCount, density }) => {
+                const laneName = lane === 0 ? 'L' : lane === perLaneStats.length - 1 ? 'R' : `L${lane + 1}`;
+                const fullLaneName = lane === 0 ? 'Left' : lane === perLaneStats.length - 1 ? 'Right' : `Lane ${lane + 1}`;
+                
+                return (
+                  <TooltipProvider key={lane}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="text-xl font-bold cursor-help">
-                          {throughput}
+                        <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-muted/20 cursor-help">
+                          <span className="text-xs font-medium text-muted-foreground">{laneName}:</span>
+                          <span className="text-sm font-bold">{Math.round(throughput)}</span>
+                          <span className="text-xs text-muted-foreground">cars/hr</span>
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent side="top" sideOffset={5}>
-                        <p className="text-sm">Click the info icon for calculation details</p>
+                      <TooltipContent className="max-w-[300px] p-3 text-sm" side="top">
+                        <p className="font-medium mb-1">{fullLaneName}</p>
+                        <p className="text-sm">
+                          {carCount} car{carCount !== 1 ? 's' : ''} • {avgSpeed.toFixed(1)} {conversions.speed.unit}
+                        </p>
+                        <p className="mt-1 text-muted-foreground text-xs">
+                          = {throughput.toFixed(1)} cars/hour
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  <div className="h-2 bg-primary/20 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-r-full transition-all duration-300" 
-                      style={{ 
-                        width: `${Math.min(100, (throughput / Math.max(1, stats.throughput)) * 100)}%`,
-                        backgroundColor: throughput > 0 ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground)/0.5)'
-                      }} 
-                    />
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {carCount} car{carCount !== 1 ? 's' : ''} • {avgSpeed.toFixed(1)} {conversions.speed.unit}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
