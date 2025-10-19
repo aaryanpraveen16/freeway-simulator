@@ -3,27 +3,53 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Save } from 'lucide-react';
+import { Save, Loader2 } from 'lucide-react';
+import { useSimulations } from '@/hooks/useSimulations';
+import { toast } from './ui/use-toast';
 
 interface SaveSimulationDialogProps {
-  onSave: (name: string) => void;
   canSave: boolean;
   trigger?: React.ReactNode;
+  simulationParams?: any;
+  simulationResults?: any;
 }
 
 const SaveSimulationDialog: React.FC<SaveSimulationDialogProps> = ({
-  onSave,
   canSave,
-  trigger
+  trigger,
+  simulationParams = {},
+  simulationResults = {}
 }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const { saveSimulation } = useSimulations();
 
-  const handleSave = () => {
-    if (name.trim()) {
-      onSave(name.trim());
-      setOpen(false);
-      setName('');
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      const result = await saveSimulation(name, simulationParams, simulationResults);
+      if (result) {
+        toast({
+          title: 'Success',
+          description: 'Simulation saved successfully!',
+        });
+        setOpen(false);
+        setName('');
+      } else {
+        throw new Error('Failed to save simulation');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save simulation',
+        variant: 'destructive',
+      });
+      console.error('Save simulation error:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 

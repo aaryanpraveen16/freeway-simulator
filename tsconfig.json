@@ -14,6 +14,9 @@
     "skipLibCheck": true,
     "allowJs": true,
     "noUnusedLocals": false,
-    "strictNullChecks": false
+    "strictNullChecks": false,
+    "jsx": "react-jsx", // Add JSX support for React
+    "moduleResolution": "node16", // Ensure proper module resolution
+    "types": ["vite/client"]
   }
 }

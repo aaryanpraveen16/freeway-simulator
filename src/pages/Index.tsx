@@ -783,12 +783,26 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <Navbar 
-        onSaveSimulation={handleSaveSimulation} 
         canSave={packHistory.length > 0}
         unitSystem={unitSystem}
         onUnitSystemChange={setUnitSystem}
         showNotifications={showNotifications}
         onNotificationsToggle={setShowNotifications}
+        simulationParams={params}
+        simulationResults={{
+          packHistory,
+          packLengthHistory,
+          packDensityData,
+          densityThroughputHistory,
+          packFormationHistory,
+          laneUtilizationHistory,
+          speedDensityHistory,
+          densityOfCarPacksHistory,
+          percentageByLaneHistory,
+          laneChanges,
+          elapsedTime,
+          cars
+        }}
       />
       
       {/* Sticky Control Bar */}

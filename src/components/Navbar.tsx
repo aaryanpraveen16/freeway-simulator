@@ -12,34 +12,44 @@ import { Label } from "@/components/ui/label";
 import { UnitSystem } from "@/utils/unitConversion";
 
 interface NavbarProps {
-  onSaveSimulation?: (name: string) => void;
   canSave?: boolean;
   unitSystem?: UnitSystem;
   onUnitSystemChange?: (system: UnitSystem) => void;
   showNotifications?: boolean;
   onNotificationsToggle?: (enabled: boolean) => void;
+  simulationParams?: any;
+  simulationResults?: any;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'metric', onUnitSystemChange, showNotifications = true, onNotificationsToggle }) => {
+const Navbar: React.FC<NavbarProps> = ({ 
+  canSave = false, 
+  unitSystem = 'metric', 
+  onUnitSystemChange, 
+  showNotifications = true, 
+  onNotificationsToggle,
+  simulationParams = {},
+  simulationResults = {}
+}) => {
   const [showCredits, setShowCredits] = useState(false);
 
   return (
     <div className="bg-primary text-primary-foreground py-2 px-4 mb-6 shadow-md">
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {onSaveSimulation && (
-            <SaveSimulationDialog
-              onSave={onSaveSimulation}
-              canSave={canSave}
-            />
-          )}
+          <SaveSimulationDialog
+            canSave={canSave}
+            simulationParams={simulationParams}
+            simulationResults={simulationResults}
+          />
           
-          <Link to="/saved-simulations">
-            <Button variant="secondary" size="sm" className="flex items-center gap-2">
-              <Archive size={16} />
-              View Saved
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/saved-simulations">
+              <Button variant="secondary" size="sm" className="flex items-center gap-2">
+                <Archive size={16} />
+                View Saved
+              </Button>
+            </Link>
+          </div>
           
           <div className="flex items-center gap-2 bg-secondary/30 px-3 py-2 rounded-lg border border-secondary/50">
             <div className="flex items-center gap-2">

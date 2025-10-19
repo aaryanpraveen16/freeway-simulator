@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { BarChart3, Calendar, CheckSquare, Clock, Copy, Edit2, Eye, FileDown, FileUp, Gauge, Info, Plus, Repeat, Square, Trash2, Users } from "lucide-react";
 import { exportSimulation, importSimulation, triggerFileInput } from "@/utils/simulationExport";
-import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
+import { neonDBService } from "@/services/neonDBService";
 import { useToast } from "@/hooks/use-toast";
 import { extractSimulationParams, formatParamsWithUnits } from "../utils/simulationUtils";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
@@ -22,10 +22,40 @@ import OverlayLaneChangesDensityChart from "@/components/OverlayLaneChangesDensi
 import DensityLaneDistributionChart from "@/components/DensityLaneDistributionChart";
 import Footer from "@/components/Footer";
 
+interface Simulation {
+  id: string;
+  name: string;
+  timestamp: number;
+  simulationNumber: number;
+  trafficRule: "american" | "european";
+  chartData: {
+    speedByLaneHistory: any[];
+    densityOfCarPacksHistory: any[];
+    percentageByLaneHistory: any[];
+    densityThroughputHistory: any[];
+    packHistory: any[];
+    packLengthHistory: any[];
+  };
+  duration: number;
+  finalStats: {
+    totalCars: number;
+    averageSpeed: number;
+    maxSpeed: number;
+    minSpeed: number;
+    laneChanges: number;
+    perLaneThroughputs: number[];
+    stabilizedDensity?: number;
+    stabilizedAverageSpeed?: number;
+    stabilizedThroughput?: number;
+  };
+  params: any;
+  results: any;
+}
+
 const SavedSimulations: React.FC = () => {
-  const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
+  const [savedSimulations, setSavedSimulations] = useState<Simulation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSimulation, setSelectedSimulation] = useState<SavedSimulation | null>(null);
+  const [selectedSimulation, setSelectedSimulation] = useState<Simulation | null>(null);
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set());
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
   const { toast } = useToast();
@@ -36,9 +66,21 @@ const SavedSimulations: React.FC = () => {
     loadSimulations();
   }, []);
 
-  const handleExportSimulation = (simulation: SavedSimulation) => {
+  const handleExportSimulation = async (simulation: SavedSimulation) => {
     try {
-      exportSimulation(simulation);
+      // Use the NeonDB service to export the simulation
+      const blob = await neonDBService.exportSimulation(simulation.id);
+      
+      // Create a download link and trigger it
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${simulation.name.replace(/\s+/g, '_')}_${simulation.id}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      
       toast({
         title: "Success",
         description: "Simulation exported successfully",
@@ -48,7 +90,7 @@ const SavedSimulations: React.FC = () => {
       console.error('Error exporting simulation:', error);
       toast({
         title: "Error",
-        description: "Failed to export simulation",
+        description: error instanceof Error ? error.message : "Failed to export simulation",
         variant: "destructive",
       });
     }
@@ -56,19 +98,10 @@ const SavedSimulations: React.FC = () => {
 
   const handleImportSimulation = async (file: File) => {
     try {
-      const simulation = await importSimulation(file);
+      // Use the NeonDB service's import method which will handle the file upload
+      const simulation = await neonDBService.importSimulation(file);
       
-      // Check if simulation with same ID already exists
-      const exists = savedSimulations.some(s => s.id === simulation.id);
-      
-      if (exists) {
-        // Add a timestamp to make the ID unique
-        simulation.id = `${simulation.id}_${Date.now()}`;
-        simulation.name = `${simulation.name} (Imported)`;
-      }
-      
-      // Save the imported simulation
-      await indexedDBService.saveSimulation(simulation);
+      // Refresh the simulations list
       await loadSimulations();
       
       toast({
@@ -109,14 +142,26 @@ const SavedSimulations: React.FC = () => {
 
   const loadSimulations = async () => {
     try {
-      const simulations = await indexedDBService.getAllSimulations();
-      console.log('Loaded simulations:', simulations);
-      setSavedSimulations(simulations.sort((a, b) => b.timestamp - a.timestamp));
+      console.log('Loading simulations from NeonDB...');
+      const simulations = await neonDBService.getAllSimulations();
+      console.log('Simulations from server:', simulations);
+      
+      if (!simulations || simulations.length === 0) {
+        console.log('No simulations found in the database');
+        setSavedSimulations([]);
+        return;
+      }
+
+      console.log(`Found ${simulations.length} simulations`);
+      
+      // Sort by timestamp (newest first)
+      const sortedSimulations = [...simulations].sort((a, b) => b.timestamp - a.timestamp);
+      setSavedSimulations(sortedSimulations);
     } catch (error) {
       console.error('Error loading simulations:', error);
       toast({
         title: "Error",
-        description: "Failed to load saved simulations",
+        description: error instanceof Error ? error.message : "Failed to load saved simulations from server",
         variant: "destructive",
       });
     } finally {
@@ -126,17 +171,30 @@ const SavedSimulations: React.FC = () => {
 
   const deleteSimulation = async (id: string) => {
     try {
-      await indexedDBService.deleteSimulation(id);
+      await neonDBService.deleteSimulation(id);
       setSavedSimulations(prev => prev.filter(sim => sim.id !== id));
+      
+      if (selectedSimulation?.id === id) {
+        setSelectedSimulation(null);
+      }
+      
+      // Remove from comparison selection if present
+      setSelectedForComparison(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+      
       toast({
         title: "Success",
         description: "Simulation deleted successfully",
+        variant: "default",
       });
     } catch (error) {
       console.error('Error deleting simulation:', error);
       toast({
         title: "Error",
-        description: "Failed to delete simulation",
+        description: error instanceof Error ? error.message : "Failed to delete simulation",
         variant: "destructive",
       });
     }
@@ -148,7 +206,7 @@ const SavedSimulations: React.FC = () => {
       if (!simulation) return;
 
       const updatedSimulation = { ...simulation, name: newName };
-      await indexedDBService.updateSimulation(updatedSimulation);
+      await neonDBService.saveSimulation(updatedSimulation);
       
       setSavedSimulations(prev => 
         prev.map(sim => sim.id === id ? updatedSimulation : sim)
@@ -162,7 +220,7 @@ const SavedSimulations: React.FC = () => {
       console.error('Error updating simulation name:', error);
       toast({
         title: "Error",
-        description: "Failed to update simulation name",
+        description: error instanceof Error ? error.message : "Failed to update simulation name",
         variant: "destructive",
       });
     }

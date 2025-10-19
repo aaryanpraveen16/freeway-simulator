@@ -37,6 +37,7 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: 'assets/[name].[hash].js',
           assetFileNames: 'assets/[name].[hash][extname]',
         },
+        external: ['@neondatabase/serverless'], // Externalize NeonDB serverless module
       },
     },
     server: {
