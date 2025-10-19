@@ -733,13 +733,12 @@ const Index = () => {
       
       // Calculate per-lane throughput
       const perLaneThroughputs = [];
-      console.log("paramsRef inside save simulation: ", paramsRef);
-      console.log("paramsRef lane ", paramsRef.numLanes);
-      console.log("paramsRef freewayLength ", paramsRef.freewayLength);
       const numLanes = params.numLanes || 3;
       const laneLength = params.freewayLength || 1; // km
       
-      for (let lane = 0; lane < numLanes; lane++) {
+
+      if (!isBatch) {
+        for (let lane = 0; lane < numLanes; lane++) {
         const laneCars = cars.filter(car => car.lane === lane);
         const carCount = laneCars.length;
         
@@ -753,8 +752,6 @@ const Index = () => {
         const throughput = avgSpeed * density; // cars/hour for this lane
         perLaneThroughputs.push(parseFloat(throughput.toFixed(2)));
       }
-
-      if (!isBatch) {
         const stabilizedDensity = densityOfCarPacksHistory.length > 0
         ? calculateStabilizedValue(extractDataValues(densityOfCarPacksHistory, 'overallDensity')).value
         : 0;
@@ -801,6 +798,35 @@ const Index = () => {
       }
       else {
 
+        const perLaneThroughputsBatch = [];
+        const stabilizedDensity = densityOfCarPacksHistoryRef.current.length > 0
+          ? calculateStabilizedValue(extractDataValues(densityOfCarPacksHistoryRef.current, 'overallDensity')).value
+          : 0;
+
+        const stabilizedSpeed = speedDensityHistoryRef.current.length > 0
+          ? calculateStabilizedValue(extractDataValues(speedDensityHistoryRef.current, 'speed')).value
+          : 0;
+
+        const stabilizedThroughput = densityThroughputHistoryRef.current.length > 0
+          ? calculateStabilizedValue(extractDataValues(densityThroughputHistoryRef.current, 'throughput')).value
+          : 0;
+
+        for (let lane = 0; lane < paramsRef.numLanes; lane++) {
+          const laneCars = carsRef.current.filter(car => car.lane === lane);
+          const carCount = laneCars.length;
+
+          if (carCount === 0) {
+            perLaneThroughputsBatch.push(0);
+            continue;
+          }
+
+          debugger;
+          const avgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / carCount;
+          const density = carCount / laneLength; // cars/km
+          const throughput = avgSpeed * density; // cars/hour for this lane
+          perLaneThroughputsBatch.push(parseFloat(throughput.toFixed(2)));
+        }
+        console.log('perLaneThroughputsBatch:', perLaneThroughputsBatch);
         const speeds = carsRef.current.map(car => car.speed);
         const avgSpeed = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
         const maxSpeed = Math.max(...speeds);
@@ -829,7 +855,11 @@ const Index = () => {
             maxSpeed: parseFloat(maxSpeed.toFixed(1)),
             minSpeed: parseFloat(minSpeed.toFixed(1)),
             laneChanges: laneChanges,
-            perLaneThroughputs: perLaneThroughputs,
+            perLaneThroughputs: perLaneThroughputsBatch,
+            // Add stabilized metrics
+            stabilizedDensity: parseFloat(stabilizedDensity.toFixed(3)),
+            stabilizedAverageSpeed: parseFloat(stabilizedSpeed.toFixed(1)),
+            stabilizedThroughput: parseFloat(stabilizedThroughput.toFixed(1)),
           },
         };
         await indexedDBService.saveSimulation(savedSimulation);
