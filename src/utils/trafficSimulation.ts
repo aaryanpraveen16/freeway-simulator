@@ -59,7 +59,9 @@ export interface SimulationParams {
   accelerationThreshold?: number; // threshold for lane change
   laneChangeCooldown?: number; // min time between lane changes (seconds)
   simulationDuration?: number; // simulation duration in seconds (0 = unlimited)
-  uniformDriverBehavior?: boolean; // if true, all drivers have same lane change probability (default false)
+  uniformDriverBehavior?: boolean;
+  /** Gap between stopped cars in meters (default: 1.0) */
+  stoppedCarsGap?: number; // if true, all drivers have same lane change probability (default false)
 }
 
 // Default simulation parameters
@@ -70,6 +72,7 @@ export const defaultParams: SimulationParams = {
     truck: 0,    // No trucks by default
     motorcycle: 0, // No motorcycles by default
   },
+  stoppedCarsGap: 1.0, // 1.0 meter gap between stopped cars by default
   driverTypeDensity: {
     aggressive: 20,    // 20% aggressive drivers by default
     normal: 60,        // 60% normal drivers by default
@@ -532,6 +535,29 @@ export function updateSimulation(
     if (stoppedCars.has(car.id)) {
       carSpeed = 0;
       car.color = "black"; // Set stopped cars to black
+      
+      // Find the car ahead in the same lane
+      const sameLaneCars = updatedCars.filter(c => c.lane === car.lane);
+      const carAhead = sameLaneCars.find(c => 
+        c.position > car.position && 
+        (c.position - car.position) < laneLength / 2
+      );
+      
+      // If there's a car ahead and we're too close, adjust position to maintain the configured gap
+      if (carAhead) {
+        const currentGap = (carAhead.position - car.position) * 1000; // Convert km to meters
+        const desiredGap = params.stoppedCarsGap || 1.0; // Use configured gap or default to 1.0m
+        
+        if (currentGap < desiredGap) {
+          car.position = carAhead.position - (desiredGap / 1000); // Convert back to km
+          
+          // Ensure we don't go negative position
+          if (car.position < 0) {
+            car.position += laneLength;
+          }
+        }
+      }
+      
       movements[carIndex] = {
         newPosition: car.position,
         newSpeed: 0,
