@@ -6,6 +6,7 @@ import { SavedSimulation } from "@/services/indexedDBService";
 
 interface OverlayLaneChangesDensityChartProps {
   selectedSimulations: SavedSimulation[];
+  unitSystem: 'metric' | 'imperial';
 }
 
 // Generate distinct colors for different simulations
@@ -35,8 +36,10 @@ const generateColors = (count: number): string[] => {
 };
 
 const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartProps> = ({
-  selectedSimulations
+  selectedSimulations,
+  unitSystem
 }) => {
+  const unitLabel = unitSystem === 'metric' ? 'km/h' : 'mph';
   const { chartData, colors, simulationNames } = useMemo(() => {
     const colors = generateColors(selectedSimulations.length);
     const simulationNames: string[] = [];
@@ -94,7 +97,7 @@ const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartPro
             {data.simulationName}
           </p>
           <p className="text-sm">
-            <span className="font-medium">Density:</span> {data.density.toFixed(2)} cars/km
+            <span className="font-medium">Density:</span> {data.density.toFixed(2)} cars/{unitSystem === 'metric' ? 'km' : 'mile'}
           </p>
           <p className="text-sm">
             <span className="font-medium">Lane Changes:</span> {data.laneChanges.toLocaleString()}
@@ -127,7 +130,7 @@ const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartPro
                 type="number"
                 dataKey="density"
                 name="Density"
-                unit=" cars/km"
+                unit={` cars/ ${unitSystem === 'metric' ? 'km' : 'mile'} `}
                 tick={{ fontSize: 12 }}
                 domain={['auto', 'auto']}
                 label={{

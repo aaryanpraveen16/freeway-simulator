@@ -136,7 +136,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
             {data.simulationName}
           </p>
           <p className="text-sm">
-            <span className="font-medium">Density:</span> {data.density.toFixed(2)} cars/mile
+            <span className="font-medium">Density:</span> {data.density.toFixed(2)} cars/{unitSystem === 'metric' ? 'km' : 'mile'}
           </p>
           <p className="text-sm">
             <span className="font-medium">Average Speed:</span> {data.speed.toFixed(1)} {unitLabel}
@@ -170,7 +170,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
                 type="number"
                 dataKey="density"
                 name="Density"
-                unit=" cars/km"
+                unit={` cars/ ${unitSystem === 'metric' ? 'km' : 'mile'} `}
                 tick={{ fontSize: 12 }}
                 domain={['auto', 'auto']}
                 label={{

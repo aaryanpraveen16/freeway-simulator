@@ -133,6 +133,7 @@ const Index = () => {
   const packHistoryRef = useRef<any[]>([]);
   const showPackFormationRef = useRef<boolean>(false);
   const carsRef = useRef<Car[]>([]);
+  const laneChangesRef = useRef<number>(0);
   let paramsRef;
   
   // Load saved runs from localStorage on component mount
@@ -659,6 +660,11 @@ const Index = () => {
         }
       } else if (event.type === 'laneChange') {
         setLaneChanges(prev => prev + 1);
+        setLaneChanges(prev => {
+          prev + 1;
+          laneChangesRef.current = prev + 1;
+          return laneChangesRef.current;
+        });
         if (showNotifications) {
           toast({
             title: "Lane Change",
@@ -854,7 +860,7 @@ const Index = () => {
             averageSpeed: parseFloat(avgSpeed.toFixed(1)),
             maxSpeed: parseFloat(maxSpeed.toFixed(1)),
             minSpeed: parseFloat(minSpeed.toFixed(1)),
-            laneChanges: laneChanges,
+            laneChanges: laneChangesRef.current,
             perLaneThroughputs: perLaneThroughputsBatch,
             // Add stabilized metrics
             stabilizedDensity: parseFloat(stabilizedDensity.toFixed(3)),
