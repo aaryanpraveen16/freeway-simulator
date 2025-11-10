@@ -1369,18 +1369,31 @@ function shouldChangeLane(
       adjustedRight > (params.accelerationThreshold || 0.2) &&
       slowerLeader
 
-    // NEW: Safety check for lane changes when slowed down
+    // Calculate safe gaps based on speed (matching European rules)
+    const carSpeed = car.speed || 0;
+    const safeGap = calculateSafeDistance(carSpeed, params.tDist || 3) / 1000;
+    
+    // Calculate follower's safe gap for more accurate safety check
+    const getFollowerSafeGap = (follower: Car | undefined) => {
+      if (!follower) return safeGap;
+      const followerSpeed = follower.speed || 0;
+      return calculateSafeDistance(followerSpeed, params.tDist || 3) / 1000;
+    };
+
+    // Dynamic safety checks using calculated safe distances
     const isLeftLaneSafe = car.lane > 0 &&
-      (!adjacentLanes.leftLane.leader || // No leader means safe
-        ((adjacentLanes.leftLane.leader.position - car.position + laneLength) % laneLength) > 0.1) && // At least 100m gap if leader exists
-      (!adjacentLanes.leftLane.follower || // No follower means safe
-        ((car.position - adjacentLanes.leftLane.follower.position + laneLength) % laneLength) > 0.1); // Safe from behind
+      (!adjacentLanes.leftLane.leader || 
+        ((adjacentLanes.leftLane.leader.position - car.position + laneLength) % laneLength) > safeGap) &&
+      (!adjacentLanes.leftLane.follower || 
+        ((car.position - adjacentLanes.leftLane.follower.position + laneLength) % laneLength) > 
+        getFollowerSafeGap(adjacentLanes.leftLane.follower) * 1.5);
 
     const isRightLaneSafe = car.lane < (params.numLanes || 3) - 1 &&
-      (!adjacentLanes.rightLane.leader || // No leader means safe
-        ((adjacentLanes.rightLane.leader.position - car.position + laneLength) % laneLength) > 0.1) && // At least 100m gap if leader exists
-      (!adjacentLanes.rightLane.follower || // No follower means safe
-        ((car.position - adjacentLanes.rightLane.follower.position + laneLength) % laneLength) > 0.1); // Safe from behind
+      (!adjacentLanes.rightLane.leader || 
+        ((adjacentLanes.rightLane.leader.position - car.position + laneLength) % laneLength) > safeGap) &&
+      (!adjacentLanes.rightLane.follower || 
+        ((car.position - adjacentLanes.rightLane.follower.position + laneLength) % laneLength) > 
+        getFollowerSafeGap(adjacentLanes.rightLane.follower) * 1.5);
 
     // Debug logging for safety checks
     if (shouldChangeLaneWhenSlowed) {
