@@ -1299,10 +1299,10 @@ function shouldChangeLane(
     currentLeader.speed < car.speed - 1 && // Reduced speed difference requirement
     gapToLeader < 800; // Increased gap requirement
 
-  // NEW: Check if car is slowed down significantly below desired speed
+  // Check if car is slowed down significantly below desired speed
   const desiredSpeed = car.desiredSpeed || (params.speedLimit || 130);
   const isSlowedDown = params.uniformDriverBehavior 
-    ? car.speed < desiredSpeed - 1 // Very aggressive threshold for deterministic behavior (1 km/h instead of 15)
+    ? car.speed < desiredSpeed - 15 // 15 km/h threshold for deterministic behavior
     : car.speed < desiredSpeed - 15 && // At least 15 km/h below desired speed
       currentLeader && // Only if there's a car ahead causing the slowdown
       currentLeader.speed < car.speed; // Leader is slower than us
@@ -1515,7 +1515,7 @@ function shouldChangeLane(
     // More realistic overtaking conditions based on safeGap and speed difference
     const speedDifference = currentLeader ? (desiredSpeed - currentLeader.speed) : 0;
     const isBlockedBySlowCar = currentLeader && 
-      speedDifference >= 5 && // Need at least 5 km/h speed benefit
+      speedDifference >= 15 && // Need at least 15 km/h speed benefit (matching American rules)
       gapToLeader <= safeGap * 1.2; // Within 1.2x safe following distance
     
     const canOverrideCooldownForOvertaking = params.uniformDriverBehavior || isBlockedBySlowCar;
