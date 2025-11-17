@@ -17,6 +17,8 @@ export interface Car {
   vehicleType: "car" | "truck" | "motorcycle"; // vehicle type
   isOvertaking?: boolean; // flag to track if car is currently overtaking
   overtakeStartTime?: number; // timestamp when overtaking maneuver started
+  lastLeaderSpeed?: number; // last observed speed of the car ahead
+  reactionDelayEndTime?: number; // timestamp when reaction delay ends
 }
 
 /**
@@ -62,6 +64,8 @@ export interface SimulationParams {
   uniformDriverBehavior?: boolean;
   /** Gap between stopped cars in meters (default: 1.0) */
   stoppedCarsGap?: number; // if true, all drivers have same lane change probability (default false)
+  /** Driver reaction time in seconds (default: 2.0) */
+  driverReactionTime?: number; // time delay before reacting to lead car acceleration
 }
 
 // Default simulation parameters
@@ -101,6 +105,7 @@ export const defaultParams: SimulationParams = {
   laneChangeCooldown: 2, // seconds
   simulationDuration: 600, // 10 minutes by default, 0 would be unlimited but we're setting a max
   uniformDriverBehavior: true, // default to uniform driver behavior for deterministic lane changes
+  driverReactionTime: 2.0, // 2 seconds reaction time by default
 };
 
 // Generate random number from normal distribution
@@ -594,6 +599,47 @@ export function updateSimulation(
 
     const aheadCarSpeed = aheadCar?.speed || 0;
     
+    // ===== DRIVER REACTION DELAY LOGIC =====
+    // Simulates human reaction time: drivers react immediately to braking (safety-critical)
+    // but have a delay before accelerating when the lead car speeds up or clears a blockage.
+    // This creates more realistic traffic flow patterns and wave propagation.
+    const previousLeaderSpeed = car.lastLeaderSpeed ?? aheadCarSpeed;
+    const leaderSpeedIncreased = aheadCarSpeed > previousLeaderSpeed;
+    
+    // Update last leader speed for next iteration
+    updatedCars[carIndex].lastLeaderSpeed = aheadCarSpeed;
+    
+    // Start reaction delay ONLY when:
+    // 1. Leader speed increased AND
+    // 2. We're NOT already in a delay period AND
+    // 3. Leader was previously stopped or very slow (< 5 km/h)
+    // This prevents continuous delay resets as the lead car gradually accelerates
+    const reactionTime = params.driverReactionTime ?? 2.0;
+    const notCurrentlyInDelay = !car.reactionDelayEndTime || car.reactionDelayEndTime <= currentTime;
+    const leaderWasSlowOrStopped = previousLeaderSpeed < 5; // Only trigger if leader was slow/stopped
+    
+    if (leaderSpeedIncreased && notCurrentlyInDelay && leaderWasSlowOrStopped) {
+      // Leader just started accelerating from stopped/slow state, start reaction delay period
+      const delayEndTime = currentTime + reactionTime;
+      updatedCars[carIndex].reactionDelayEndTime = delayEndTime;
+      
+      // Debug log when delay starts
+      if (car.id === 0) {
+        const realWorldTime = reactionTime / simulationSpeed;
+        debugLog(showNotifications, `[REACTION START] Car ${car.id} at t=${currentTime.toFixed(3)}s: Leader speed ${previousLeaderSpeed.toFixed(1)} -> ${aheadCarSpeed.toFixed(1)} km/h. Delay: ${reactionTime.toFixed(3)}s (${realWorldTime.toFixed(3)}s real-world at ${simulationSpeed}x). Will end at t=${delayEndTime.toFixed(3)}s`);
+      }
+    }
+    
+    // Check if we're currently in reaction delay (can't accelerate yet)
+    const inReactionDelay = car.reactionDelayEndTime && car.reactionDelayEndTime > currentTime;
+    
+    // Debug log during delay
+    if (car.id === 0 && inReactionDelay && tick % 20 === 0) {
+      const timeRemaining = car.reactionDelayEndTime! - currentTime;
+      const realWorldTimeRemaining = timeRemaining / simulationSpeed;
+      debugLog(showNotifications, `[REACTION ACTIVE] Car ${car.id} in delay, ${timeRemaining.toFixed(2)}s simulation time remaining (${realWorldTimeRemaining.toFixed(2)}s real-world at ${simulationSpeed}x speed)`);
+    }
+    
     // Debug logging to verify rule and execution (every 10 ticks)
     if (car.id === 0 && tick % 10 === 0) {
       debugLog(showNotifications, `[SIM TICK] rule=${rule} t=${currentTime.toFixed(1)}s car=${car.id} lane=${car.lane}`);
@@ -700,15 +746,27 @@ export function updateSimulation(
     // Use only safeGap for all distance calculations
     // If there's no car ahead or we have safe distance, maintain or increase speed
     if (!aheadCar || gap > safeGap) {
-      // If far ahead, accelerate towards desired speed (in km/h)
-      const acceleration = params.aMax * 3.6; // Convert m/s² to km/h/s
-      carSpeed = Math.min(carSpeed + acceleration * effectiveDt, car.desiredSpeed);
+      // If far ahead, check if we should accelerate (considering reaction delay)
+      if (inReactionDelay) {
+        // During reaction delay, maintain current speed (don't accelerate yet)
+        carSpeed = car.speed;
+      } else {
+        // Not in reaction delay, accelerate towards desired speed (in km/h)
+        const wasInDelay = car.reactionDelayEndTime && car.reactionDelayEndTime > currentTime - effectiveDt;
+        if (car.id === 0 && wasInDelay) {
+          const actualDelay = currentTime - (car.reactionDelayEndTime! - reactionTime);
+          const realWorldDelay = actualDelay / simulationSpeed;
+          debugLog(showNotifications, `[REACTION END] Car ${car.id} at t=${currentTime.toFixed(3)}s: Delay complete! Actual delay: ${actualDelay.toFixed(3)}s simulation (${realWorldDelay.toFixed(3)}s real-world at ${simulationSpeed}x). Now accelerating: ${car.speed.toFixed(1)} -> ${car.desiredSpeed.toFixed(1)} km/h`);
+        }
+        const acceleration = params.aMax * 3.6; // Convert m/s² to km/h/s
+        carSpeed = Math.min(carSpeed + acceleration * effectiveDt, car.desiredSpeed);
+      }
     } else {
       // Start braking when we're closer than safe distance
       const criticalDistance = safeGap * 0.5; // Point where we need emergency braking
       
       if (aheadCarSpeed === 0) {
-        // Approaching a stopped car - gradual braking based on distance
+        // Approaching a stopped car - always brake immediately (no reaction delay for braking)
         const stopDistance = 0.005; // 5 meters minimum stopping distance in km
         if (gap > stopDistance * 2) {
           // Gradual deceleration when we have room
@@ -727,16 +785,28 @@ export function updateSimulation(
         const speedDifference = carSpeed - aheadCarSpeed;
         
         if (speedDifference > 10) {
-          // Significant speed difference - gentle braking
+          // Significant speed difference - gentle braking (immediate, no delay)
           const decelerationRate = params.aMax * 0.5 * 3.6;
           carSpeed = Math.max(carSpeed - decelerationRate * effectiveDt, aheadCarSpeed);
         } else if (speedDifference > 0) {
-          // Small speed difference - very gentle adjustment
+          // Small speed difference - very gentle adjustment (immediate, no delay)
           const adjustment = speedDifference * 0.2; // Gradually reduce difference
           carSpeed = carSpeed - adjustment * effectiveDt;
         } else {
-          // We're slower or same speed - maintain current speed
-          carSpeed = Math.min(carSpeed + params.aMax * 0.2 * 3.6 * effectiveDt, aheadCarSpeed);
+          // We're slower or same speed - check if we should accelerate
+          if (inReactionDelay) {
+            // During reaction delay, maintain current speed (don't accelerate yet)
+            carSpeed = car.speed;
+          } else {
+            // Not in reaction delay, can accelerate to match leader
+            const wasInDelay = car.reactionDelayEndTime && car.reactionDelayEndTime > currentTime - effectiveDt;
+            if (car.id === 0 && wasInDelay) {
+              const actualDelay = currentTime - (car.reactionDelayEndTime! - reactionTime);
+              const realWorldDelay = actualDelay / simulationSpeed;
+              debugLog(showNotifications, `[REACTION END] Car ${car.id} at t=${currentTime.toFixed(3)}s: Delay complete! Actual delay: ${actualDelay.toFixed(3)}s simulation (${realWorldDelay.toFixed(3)}s real-world at ${simulationSpeed}x). Accelerating to match leader: ${car.speed.toFixed(1)} -> ${aheadCarSpeed.toFixed(1)} km/h`);
+            }
+            carSpeed = Math.min(carSpeed + params.aMax * 0.2 * 3.6 * effectiveDt, aheadCarSpeed);
+          }
         }
       }
     }
