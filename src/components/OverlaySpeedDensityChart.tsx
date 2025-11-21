@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { SavedSimulation } from "@/services/indexedDBService";
+import SimulationParametersCollapsible from "./SimulationParametersCollapsible";
 
 interface OverlaySpeedDensityChartProps {
   selectedSimulations: SavedSimulation[];
@@ -239,6 +240,11 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
           <p>• Higher densities typically lead to reduced speeds due to congestion</p>
           <p>• The shape of the curve can indicate traffic flow characteristics</p>
         </div>
+        
+        <SimulationParametersCollapsible 
+          selectedSimulations={selectedSimulations}
+          unitSystem={unitSystem}
+        />
       </CardContent>
     </Card>
   );

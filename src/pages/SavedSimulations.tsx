@@ -20,6 +20,7 @@ import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensity
 import OverlayLaneThroughputDensityChart from "@/components/OverlayLaneThroughputDensityChart";
 import OverlaySpeedDensityChart from "@/components/OverlaySpeedDensityChart";
 import OverlayLaneChangesDensityChart from "@/components/OverlayLaneChangesDensityChart";
+import OverlayPackFormationDensityChart from "@/components/OverlayPackFormationDensityChart";
 import DensityLaneDistributionChart from "@/components/DensityLaneDistributionChart";
 import Footer from "@/components/Footer";
 
@@ -671,6 +672,9 @@ const SavedSimulations: React.FC = () => {
                     unitSystem={unitSystem}
                   />
                   <OverlayLaneChangesDensityChart 
+                    selectedSimulations={getSelectedSimulations()}
+                  />
+                  <OverlayPackFormationDensityChart 
                     selectedSimulations={getSelectedSimulations()}
                   />
                   <DensityLaneDistributionChart
