@@ -7,6 +7,7 @@ import SpeedDensityChart from "./SpeedDensityChart";
 import DensityOfCarPacksChart from "./DensityOfCarPacksChart";
 import PercentageOfCarsByLaneChart from "./PercentageOfCarsByLaneChart";
 import DensityThroughputChart from "./DensityThroughputChart";
+import LaneThroughputChart from "./LaneThroughputChart";
 import LaneUtilizationChart from "./LaneUtilizationChart";
 import PackFormationChart from "./PackFormationChart";
 import AveragePackLengthChart from "./AveragePackLengthChart";
@@ -28,6 +29,7 @@ interface ChartDashboardProps {
   densityOfCarPacksHistory: any[];
   percentageByLaneHistory: any[];
   densityThroughputHistory: any[];
+  laneThroughputHistory: any[];
   laneUtilizationHistory: any[];
   packHistory: any[];
   packLengthHistory: any[];
@@ -52,6 +54,7 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
   densityOfCarPacksHistory,
   percentageByLaneHistory,
   densityThroughputHistory,
+  laneThroughputHistory,
   laneUtilizationHistory,
   packHistory,
   packLengthHistory,
@@ -127,6 +130,18 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                 <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
                   <strong>Flow Efficiency:</strong> Relationship between traffic density and throughput. 
                   Optimal flow occurs at moderate densities before congestion reduces throughput.
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <LaneThroughputChart 
+                  dataHistory={laneThroughputHistory}
+                  numLanes={params.numLanes}
+                  unitSystem={unitSystem}
+                />
+                <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
+                  <strong>Lane-Specific Throughput:</strong> Compare throughput across individual lanes. 
+                  Imbalances may indicate lane preference or bottlenecks in specific lanes.
                 </div>
               </div>
             </CardContent>

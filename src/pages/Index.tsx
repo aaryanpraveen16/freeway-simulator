@@ -11,6 +11,7 @@ import PackFormationChart, { PackHistoryItem } from "@/components/PackFormationC
 import AveragePackLengthChart, { PackLengthHistoryItem } from "@/components/AveragePackLengthChart";
 import PackDensityChart, { calculatePackDensityMetrics, PackDensityItem } from "@/components/PackDensityChart";
 import DensityThroughputChart from "@/components/DensityThroughputChart";
+import LaneThroughputChart from "@/components/LaneThroughputChart";
 import LaneUtilizationChart from "@/components/LaneUtilizationChart";
 import SpeedByLaneChart from "@/components/SpeedByLaneChart";
 import DensityOfCarPacksChart from "@/components/DensityOfCarPacksChart";
@@ -43,20 +44,22 @@ interface BatchSimulation {
   params: Partial<SimulationParams>;
 }
 
+interface LaneThroughputDataPoint {
+  time: number;
+  lane0?: number;
+  lane1?: number;
+  lane2?: number;
+  lane3?: number;
+  [key: string]: number | undefined;
+}
+
 interface SimulationRun {
   id: string;
   packHistory: PackHistoryItem[];
   packLengthHistory: PackLengthHistoryItem[];
   params: SimulationParams;
   timestamp: number;
-}
-
-interface DensityThroughputDataPoint {
-  density: number;
-  throughput: number;
-  time: number;
-  laneThroughputs: number[];
-  laneDensities: number[];
+  duration: number;
 }
 
 interface PackFormationDataPoint {
@@ -110,9 +113,10 @@ const Index = () => {
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
 
   // Chart history state variables - moved here to be declared before use
-  const [densityThroughputHistory, setDensityThroughputHistory] = useState<DensityThroughputDataPoint[]>([]);
-  const [packFormationHistory, setPackFormationHistory] = useState<PackFormationDataPoint[]>([]);
-  const [laneUtilizationHistory, setLaneUtilizationHistory] = useState<LaneUtilizationDataPoint[]>([]);
+  const [densityThroughputHistory, setDensityThroughputHistory] = useState<any[]>([]);
+  const [laneThroughputHistory, setLaneThroughputHistory] = useState<LaneThroughputDataPoint[]>([]);
+  const [packFormationHistory, setPackFormationHistory] = useState<any[]>([]);
+  const [laneUtilizationHistory, setLaneUtilizationHistory] = useState<any[]>([]);
   const [speedDensityHistory, setSpeedDensityHistory] = useState<any[]>([]);
   const [densityOfCarPacksHistory, setDensityOfCarPacksHistory] = useState<DensityOfCarPacksDataPoint[]>([]);
   const [percentageByLaneHistory, setPercentageByLaneHistory] = useState<PercentageOfCarsByLaneDataPoint[]>([]);
@@ -170,7 +174,8 @@ const Index = () => {
       packHistory: packHistory.map(item => ({ ...item })),
       packLengthHistory: packLengthHistory.map(item => ({ ...item })),
       params: { ...params },
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      duration: elapsedTime
     };
     
     setSavedRuns(prev => {
@@ -222,6 +227,7 @@ const Index = () => {
     // Clear all data
     setStoppedCars(new Set());
     setDensityThroughputHistory([]);
+    setLaneThroughputHistory([]);
     setPackFormationHistory([]);
     setLaneUtilizationHistory([]);
     setSpeedDensityHistory([]);
@@ -501,6 +507,33 @@ const Index = () => {
           time: parseFloat(time.toFixed(1)),
           ...laneDistribution
         }];
+        if (newHistory.length > 50) {
+          return newHistory.slice(-50);
+        }
+        return newHistory;
+      });
+
+      // Record lane throughput data
+      const laneThroughputPoint: LaneThroughputDataPoint = {
+        time: parseFloat(time.toFixed(1))
+      };
+      
+      for (let i = 0; i < numLanes; i++) {
+        const carsInLane = newCars.filter(car => car.lane === i);
+        const carCount = carsInLane.length;
+        
+        if (carCount > 0) {
+          const avgSpeed = carsInLane.reduce((sum, car) => sum + car.speed, 0) / carCount;
+          const density = carCount / currentLaneLength; // cars/km
+          const throughput = avgSpeed * density; // cars/hour for this lane
+          laneThroughputPoint[`lane${i}`] = parseFloat(throughput.toFixed(2));
+        } else {
+          laneThroughputPoint[`lane${i}`] = 0;
+        }
+      }
+      
+      setLaneThroughputHistory(prev => {
+        const newHistory = [...prev, laneThroughputPoint];
         if (newHistory.length > 50) {
           return newHistory.slice(-50);
         }
@@ -836,7 +869,7 @@ const Index = () => {
       />
       
       {/* Color Legend - moved down to avoid overlap */}
-      <div className="absolute top-44 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border p-3 z-10">
+      {/* <div className="absolute top-44 left-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border p-3 z-10">
         <h4 className="text-xs font-semibold text-gray-700 mb-2">Car Colors</h4>
         <div className="space-y-1 text-xs">
           <div className="flex items-center gap-2">
@@ -856,7 +889,7 @@ const Index = () => {
             <span className="text-gray-600">Stopped for testing</span>
           </div>
         </div>
-      </div>
+      </div> */}
       
 
       <div className="container mx-auto px-4 py-8 pt-16">
@@ -877,62 +910,66 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Stats and controls row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <div className="lg:col-span-2">
-          <StatsDisplay 
-            cars={cars} 
-            laneLength={laneLength} 
-            elapsedTime={elapsedTime}
-            laneChanges={laneChanges}
-            unitSystem={unitSystem}
-            trafficDensity={params.trafficDensity}
-          />
+        {/* Stats and Lane Stats Row */}
+        <div className="flex flex-col lg:flex-row gap-8 mb-8">
+          <div className="flex-1">
+            <StatsDisplay 
+              cars={cars} 
+              laneLength={laneLength} 
+              elapsedTime={elapsedTime}
+              laneChanges={laneChanges}
+              unitSystem={unitSystem}
+              trafficDensity={params.trafficDensity}
+            />
           </div>
           
-          <div>
-            <ControlPanel
-              params={params}
-              onUpdateParams={handleUpdateParams}
-              onBatchImport={handleBatchImport}
-              trafficRule={trafficRule}
-              onTrafficRuleChange={setTrafficRule}
-              carSize={carSize}
-              onCarSizeChange={setCarSize}
-              unitSystem={unitSystem}
-              onUnitSystemChange={setUnitSystem}
-            />
+          <div className="flex-1">
+            <CarStatsCard cars={cars} laneLength={laneLength} params={params} showPackInfo={showPackFormation} unitSystem={unitSystem} />
           </div>
         </div>
 
-        {/* Additional info sections */}
+        {/* Settings (Control Panel) */}
         <div className="mb-8">
-          <CarStatsCard cars={cars} laneLength={laneLength} params={params} showPackInfo={showPackFormation} unitSystem={unitSystem} />
+          <ControlPanel
+            params={params}
+            onUpdateParams={handleUpdateParams}
+            onBatchImport={handleBatchImport}
+            trafficRule={trafficRule}
+            onTrafficRuleChange={setTrafficRule}
+            carSize={carSize}
+            onCarSizeChange={setCarSize}
+            unitSystem={unitSystem}
+            onUnitSystemChange={setUnitSystem}
+          />
         </div>
-        
-        {/* New Chart Dashboard replacing individual charts */}
-        <ChartDashboard
-          cars={cars}
-          elapsedTime={elapsedTime}
-          laneLength={laneLength}
-          params={params}
-          trafficRule={trafficRule}
-          unitSystem={unitSystem}
-          speedDensityHistory={speedDensityHistory}
-          densityOfCarPacksHistory={densityOfCarPacksHistory}
-          percentageByLaneHistory={percentageByLaneHistory}
-          densityThroughputHistory={densityThroughputHistory}
-          laneUtilizationHistory={laneUtilizationHistory}
-          packHistory={packHistory}
-          packLengthHistory={packLengthHistory}
-          showPackFormation={showPackFormation}
-          previousRunsData={showPreviousRuns ? getPreviousRunsPackHistories() : []}
-          previousRunsPackLengthData={showPreviousRuns ? getPreviousRunsPackLengthHistories() : []}
-          onSaveCurrentRun={handleSaveCurrentRun}
-          onTogglePreviousRuns={savedRuns.length > 0 ? togglePreviousRuns : undefined}
-          showPreviousRuns={showPreviousRuns}
-        />
+
+        {/* Simulation Stats (Charts) */}
+        <div className="mb-8">
+          <ChartDashboard
+            cars={cars}
+            elapsedTime={elapsedTime}
+            laneLength={laneLength}
+            params={params}
+            trafficRule={trafficRule}
+            unitSystem={unitSystem}
+            speedDensityHistory={speedDensityHistory}
+            densityOfCarPacksHistory={densityOfCarPacksHistory}
+            percentageByLaneHistory={percentageByLaneHistory}
+            densityThroughputHistory={densityThroughputHistory}
+            laneThroughputHistory={laneThroughputHistory}
+            laneUtilizationHistory={laneUtilizationHistory}
+            packHistory={packHistory}
+            packLengthHistory={packLengthHistory}
+            showPackFormation={showPackFormation}
+            previousRunsData={getPreviousRunsPackHistories()}
+            previousRunsPackLengthData={getPreviousRunsPackLengthHistories()}
+            onSaveCurrentRun={handleSaveCurrentRun}
+            onTogglePreviousRuns={togglePreviousRuns}
+            showPreviousRuns={showPreviousRuns}
+          />
+        </div>
       </div>
+
       
       <Footer />
     </div>
