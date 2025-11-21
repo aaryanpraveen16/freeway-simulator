@@ -2,17 +2,15 @@ import React, { useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Download, BarChart2 } from "lucide-react";
-import { Car } from "@/utils/trafficSimulation";
-import { identifyPacks } from "./PackFormationChart";
 import { useToast } from "@/hooks/use-toast";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 
 export interface PackLengthHistoryItem {
   time: number;
   averageLength: number;
-  runId?: string; // Add runId to distinguish between different simulation runs
+  runId?: string;
 }
 
 interface AveragePackLengthChartProps {
@@ -207,70 +205,6 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
       </CardContent>
     </Card>
   );
-};
-
-// Helper function to calculate average pack length
-export const calculateAveragePackLength = (cars: Car[], laneLength: number): number => {
-  if (cars.length === 0) return 0;
-  
-  // Sort cars by position
-  const sortedCars = [...cars].sort((a, b) => a.position - b.position);
-  
-  let packCount = 1;
-  let currentPackStart = 0;
-  let packLengths: number[] = [];
-  let currentPackSpeed = sortedCars[0].speed;
-  
-  const safeDistanceThreshold = 100 / 5280; // in miles
-  const gapThresholdBuffer = 50 / 5280; // in miles
-  const totalGapThreshold = safeDistanceThreshold + gapThresholdBuffer;
-  
-  for (let i = 1; i < sortedCars.length; i++) {
-    const car = sortedCars[i];
-    const prevCar = sortedCars[i - 1];
-    
-    // Calculate gap between current car and previous car
-    let gap = car.position - prevCar.position;
-    
-    // Adjust for track wraparound
-    if (gap < 0) {
-      gap += laneLength;
-    }
-    
-    // Check both speed difference AND gap criteria
-    const speedDifference = Math.abs(car.speed - currentPackSpeed);
-    const isNewPackBySpeed = speedDifference > 10;
-    const isNewPackByGap = gap > totalGapThreshold;
-    
-    if (isNewPackBySpeed || isNewPackByGap) {
-      // Calculate length of current pack
-      let packLength = prevCar.position - sortedCars[currentPackStart].position;
-      
-      // Adjust for track wraparound for the pack length
-      if (packLength < 0) {
-        packLength += laneLength;
-      }
-      
-      packLengths.push(packLength);
-      packCount++;
-      currentPackStart = i;
-      currentPackSpeed = car.speed;
-    }
-  }
-  
-  // Don't forget the last pack
-  let lastPackLength = sortedCars[sortedCars.length - 1].position - sortedCars[currentPackStart].position;
-  
-  // Adjust for track wraparound
-  if (lastPackLength < 0) {
-    lastPackLength += laneLength;
-  }
-  
-  packLengths.push(lastPackLength);
-  
-  // Calculate average
-  const totalPackLength = packLengths.reduce((sum, length) => sum + length, 0);
-  return packLengths.length ? totalPackLength / packLengths.length : 0;
 };
 
 export default AveragePackLengthChart;
