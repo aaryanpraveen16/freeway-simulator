@@ -1480,7 +1480,7 @@ export interface Pack {
 export function identifyPacks(
   cars: Car[],
   laneLength: number,
-  gapThreshold: number = 0.02, // km (default 20m)
+  timeHeadway: number = 2.0, // seconds
   minPackSize: number = 2
 ): Pack[] {
   if (cars.length === 0) return [];
@@ -1496,22 +1496,27 @@ export function identifyPacks(
     endPos: number;
   }[] = [];
 
-  // First pass: Identify contiguous groups based on gap threshold
+  // First pass: Identify contiguous groups based on dynamic gap threshold
   for (let i = 1; i < sortedCars.length; i++) {
-    const car = sortedCars[i];
-    const prevCar = sortedCars[i - 1];
+    const car = sortedCars[i];     // The car ahead
+    const prevCar = sortedCars[i - 1]; // The car behind (follower)
 
     // Calculate gap between current car and previous car
     let gap = car.position - prevCar.position;
 
-    // Adjust for track wraparound (though sorted, so this shouldn't happen within the list, 
-    // but good for robustness if we change sorting logic)
     if (gap < 0) {
       gap += laneLength;
     }
 
+    // Dynamic Threshold: Distance covered in `timeHeadway` seconds at follower's speed
+    const followerSpeed = prevCar.speed; // km/h
+    const dynamicThreshold = (followerSpeed * timeHeadway) / 3600;
+
+    // Use a minimum threshold to avoid merging cars that are stopped but slightly apart
+    const effectiveThreshold = Math.max(dynamicThreshold, 0.005);
+
     // Check for new pack based on gap
-    if (gap > gapThreshold) {
+    if (gap > effectiveThreshold) {
       // End current pack
       const packCars = sortedCars.slice(packStartIdx, i);
       rawPacks.push({
@@ -1534,8 +1539,6 @@ export function identifyPacks(
   });
 
   // Second pass: Check for wraparound continuity
-  // If the gap between the last car of the last pack and the first car of the first pack
-  // is small, they are actually the same pack wrapping around the loop.
   if (rawPacks.length > 1) {
     const firstPack = rawPacks[0];
     const lastPack = rawPacks[rawPacks.length - 1];
@@ -1546,15 +1549,14 @@ export function identifyPacks(
     let wrapGap = firstCar.position - lastCar.position;
     if (wrapGap < 0) wrapGap += laneLength;
 
-    if (wrapGap <= gapThreshold) {
-      // Merge last pack into first pack
-      // We prepend last pack's cars to first pack to maintain logical order if we were iterating,
-      // but for density calc it doesn't matter much. 
-      // However, visually/logically, the "start" of the merged pack is the start of the last pack.
+    const followerSpeed = lastCar.speed;
+    const dynamicThreshold = (followerSpeed * timeHeadway) / 3600;
+    const effectiveThreshold = Math.max(dynamicThreshold, 0.005);
 
+    if (wrapGap <= effectiveThreshold) {
+      // Merge last pack into first pack
       firstPack.cars = [...lastPack.cars, ...firstPack.cars];
       firstPack.startPos = lastPack.startPos;
-      // endPos remains firstPack.endPos
 
       // Remove the last pack
       rawPacks.pop();
@@ -1572,9 +1574,6 @@ export function identifyPacks(
       let packLength = rawPack.endPos - rawPack.startPos;
       if (packLength < 0) packLength += laneLength;
 
-      // Avoid division by zero for single cars (though filtered out by minPackSize=2 usually)
-      // For single cars, length is 0. For >1 cars, length is distance between first and last.
-      // Density = cars / mile
       const density = packLength > 0.001 ? (carCount / packLength) : 0;
 
       const avgSpeed = rawPack.cars.reduce((sum, car) => sum + car.speed, 0) / carCount;

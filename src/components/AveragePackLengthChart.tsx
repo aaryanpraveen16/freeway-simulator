@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { Download, BarChart2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
@@ -24,11 +24,10 @@ interface AveragePackLengthChartProps {
 }
 
 const COLORS = [
-  'hsl(var(--chart-yellow))',
-  'hsl(var(--chart-blue))',
-  'hsl(var(--chart-green))',
-  'hsl(var(--chart-purple))',
-  'hsl(var(--chart-red))'
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
 ];
 
 const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
@@ -47,41 +46,18 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
     if (!chartRef.current) return;
 
     try {
-      // Convert the chart to an SVG
       const svgElement = chartRef.current.querySelector("svg");
       if (!svgElement) {
         throw new Error("SVG element not found");
       }
 
-      // Clone the SVG to avoid modifying the original
       const clonedSvg = svgElement.cloneNode(true) as SVGElement;
-
-      // Set background for the SVG
       clonedSvg.setAttribute("background", "white");
       clonedSvg.setAttribute("style", "background-color: white;");
 
-      // Ensure all elements are visible in export
-      const allPaths = clonedSvg.querySelectorAll("path");
-      allPaths.forEach(path => {
-        // Increase stroke-width for better visibility
-        const currentWidth = path.getAttribute("stroke-width") || "1";
-        if (parseFloat(currentWidth) <= 1) {
-          path.setAttribute("stroke-width", "2");
-        }
-      });
-
-      // Enhance dots visibility
-      const allCircles = clonedSvg.querySelectorAll("circle");
-      allCircles.forEach(circle => {
-        circle.setAttribute("r", "4"); // Increase radius
-        circle.setAttribute("stroke-width", "2");
-      });
-
-      // Serialize SVG to a string
       const svgData = new XMLSerializer().serializeToString(clonedSvg);
       const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
 
-      // Create download link
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(svgBlob);
       downloadLink.download = "average-pack-length-chart.svg";
@@ -89,7 +65,6 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
       downloadLink.click();
       document.body.removeChild(downloadLink);
 
-      // Show success message
       toast({
         title: "Chart exported",
         description: "Average pack length chart has been exported successfully",
@@ -106,11 +81,8 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
     }
   };
 
-  // Calculate stabilized values
   const stabilizedValues = React.useMemo(() => {
-    // Extract average lengths directly (no conversion needed as it's a count)
     const lengthData = packLengthHistory.map(item => item.averageLength);
-
     return {
       averageLength: calculateStabilizedValue(lengthData)
     };
@@ -162,7 +134,7 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
             config={{
               averageLength: {
                 label: "Average Length",
-                color: "hsl(var(--chart-yellow))"
+                color: "hsl(var(--primary))"
               }
             }}
           >
@@ -190,7 +162,7 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
                 type="monotone"
                 dataKey="averageLength"
                 name="Current Run"
-                stroke="hsl(var(--chart-yellow))"
+                stroke="hsl(var(--primary))"
                 strokeWidth={2}
                 dot={{ r: 4, strokeWidth: 2 }}
                 activeDot={{ r: 8 }}
@@ -204,7 +176,7 @@ const AveragePackLengthChart: React.FC<AveragePackLengthChartProps> = ({
                   data={runData}
                   dataKey="averageLength"
                   name={`Run ${index + 1}`}
-                  stroke={COLORS[(index + 1) % COLORS.length]}
+                  stroke={COLORS[index % COLORS.length]}
                   strokeWidth={1.5}
                   dot={{ r: 3 }}
                   activeDot={{ r: 6 }}
