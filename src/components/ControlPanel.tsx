@@ -560,6 +560,38 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
+                    <Label className="text-xs">Acceleration Reaction Time</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {params.driverReactionTime?.toFixed(1) || '2.0'} seconds
+                    </span>
+                  </div>
+                  <Slider
+                    value={[params.driverReactionTime ?? 2.0]}
+                    onValueChange={([value]) => onUpdateParams({ driverReactionTime: value })}
+                    min={0}
+                    max={10}
+                    step={0.5}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">Braking Reaction Time</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {params.brakingReactionTime?.toFixed(1) || '1.0'} seconds
+                    </span>
+                  </div>
+                  <Slider
+                    value={[params.brakingReactionTime ?? 1.0]}
+                    onValueChange={([value]) => onUpdateParams({ brakingReactionTime: value })}
+                    min={0}
+                    max={5}
+                    step={0.1}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
                     <Label className="text-xs">Mean Trip Distance</Label>
                     <span className="text-xs text-muted-foreground">
                       {conversions.distance.toDisplay(params.meanDistTripPlanned).toFixed(1)} {conversions.distance.unit}

@@ -33,7 +33,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   
   // Calculate track dimensions
   const maxTrackWidth = Math.min(1200, window.innerWidth * 0.9);
-  const trackContentWidth = maxTrackWidth - 200; // Space for controls and stats
+  const trackContentWidth = maxTrackWidth; // Full width now that controls are below
   const totalTrackHeight = laneHeight * numLanes;
   const laneCenterOffset = laneHeight * 0.6;
   const carHeight = 20;
@@ -99,78 +99,10 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   
   return (
     <div className="w-full max-w-full p-4">
-      <div className="mx-auto flex flex-col lg:flex-row gap-6 max-w-7xl">
-        {/* Lane controls and stats */}
-        <div className="w-full lg:w-64 space-y-4">
-          <Card className="bg-white/90 backdrop-blur-sm border-gray-200 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold text-gray-800">Traffic Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Total Vehicles:</span>
-                <span className="font-medium">{cars.length}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Active Lanes:</span>
-                <span className="font-medium">{numLanes}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Stopped:</span>
-                <span className="font-medium text-amber-600">{stoppedCars.size}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/90 backdrop-blur-sm border-gray-200 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold text-gray-800">Lane Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Array.from({ length: numLanes }).map((_, i) => (
-                <motion.div 
-                  key={i}
-                  className="p-3 rounded-lg border border-gray-200 bg-white/50"
-                  custom={i}
-                  initial="hidden"
-                  animate="visible"
-                  variants={laneVariant}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${
-                        i % 4 === 0 ? 'bg-blue-500' : 
-                        i % 4 === 1 ? 'bg-emerald-500' : 
-                        i % 4 === 2 ? 'bg-purple-500' : 'bg-amber-500'
-                      }`}></div>
-                      <span className="font-medium text-gray-800">Lane {i + 1}</span>
-                      {i === 0 && <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Left</span>}
-                      {i === numLanes - 1 && <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Right</span>}
-                    </div>
-                    <div className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">
-                      {laneStats[i]?.carCount || 0} cars
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="space-y-0.5">
-                      <div className="text-gray-500">Density</div>
-                      <div className="font-medium">{laneStats[i]?.density.value} {laneStats[i]?.density.unit}</div>
-                    </div>
-                    <div className="space-y-0.5">
-                      <div className="text-gray-500">Avg Speed</div>
-                      <div className={`font-medium ${getSpeedColor(parseFloat(laneStats[i]?.avgSpeed || '0'))}`}>
-                        {laneStats[i]?.avgSpeed} {laneStats[i]?.speedUnit}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
+      <div className="mx-auto flex flex-col gap-6 max-w-7xl">
+        
         {/* Track visualization */}
-        <div className="flex-1">
+        <div className="w-full">
           <div className="bg-white/90 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-4">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-gray-800">Traffic Simulation</h3>
@@ -284,6 +216,79 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
                 <span>Stopped</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Lane controls and stats - now below track in a flex row */}
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <Card className="bg-white/90 backdrop-blur-sm border-gray-200 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold text-gray-800">Traffic Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Total Vehicles:</span>
+                  <span className="font-medium">{cars.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Active Lanes:</span>
+                  <span className="font-medium">{numLanes}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Stopped:</span>
+                  <span className="font-medium text-amber-600">{stoppedCars.size}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex-1">
+            <Card className="bg-white/90 backdrop-blur-sm border-gray-200 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold text-gray-800">Lane Stats</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {Array.from({ length: numLanes }).map((_, i) => (
+                  <motion.div 
+                    key={i}
+                    className="p-3 rounded-lg border border-gray-200 bg-white/50"
+                    custom={i}
+                    initial="hidden"
+                    animate="visible"
+                    variants={laneVariant}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${
+                          i % 4 === 0 ? 'bg-blue-500' : 
+                          i % 4 === 1 ? 'bg-emerald-500' : 
+                          i % 4 === 2 ? 'bg-purple-500' : 'bg-amber-500'
+                        }`}></div>
+                        <span className="font-medium text-gray-800">Lane {i + 1}</span>
+                        {i === 0 && <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Left</span>}
+                        {i === numLanes - 1 && <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Right</span>}
+                      </div>
+                      <div className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">
+                        {laneStats[i]?.carCount || 0} cars
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="space-y-0.5">
+                        <div className="text-gray-500">Density</div>
+                        <div className="font-medium">{laneStats[i]?.density.value} {laneStats[i]?.density.unit}</div>
+                      </div>
+                      <div className="space-y-0.5">
+                        <div className="text-gray-500">Avg Speed</div>
+                        <div className={`font-medium ${getSpeedColor(parseFloat(laneStats[i]?.avgSpeed || '0'))}`}>
+                          {laneStats[i]?.avgSpeed} {laneStats[i]?.speedUnit}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

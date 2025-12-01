@@ -72,6 +72,8 @@ const SimulationParameters: React.FC<SimulationParametersProps> = ({
             <p>Time Headway: {params.tDist} s</p>
             <p>Max Deceleration: {params.aMax} m/s²</p>
             <p>Politeness: {params.politenessFactor?.toFixed(2) || '0.50'}</p>
+            <p>Accel Reaction: {params.driverReactionTime?.toFixed(1) || '2.0'} s</p>
+            <p>Brake Reaction: {params.brakingReactionTime?.toFixed(1) || '1.0'} s</p>
           </div>
         </div>
       </CollapsibleContent>

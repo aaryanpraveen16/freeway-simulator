@@ -17,8 +17,10 @@ import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import ChartDashboard from "@/components/ChartDashboard";
 import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensityChart";
+import OverlayLaneThroughputDensityChart from "@/components/OverlayLaneThroughputDensityChart";
 import OverlaySpeedDensityChart from "@/components/OverlaySpeedDensityChart";
 import OverlayLaneChangesDensityChart from "@/components/OverlayLaneChangesDensityChart";
+import OverlayPackFormationDensityChart from "@/components/OverlayPackFormationDensityChart";
 import DensityLaneDistributionChart from "@/components/DensityLaneDistributionChart";
 import Footer from "@/components/Footer";
 
@@ -522,6 +524,7 @@ const SavedSimulations: React.FC = () => {
                                   densityOfCarPacksHistory={simulation.chartData.densityOfCarPacksHistory}
                                   percentageByLaneHistory={simulation.chartData.percentageByLaneHistory}
                                   densityThroughputHistory={simulation.chartData.densityThroughputHistory}
+                                  laneThroughputHistory={[]}
                                   laneUtilizationHistory={[]}
                                   packHistory={simulation.chartData.packHistory}
                                   packLengthHistory={simulation.chartData.packLengthHistory}
@@ -664,7 +667,14 @@ const SavedSimulations: React.FC = () => {
                   <OverlayThroughputDensityChart 
                     selectedSimulations={getSelectedSimulations()}
                   />
+                  <OverlayLaneThroughputDensityChart 
+                    selectedSimulations={getSelectedSimulations()}
+                    unitSystem={unitSystem}
+                  />
                   <OverlayLaneChangesDensityChart 
+                    selectedSimulations={getSelectedSimulations()}
+                  />
+                  <OverlayPackFormationDensityChart 
                     selectedSimulations={getSelectedSimulations()}
                   />
                   <DensityLaneDistributionChart

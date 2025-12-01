@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { SavedSimulation } from "@/services/indexedDBService";
+import SimulationParametersCollapsible from "./SimulationParametersCollapsible";
 
 interface OverlayThroughputDensityChartProps {
   selectedSimulations: SavedSimulation[];
@@ -194,6 +195,10 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
           <p>• Optimal throughput typically occurs at moderate densities</p>
           <p>• Higher densities often lead to congestion and reduced throughput</p>
         </div>
+        
+        <SimulationParametersCollapsible 
+          selectedSimulations={selectedSimulations}
+        />
       </CardContent>
     </Card>
   );

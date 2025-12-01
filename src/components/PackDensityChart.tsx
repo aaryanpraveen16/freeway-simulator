@@ -245,79 +245,20 @@ const PackDensityChart: React.FC<PackDensityChartProps> = ({ packDensityData }) 
   );
 };
 
+import { identifyPacks } from "@/utils/trafficSimulation";
+
+// ... imports ...
+
 // Helper function to calculate pack density metrics
 export const calculatePackDensityMetrics = (cars: Car[], laneLength: number): PackDensityItem[] => {
-  if (cars.length === 0) return [];
+  const packs = identifyPacks(cars, laneLength);
   
-  // Sort cars by position
-  const sortedCars = [...cars].sort((a, b) => a.position - b.position);
-  
-  let packId = 1;
-  let packStartIdx = 0;
-  let packs: {
-    packId: number;
-    cars: Car[];
-    startPos: number;
-    endPos: number;
-  }[] = [];
-  
-  // Consistent and reasonable threshold for pack detection
-  const totalGapThreshold = 0.01; // in miles (~53 ft)
-  
-  // First identify packs
-  for (let i = 1; i < sortedCars.length; i++) {
-    const car = sortedCars[i];
-    const prevCar = sortedCars[i - 1];
-    
-    // Calculate gap between current car and previous car
-    let gap = car.position - prevCar.position;
-    
-    // Adjust for track wraparound
-    if (gap < 0) {
-      gap += laneLength;
-    }
-    
-    // Check for new pack based on gap
-    if (gap > totalGapThreshold) {
-      // End current pack
-      let startPos = sortedCars[packStartIdx].position;
-      let endPos = prevCar.position;
-      
-      packs.push({
-        packId,
-        cars: sortedCars.slice(packStartIdx, i),
-        startPos,
-        endPos: endPos < startPos ? endPos + laneLength : endPos // Handle wraparound
-      });
-      
-      // Start new pack
-      packId++;
-      packStartIdx = i;
-    }
-  }
-  
-  // Don't forget the last pack
-  packs.push({
-    packId,
-    cars: sortedCars.slice(packStartIdx),
-    startPos: sortedCars[packStartIdx].position,
-    endPos: sortedCars[sortedCars.length - 1].position
-  });
-  
-  // Calculate metrics for each pack
-  return packs.map(pack => {
-    const carCount = pack.cars.length;
-    const packLength = (pack.endPos - pack.startPos + laneLength) % laneLength;
-    const density = packLength > 0 ? (carCount / packLength) : 0; // Cars per mile
-    const avgSpeed = pack.cars.reduce((sum, car) => sum + car.speed, 0) / carCount;
-    
-    return {
-      packId: pack.packId,
-      carCount,
-      avgSpeed,
-      density
-    };
-  });
+  return packs.map(pack => ({
+    packId: pack.packId,
+    carCount: pack.cars.length,
+    avgSpeed: pack.avgSpeed,
+    density: pack.density
+  }));
 };
 
 export default PackDensityChart;

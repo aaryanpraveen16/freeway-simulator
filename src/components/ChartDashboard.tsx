@@ -7,6 +7,7 @@ import SpeedDensityChart from "./SpeedDensityChart";
 import DensityOfCarPacksChart from "./DensityOfCarPacksChart";
 import PercentageOfCarsByLaneChart from "./PercentageOfCarsByLaneChart";
 import DensityThroughputChart from "./DensityThroughputChart";
+import LaneThroughputChart from "./LaneThroughputChart";
 import LaneUtilizationChart from "./LaneUtilizationChart";
 import PackFormationChart from "./PackFormationChart";
 import AveragePackLengthChart from "./AveragePackLengthChart";
@@ -28,6 +29,7 @@ interface ChartDashboardProps {
   densityOfCarPacksHistory: any[];
   percentageByLaneHistory: any[];
   densityThroughputHistory: any[];
+  laneThroughputHistory: any[];
   laneUtilizationHistory: any[];
   packHistory: any[];
   packLengthHistory: any[];
@@ -52,6 +54,7 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
   densityOfCarPacksHistory,
   percentageByLaneHistory,
   densityThroughputHistory,
+  laneThroughputHistory,
   laneUtilizationHistory,
   packHistory,
   packLengthHistory,
@@ -74,7 +77,7 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
           <TabsTrigger value="performance">Performance Metrics</TabsTrigger>
           <TabsTrigger value="distribution">Traffic Distribution</TabsTrigger>
           <TabsTrigger value="behavior">Traffic Behavior</TabsTrigger>
-          <TabsTrigger value="packs" disabled={!showPackFormation}>Pack Analysis</TabsTrigger>
+          <TabsTrigger value="packs">Pack Analysis</TabsTrigger>
         </TabsList>
 
         <TabsContent value="performance" className="space-y-6">
@@ -127,6 +130,18 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                 <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
                   <strong>Flow Efficiency:</strong> Relationship between traffic density and throughput. 
                   Optimal flow occurs at moderate densities before congestion reduces throughput.
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <LaneThroughputChart 
+                  dataHistory={laneThroughputHistory}
+                  numLanes={params.numLanes}
+                  unitSystem={unitSystem}
+                />
+                <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
+                  <strong>Lane-Specific Throughput:</strong> Compare throughput across individual lanes. 
+                  Imbalances may indicate lane preference or bottlenecks in specific lanes.
                 </div>
               </div>
             </CardContent>
@@ -214,66 +229,55 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
         </TabsContent>
 
         <TabsContent value="packs" className="space-y-6">
-          {showPackFormation ? (
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">Advanced Pack Formation Analysis</CardTitle>
-                    <CardDescription>Deep dive into traffic pack formation, evolution, and comparison across simulation runs</CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge variant="outline" className="capitalize">
-                      {trafficRule} Rules
-                    </Badge>
-                    <Badge variant="outline">
-                      {params.numLanes} {params.numLanes === 1 ? 'Lane' : 'Lanes'}
-                    </Badge>
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-lg">Advanced Pack Formation Analysis</CardTitle>
+                  <CardDescription>Deep dive into traffic pack formation, evolution, and comparison across simulation runs</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="outline" className="capitalize">
+                    {trafficRule} Rules
+                  </Badge>
+                  <Badge variant="outline">
+                    {params.numLanes} {params.numLanes === 1 ? 'Lane' : 'Lanes'}
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <PackFormationChart 
+                    packHistory={packHistory}
+                    previousRunsData={showPreviousRuns ? previousRunsData : []}
+                    onSaveCurrentRun={onSaveCurrentRun}
+                    onTogglePreviousRuns={onTogglePreviousRuns}
+                    showPreviousRuns={showPreviousRuns}
+                  />
+                  <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
+                    <strong>Pack Formation:</strong> Tracks the number of distinct traffic packs over time. 
+                    More packs indicate fragmented traffic flow.
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <PackFormationChart 
-                      packHistory={packHistory}
-                      previousRunsData={showPreviousRuns ? previousRunsData : []}
-                      onSaveCurrentRun={onSaveCurrentRun}
-                      onTogglePreviousRuns={onTogglePreviousRuns}
-                      showPreviousRuns={showPreviousRuns}
-                    />
-                    <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
-                      <strong>Pack Formation:</strong> Tracks the number of distinct traffic packs over time. 
-                      More packs indicate fragmented traffic flow.
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <AveragePackLengthChart 
-                      packLengthHistory={packLengthHistory}
-                      previousRunsData={showPreviousRuns ? previousRunsPackLengthData : []}
-                      onSaveCurrentRun={onSaveCurrentRun}
-                      onTogglePreviousRuns={onTogglePreviousRuns}
-                      showPreviousRuns={showPreviousRuns}
-                    />
-                    <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
-                      <strong>Pack Length Evolution:</strong> Average length of traffic packs in number of cars. 
-                      Longer packs suggest sustained congestion patterns.
-                    </div>
+                
+                <div className="space-y-4">
+                  <AveragePackLengthChart 
+                    packLengthHistory={packLengthHistory}
+                    previousRunsData={showPreviousRuns ? previousRunsPackLengthData : []}
+                    onSaveCurrentRun={onSaveCurrentRun}
+                    onTogglePreviousRuns={onTogglePreviousRuns}
+                    showPreviousRuns={showPreviousRuns}
+                  />
+                  <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
+                    <strong>Pack Length Evolution:</strong> Average length of traffic packs in number of cars. 
+                    Longer packs suggest sustained congestion patterns.
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="flex items-center justify-center h-48">
-                <div className="text-center text-gray-500">
-                  <p className="text-lg font-medium mb-2">Pack Formation Analysis Disabled</p>
-                  <p className="text-sm">Enable "Show Pack Formation Charts" in the control bar to view this section</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
