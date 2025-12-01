@@ -47,7 +47,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const handleVehicleTypeDensityChange = (vehicleType: 'car' | 'truck' | 'motorcycle', value: number) => {
     const newVehicleTypeDensity = { ...params.vehicleTypeDensity };
     newVehicleTypeDensity[vehicleType] = value;
-    
+
     // Ensure percentages add up to 100
     const total = Object.values(newVehicleTypeDensity).reduce((sum, val) => sum + val, 0);
     if (total !== 100) {
@@ -55,20 +55,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       const others = Object.keys(newVehicleTypeDensity).filter(key => key !== vehicleType) as ('car' | 'truck' | 'motorcycle')[];
       const remaining = 100 - value;
       const otherTotal = others.reduce((sum, key) => sum + newVehicleTypeDensity[key], 0);
-      
+
       if (otherTotal > 0) {
         others.forEach(key => {
           newVehicleTypeDensity[key] = Math.round((newVehicleTypeDensity[key] / otherTotal) * remaining);
         });
       }
     }
-    
+
     onUpdateParams({ vehicleTypeDensity: newVehicleTypeDensity });
   };
 
   const addLane = () => {
     if (params.numLanes < 6) {
-      onUpdateParams({ 
+      onUpdateParams({
         numLanes: params.numLanes + 1
       });
     }
@@ -76,7 +76,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   const removeLane = () => {
     if (params.numLanes > 1) {
-      onUpdateParams({ 
+      onUpdateParams({
         numLanes: params.numLanes - 1
       });
     }
@@ -162,7 +162,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <Label className="text-sm font-medium">Vehicle Type Distribution</Label>
                 <InfoTooltip content="Percentage distribution of different vehicle types in the simulation" />
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center">
@@ -181,10 +181,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onKeyDown={(e) => {
                       // Allow: backspace, delete, tab, escape, enter, and decimal points
                       if ([46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
-                          // Allow: Ctrl+A, Command+A
-                          (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
-                          // Allow: home, end, left, right, down, up
-                          (e.keyCode >= 35 && e.keyCode <= 40)) {
+                        // Allow: Ctrl+A, Command+A
+                        (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                        // Allow: home, end, left, right, down, up
+                        (e.keyCode >= 35 && e.keyCode <= 40)) {
                         // Let it happen, don't do anything
                         return;
                       }
@@ -199,7 +199,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   />
                   <span className="text-xs text-gray-500">%</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <div className="flex items-center">
                     <Label>Trucks:</Label>
@@ -217,10 +217,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onKeyDown={(e) => {
                       // Allow: backspace, delete, tab, escape, enter, and decimal points
                       if ([46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
-                          // Allow: Ctrl+A, Command+A
-                          (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
-                          // Allow: home, end, left, right, down, up
-                          (e.keyCode >= 35 && e.keyCode <= 40)) {
+                        // Allow: Ctrl+A, Command+A
+                        (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                        // Allow: home, end, left, right, down, up
+                        (e.keyCode >= 35 && e.keyCode <= 40)) {
                         // Let it happen, don't do anything
                         return;
                       }
@@ -235,7 +235,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   />
                   <span className="text-xs text-gray-500">%</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <div className="flex items-center">
                     <Label>Motorcycles:</Label>
@@ -253,10 +253,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onKeyDown={(e) => {
                       // Allow: backspace, delete, tab, escape, enter, and decimal points
                       if ([46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
-                          // Allow: Ctrl+A, Command+A
-                          (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
-                          // Allow: home, end, left, right, down, up
-                          (e.keyCode >= 35 && e.keyCode <= 40)) {
+                        // Allow: Ctrl+A, Command+A
+                        (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                        // Allow: home, end, left, right, down, up
+                        (e.keyCode >= 35 && e.keyCode <= 40)) {
                         // Let it happen, don't do anything
                         return;
                       }
@@ -271,7 +271,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   />
                   <span className="text-xs text-gray-500">%</span>
                 </div>
-                
+
                 <div className="text-xs text-gray-500">
                   Total: {Object.values(params.vehicleTypeDensity).reduce((sum, val) => sum + val, 0)}%
                 </div>
@@ -288,18 +288,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <InfoTooltip content="Number of lanes in the freeway" />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={removeLane}
                     disabled={params.numLanes <= 1}
                   >
                     -
                   </Button>
                   <span className="w-8 text-center">{params.numLanes}</span>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={addLane}
                     disabled={params.numLanes >= 6}
                   >
@@ -307,7 +307,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   </Button>
                 </div>
               </div>
-              
+
               {/* Overall Freeway Traffic Density */}
               <div className="space-y-2">
                 <div className="flex items-center">
@@ -325,13 +325,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     }}
                     className="flex-1"
                     min="0"
-                    max="80"
+                    max="500"
                     step="0.5"
                   />
                   <span className="text-xs text-gray-500">{conversions.density.unit}</span>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((density) => (
+                  {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300, 350, 400, 450, 500].map((density) => (
                     <Button
                       key={density}
                       variant="outline"
@@ -398,7 +398,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       className={`h-7 px-2 text-xs ${params.simulationDuration === duration ? 'bg-primary/10' : ''}`}
                       onClick={() => onUpdateParams({ simulationDuration: duration })}
                     >
-                      {duration < 60 ? `${duration}s` : duration === 60 ? '1 min' : duration < 300 ? `${duration/60} mins` : duration === 600 ? '10 mins (max)' : `${duration/60} mins`}
+                      {duration < 60 ? `${duration}s` : duration === 60 ? '1 min' : duration < 300 ? `${duration / 60} mins` : duration === 600 ? '10 mins (max)' : `${duration / 60} mins`}
                     </Button>
                   ))}
                 </div>
@@ -473,7 +473,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2 pt-4">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
@@ -500,7 +500,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <span className="text-xs text-muted-foreground">Presets:</span>
                   <ToggleGroup type="single" size="sm" className="gap-1">
                     {[0.5, 0.75, 1, 1.5].map((ratio) => (
-                      <ToggleGroupItem 
+                      <ToggleGroupItem
                         key={ratio}
                         value={ratio.toString()}
                         onClick={() => onUpdateParams({ speedLimit: Math.round(params.meanSpeed * ratio) })}
@@ -509,7 +509,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         {ratio}x
                       </ToggleGroupItem>
                     ))}
-                    <ToggleGroupItem 
+                    <ToggleGroupItem
                       value="none"
                       onClick={() => onUpdateParams({ speedLimit: 1000 })} // Effectively no limit
                       className="h-6 px-2 text-xs"
@@ -541,7 +541,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     step={1}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs">Time Headway</Label>
@@ -557,7 +557,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     step={0.5}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs">Acceleration Reaction Time</Label>
@@ -573,7 +573,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     step={0.5}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs">Braking Reaction Time</Label>
@@ -589,7 +589,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     step={0.1}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs">Mean Trip Distance</Label>
@@ -632,10 +632,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             )}
 
             <Separator />
-            
+
             {/* JSON Import/Export */}
             <div className="pt-2">
-              <JsonImportExport 
+              <JsonImportExport
                 onImport={onUpdateParams}
                 onBatchImport={onBatchImport}
                 currentParams={params}
