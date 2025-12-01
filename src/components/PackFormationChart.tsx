@@ -6,6 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Download, BarChart2 } from "lucide-react";
 import { Car } from "@/utils/trafficSimulation";
 import { useToast } from "@/hooks/use-toast";
+import { calculateStabilizedValue } from "@/utils/stabilizedValueCalculator";
 
 export interface PackHistoryItem {
   time: number;
@@ -23,13 +24,13 @@ interface PackFormationChartProps {
 
 const COLORS = [
   'hsl(var(--primary))',
-  'hsl(var(--chart-blue))', 
-  'hsl(var(--chart-green))', 
+  'hsl(var(--chart-blue))',
+  'hsl(var(--chart-green))',
   'hsl(var(--chart-purple))',
   'hsl(var(--chart-red))'
 ];
 
-const PackFormationChart: React.FC<PackFormationChartProps> = ({ 
+const PackFormationChart: React.FC<PackFormationChartProps> = ({
   packHistory,
   previousRunsData = [],
   onSaveCurrentRun,
@@ -41,21 +42,21 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({
 
   const handleExportImage = () => {
     if (!chartRef.current) return;
-    
+
     try {
       // Convert the chart to an SVG
       const svgElement = chartRef.current.querySelector("svg");
       if (!svgElement) {
         throw new Error("SVG element not found");
       }
-      
+
       // Clone the SVG to avoid modifying the original
       const clonedSvg = svgElement.cloneNode(true) as SVGElement;
-      
+
       // Set background for the SVG
       clonedSvg.setAttribute("background", "white");
       clonedSvg.setAttribute("style", "background-color: white;");
-      
+
       // Ensure all elements are visible in export
       const allPaths = clonedSvg.querySelectorAll("path");
       allPaths.forEach(path => {
@@ -65,18 +66,18 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({
           path.setAttribute("stroke-width", "2");
         }
       });
-      
+
       // Enhance dots visibility
       const allCircles = clonedSvg.querySelectorAll("circle");
       allCircles.forEach(circle => {
         circle.setAttribute("r", "4"); // Increase radius
         circle.setAttribute("stroke-width", "2");
       });
-      
+
       // Serialize SVG to a string
       const svgData = new XMLSerializer().serializeToString(clonedSvg);
       const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-      
+
       // Create download link
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(svgBlob);
@@ -84,7 +85,7 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      
+
       // Show success message
       toast({
         title: "Chart exported",
@@ -102,6 +103,16 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({
     }
   };
 
+  // Calculate stabilized values
+  const stabilizedValues = React.useMemo(() => {
+    // Extract pack counts directly
+    const packCountData = packHistory.map(item => item.packCount);
+
+    return {
+      packCount: calculateStabilizedValue(packCountData)
+    };
+  }, [packHistory]);
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -109,9 +120,9 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({
           <CardTitle className="text-lg">Pack Formation Over Time</CardTitle>
           <div className="flex items-center gap-2">
             {onSaveCurrentRun && (
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="flex items-center gap-1"
                 onClick={onSaveCurrentRun}
               >
@@ -120,19 +131,19 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({
               </Button>
             )}
             {onTogglePreviousRuns && previousRunsData.length > 0 && (
-              <Button 
-                variant={showPreviousRuns ? "default" : "outline"} 
-                size="sm" 
+              <Button
+                variant={showPreviousRuns ? "default" : "outline"}
+                size="sm"
                 className="flex items-center gap-1"
                 onClick={onTogglePreviousRuns}
               >
                 {showPreviousRuns ? "Hide" : "Show"} Previous
               </Button>
             )}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center gap-1" 
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
               onClick={handleExportImage}
             >
               <Download size={16} />
@@ -162,8 +173,8 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="time" 
+              <XAxis
+                dataKey="time"
                 name="Time"
                 label={{ value: "Time (seconds)", position: "insideBottomRight", offset: -10 }}
               />
@@ -181,7 +192,7 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({
                 dot={{ r: 4, strokeWidth: 2 }}
                 activeDot={{ r: 8 }}
               />
-              
+
               {/* Display previous runs if toggled on */}
               {showPreviousRuns && previousRunsData.map((runData, index) => (
                 <Line
@@ -198,6 +209,23 @@ const PackFormationChart: React.FC<PackFormationChartProps> = ({
               ))}
             </LineChart>
           </ChartContainer>
+        </div>
+
+        {/* Stabilized Values Display */}
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+          <h4 className="text-sm font-semibold mb-2">Stabilized Operating Point:</h4>
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="flex justify-between">
+              <span>Pack Count:</span>
+              <span className={`font-mono ${stabilizedValues.packCount?.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
+                {stabilizedValues.packCount?.value?.toFixed(1) || 'N/A'}
+                {stabilizedValues.packCount?.isStabilized && ' ✓'}
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            ✓ indicates stabilized values.
+          </p>
         </div>
       </CardContent>
     </Card>
