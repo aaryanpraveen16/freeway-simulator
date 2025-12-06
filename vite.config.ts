@@ -8,7 +8,7 @@ import autoprefixer from 'autoprefixer';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
-  
+
   return {
     base: '/', // TEMP: Use root for local preview
     publicDir: 'public', // Use the public directory for static assets
@@ -43,6 +43,12 @@ export default defineConfig(({ mode }) => {
       host: "::",
       port: 3000,
       strictPort: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+      },
     },
     plugins: [
       react(),

@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { SavedSimulation } from "@/services/indexedDBService";
+import { SavedSimulation } from "@/services/simulationService";
 
 interface OverlayLaneChangesDensityChartProps {
   selectedSimulations: SavedSimulation[];
@@ -22,7 +22,7 @@ const generateColors = (count: number): string[] => {
     '#f97316', // orange
     '#6366f1', // indigo
   ];
-  
+
   // If we need more colors than predefined, generate them
   if (count > colors.length) {
     for (let i = colors.length; i < count; i++) {
@@ -30,7 +30,7 @@ const generateColors = (count: number): string[] => {
       colors.push(`hsl(${hue}, 70%, 50%)`);
     }
   }
-  
+
   return colors.slice(0, count);
 };
 
@@ -41,14 +41,14 @@ const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartPro
     const colors = generateColors(selectedSimulations.length);
     const simulationNames: string[] = [];
     const allDataPoints: any[] = [];
-    
+
     selectedSimulations.forEach((simulation, index) => {
       const simName = simulation.name || `Simulation ${index + 1}`;
       simulationNames.push(simName);
-      
+
       // Use stabilized values from finalStats if available
-      if (simulation.finalStats?.stabilizedDensity !== undefined && 
-          simulation.finalStats?.laneChanges !== undefined) {
+      if (simulation.finalStats?.stabilizedDensity !== undefined &&
+        simulation.finalStats?.laneChanges !== undefined) {
         allDataPoints.push({
           density: simulation.finalStats.stabilizedDensity,
           laneChanges: simulation.finalStats.laneChanges,
@@ -59,10 +59,10 @@ const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartPro
         });
       }
     });
-    
+
     // Sort data points by density for proper line rendering
     allDataPoints.sort((a, b) => a.density - b.density);
-    
+
     return {
       chartData: allDataPoints,
       colors,
@@ -119,7 +119,7 @@ const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartPro
       <CardContent>
         <ChartContainer className="h-[400px]" config={{}}>
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart 
+            <ScatterChart
               margin={{ top: 20, right: 40, bottom: 40, left: 60 }}
             >
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
@@ -153,13 +153,13 @@ const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartPro
                 tickFormatter={(value) => Math.round(value).toLocaleString()}
               />
               <Tooltip content={<CustomTooltip />} />
-              
+
               {/* Create a separate Scatter for each simulation */}
               {selectedSimulations.map((simulation, index) => {
                 const simulationData = chartData.filter(point => point.simulationIndex === index);
                 const trafficRule = simulation.trafficRule || 'american';
                 const color = trafficRule === 'american' ? '#ff4d4f' : '#1890ff';
-                
+
                 return simulationData.length > 0 ? (
                   <Scatter
                     key={index}
@@ -177,7 +177,7 @@ const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartPro
             </ScatterChart>
           </ResponsiveContainer>
         </ChartContainer>
-        
+
         <div className="mt-4 text-sm text-gray-600 space-y-1">
           <p className="font-medium">Understanding the Chart:</p>
           <p>• Each color represents a different simulation</p>

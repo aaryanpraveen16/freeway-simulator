@@ -2,7 +2,8 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { SavedSimulation } from "@/services/indexedDBService";
+import { SavedSimulation } from "@/services/simulationService";
+import SimulationParametersCollapsible from "./SimulationParametersCollapsible";
 
 interface OverlayThroughputDensityChartProps {
   selectedSimulations: SavedSimulation[];
@@ -22,7 +23,7 @@ const generateColors = (count: number): string[] => {
     '#f97316', // orange
     '#6366f1', // indigo
   ];
-  
+
   // If we need more colors than predefined, generate them
   if (count > colors.length) {
     for (let i = colors.length; i < count; i++) {
@@ -30,7 +31,7 @@ const generateColors = (count: number): string[] => {
       colors.push(`hsl(${hue}, 70%, 50%)`);
     }
   }
-  
+
   return colors.slice(0, count);
 };
 
@@ -41,14 +42,14 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
     const colors = generateColors(selectedSimulations.length);
     const simulationNames: string[] = [];
     const allDataPoints: any[] = [];
-    
+
     selectedSimulations.forEach((simulation, index) => {
       const simName = simulation.name || `Simulation ${index + 1}`;
       simulationNames.push(simName);
-      
+
       // Use stabilized values from finalStats if available
-      if (simulation.finalStats?.stabilizedDensity !== undefined && 
-          simulation.finalStats?.stabilizedThroughput !== undefined) {
+      if (simulation.finalStats?.stabilizedDensity !== undefined &&
+        simulation.finalStats?.stabilizedThroughput !== undefined) {
         allDataPoints.push({
           density: simulation.finalStats.stabilizedDensity,
           throughput: simulation.finalStats.stabilizedThroughput,
@@ -75,7 +76,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
         }
       }
     });
-    
+
     return {
       chartData: allDataPoints,
       colors,
@@ -162,13 +163,13 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
                 tickFormatter={(value) => Math.round(value).toLocaleString()}
               />
               <Tooltip content={<CustomTooltip />} />
-              
+
               {/* Create a separate Scatter for each simulation */}
               {selectedSimulations.map((simulation, index) => {
                 const simulationData = chartData.filter(point => point.simulationIndex === index);
                 const trafficRule = simulation.trafficRule || 'american';
                 const color = trafficRule === 'american' ? '#ff4d4f' : '#1890ff';
-                
+
                 return (
                   <Scatter
                     key={index}
@@ -186,7 +187,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
             </ScatterChart>
           </ResponsiveContainer>
         </ChartContainer>
-        
+
         <div className="mt-4 text-sm text-gray-600 space-y-1">
           <p className="font-medium">Understanding the Chart:</p>
           <p>• Each color represents a different simulation</p>
@@ -194,6 +195,10 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
           <p>• Optimal throughput typically occurs at moderate densities</p>
           <p>• Higher densities often lead to congestion and reduced throughput</p>
         </div>
+
+        <SimulationParametersCollapsible
+          selectedSimulations={selectedSimulations}
+        />
       </CardContent>
     </Card>
   );
