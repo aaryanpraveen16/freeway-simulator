@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from "react";
 import { Car, calculateDistanceToCarAhead, getCarColor, identifyPacks } from "@/utils/trafficSimulation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
@@ -16,6 +17,7 @@ interface CarStatsCardProps {
 
 const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, showPackInfo = true, unitSystem = 'imperial' }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAllPacks, setShowAllPacks] = useState(false);
   const conversions = getUnitConversions(unitSystem);
 
   // Use the centralized identifyPacks function
@@ -41,6 +43,9 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, s
 
   // Filter packs to only show those with more than 1 car
   const multiCarPacks = packs.filter(pack => pack.carCount > 1);
+
+  // Limit displayed packs to 9 unless showAllPacks is true
+  const displayedPacks = showAllPacks ? multiCarPacks : multiCarPacks.slice(0, 9);
 
   // Filter cars based on search term
   const filteredCars = useMemo(() => {
@@ -82,7 +87,7 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, s
                 <span>{multiCarPacks.length}</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {multiCarPacks.map((pack) => (
+                {displayedPacks.map((pack) => (
                   <div key={pack.packId} className="p-3 border rounded-lg">
                     <div className="font-semibold mb-1">Pack #{pack.packId + 1}</div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -101,6 +106,17 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, s
               {multiCarPacks.length === 0 && (
                 <div className="text-center text-muted-foreground py-4">
                   No packs with multiple cars detected
+                </div>
+              )}
+              {multiCarPacks.length > 9 && (
+                <div className="flex justify-center mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAllPacks(!showAllPacks)}
+                  >
+                    {showAllPacks ? 'Show Less' : `Show More (${multiCarPacks.length - 9} more)`}
+                  </Button>
                 </div>
               )}
             </div>

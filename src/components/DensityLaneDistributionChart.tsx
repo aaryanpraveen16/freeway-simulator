@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { SavedSimulation } from "@/services/indexedDBService";
+import { SavedSimulation } from "@/services/simulationService";
 
 interface DensityLaneDistributionChartProps {
   selectedSimulations: SavedSimulation[];
@@ -65,23 +65,23 @@ const DensityLaneDistributionChart: React.FC<DensityLaneDistributionChartProps> 
         // For each simulation in this rule group
         sims.forEach((sim, simIndex) => {
           // Try to find lane history data in different possible locations
-          const laneHistory = 
+          const laneHistory =
             (sim.chartData?.percentageByLaneHistory as any[]) || [];
 
           if (laneHistory.length === 0) return;
-          
+
           debugInfo.simulationsWithData++;
-          
+
           // Get the last data point for stabilized values
           const lastDataPoint = laneHistory[laneHistory.length - 1];
-          
+
           // Try to find density in different possible locations
-          const density = 
-            lastDataPoint.density || 
+          const density =
+            lastDataPoint.density ||
             lastDataPoint.trafficDensity ||
             sim.params?.trafficDensity ||
             0;
-            
+
           if (density === undefined || density === null) {
             debugInfo.error = 'No density data found';
             return;
@@ -98,7 +98,7 @@ const DensityLaneDistributionChart: React.FC<DensityLaneDistributionChartProps> 
           // Find all lane data in the last data point
           const laneEntries = Object.entries(lastDataPoint)
             .filter(([key]) => key.startsWith('lane') && lastDataPoint[key] !== undefined);
-            
+
           if (laneEntries.length === 0) {
             debugInfo.error = 'No lane data found in lastDataPoint';
             return;
@@ -108,7 +108,7 @@ const DensityLaneDistributionChart: React.FC<DensityLaneDistributionChartProps> 
           laneEntries.forEach(([laneKey, value]) => {
             const dataKey = `${rule}_${laneKey}`;
             const laneNumber = parseInt(laneKey.replace('lane', '')) + 1; // Convert to 1-based
-            
+
             allDataPoints[densityKey][dataKey] = value as number;
             const ruleType = rule as 'american' | 'european';
             const laneIndex = (laneNumber - 1) % 3; // Ensure we don't go out of bounds
@@ -117,10 +117,10 @@ const DensityLaneDistributionChart: React.FC<DensityLaneDistributionChartProps> 
               name: `${ruleType === 'american' ? 'American' : 'European'} - Lane ${laneNumber}`,
               color: LANE_COLORS[ruleType][laneIndex]
             }));
-            
+
             debugInfo.dataPointsFound++;
             hasData = true;
-            
+
             // Save sample data for debugging
             if (simIndex === 0 && Object.keys(debugInfo.sampleData).length < 3) {
               debugInfo.sampleData[dataKey] = {
@@ -172,10 +172,10 @@ const DensityLaneDistributionChart: React.FC<DensityLaneDistributionChartProps> 
 
   if (chartData.length === 0 || lineKeys.length === 0) {
     // Create a more helpful error message
-    const errorMessage = debugInfo?.error 
+    const errorMessage = debugInfo?.error
       ? `Error: ${debugInfo.error}`
       : 'No valid lane distribution data found in the selected simulations. ' +
-        'Please ensure your simulations have completed and contain lane distribution data.';
+      'Please ensure your simulations have completed and contain lane distribution data.';
 
     return (
       <Card className="w-full">
@@ -227,26 +227,26 @@ const DensityLaneDistributionChart: React.FC<DensityLaneDistributionChartProps> 
             }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis 
+            <XAxis
               dataKey="density"
               label={{ value: 'Traffic Density (veh/km)', position: 'insideBottomRight', offset: -5 }}
               tick={{ fill: '#666' }}
             />
-            <YAxis 
-              label={{ 
-                value: 'Percentage of Cars (%)', 
-                angle: -90, 
+            <YAxis
+              label={{
+                value: 'Percentage of Cars (%)',
+                angle: -90,
                 position: 'insideLeft',
                 offset: 10
               }}
               domain={[0, 100]}
               tick={{ fill: '#666' }}
             />
-            <Tooltip 
+            <Tooltip
               formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
               labelFormatter={(density) => `Density: ${density} veh/km`}
             />
-            
+
             {lineKeys.map(({ key, name, color }) => (
               <Line
                 key={key}

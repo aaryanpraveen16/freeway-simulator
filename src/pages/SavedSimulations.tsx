@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { BarChart3, Calendar, CheckSquare, Clock, Copy, Edit2, Eye, FileDown, FileUp, Gauge, Info, Plus, Repeat, Square, Trash2, Users } from "lucide-react";
 import { exportSimulation, importSimulation, triggerFileInput } from "@/utils/simulationExport";
-import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
+import { simulationService, SavedSimulation } from "@/services/simulationService";
 import { useToast } from "@/hooks/use-toast";
 import { extractSimulationParams, formatParamsWithUnits } from "../utils/simulationUtils";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
@@ -31,7 +31,7 @@ const SavedSimulations: React.FC = () => {
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set());
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
   const { toast } = useToast();
-  
+
   const unitConversions = getUnitConversions(unitSystem);
 
   useEffect(() => {
@@ -59,20 +59,20 @@ const SavedSimulations: React.FC = () => {
   const handleImportSimulation = async (file: File) => {
     try {
       const simulation = await importSimulation(file);
-      
+
       // Check if simulation with same ID already exists
       const exists = savedSimulations.some(s => s.id === simulation.id);
-      
+
       if (exists) {
         // Add a timestamp to make the ID unique
         simulation.id = `${simulation.id}_${Date.now()}`;
         simulation.name = `${simulation.name} (Imported)`;
       }
-      
+
       // Save the imported simulation
-      await indexedDBService.saveSimulation(simulation);
+      await simulationService.saveSimulation(simulation);
       await loadSimulations();
-      
+
       toast({
         title: "Success",
         description: "Simulation imported successfully",
@@ -93,7 +93,7 @@ const SavedSimulations: React.FC = () => {
       const params = extractSimulationParams(simulation);
       const formattedString = formatParamsWithUnits(params, unitSystem);
       await navigator.clipboard.writeText(formattedString);
-      
+
       toast({
         title: "Success",
         description: "Simulation parameters copied to clipboard",
@@ -111,7 +111,7 @@ const SavedSimulations: React.FC = () => {
 
   const loadSimulations = async () => {
     try {
-      const simulations = await indexedDBService.getAllSimulations();
+      const simulations = await simulationService.getAllSimulations();
       console.log('Loaded simulations:', simulations);
       setSavedSimulations(simulations.sort((a, b) => b.timestamp - a.timestamp));
     } catch (error) {
@@ -128,7 +128,7 @@ const SavedSimulations: React.FC = () => {
 
   const deleteSimulation = async (id: string) => {
     try {
-      await indexedDBService.deleteSimulation(id);
+      await simulationService.deleteSimulation(id);
       setSavedSimulations(prev => prev.filter(sim => sim.id !== id));
       toast({
         title: "Success",
@@ -150,12 +150,12 @@ const SavedSimulations: React.FC = () => {
       if (!simulation) return;
 
       const updatedSimulation = { ...simulation, name: newName };
-      await indexedDBService.updateSimulation(updatedSimulation);
-      
-      setSavedSimulations(prev => 
+      await simulationService.updateSimulation(updatedSimulation);
+
+      setSavedSimulations(prev =>
         prev.map(sim => sim.id === id ? updatedSimulation : sim)
       );
-      
+
       toast({
         title: "Success",
         description: "Simulation name updated successfully",
@@ -205,10 +205,10 @@ const SavedSimulations: React.FC = () => {
     const numLanes = simulation.params.numLanes || 2;
     const freewayLength = simulation.params.freewayLength || 10;
     const trafficDensity = simulation.params.trafficDensity || 0.62;
-    
+
     // Total cars = density (cars/km) * freeway length (km) * number of lanes
     const totalCars = Math.round(trafficDensity * freewayLength * numLanes);
-    
+
     return totalCars;
   };
 
@@ -246,8 +246,8 @@ const SavedSimulations: React.FC = () => {
             />
             <span className="text-sm text-gray-600">Imperial</span>
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => triggerFileInput(handleImportSimulation)}
             className="flex items-center gap-2"
           >
@@ -358,14 +358,14 @@ const SavedSimulations: React.FC = () => {
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {simulation.finalStats.perLaneThroughputs.map((throughput, idx) => {
-                              const laneName = idx === 0 ? 'L' : 
-                                            idx === simulation.finalStats.perLaneThroughputs.length - 1 ? 'R' : 
-                                            `L${idx + 1}`;
+                              const laneName = idx === 0 ? 'L' :
+                                idx === simulation.finalStats.perLaneThroughputs.length - 1 ? 'R' :
+                                  `L${idx + 1}`;
                               const numLanes = simulation.params.numLanes || 3;
                               const freewayLength = simulation.params.freewayLength || 1;
-                              const laneCars = simulation.finalStats.totalCars * (1/numLanes);
+                              const laneCars = simulation.finalStats.totalCars * (1 / numLanes);
                               const avgSpeed = throughput / (laneCars / freewayLength) || 0;
-                              
+
                               return (
                                 <TooltipProvider key={idx}>
                                   <Tooltip>
@@ -429,110 +429,111 @@ const SavedSimulations: React.FC = () => {
                                     {simulation.trafficRule}
                                   </Badge>
                                 </DialogTitle>
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 text-sm">
-                                    <div className="flex items-center gap-2">
-                                      <Users size={16} className="text-blue-500" />
-                                      <span>{calculateNumCars(simulation)} cars</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-4 h-4 bg-gray-400 rounded"></div>
-                                      <span>{simulation.params.numLanes} lanes</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Gauge size={16} className="text-green-500" />
-                                      <span>{unitConversions.speed.toDisplay(simulation.finalStats.averageSpeed).toFixed(1)} {unitConversions.speed.unit} avg</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Repeat size={16} className="text-amber-500" />
-                                      <span>{simulation.finalStats.laneChanges} lane changes</span>
-                                    </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <Users size={16} className="text-blue-500" />
+                                    <span>{calculateNumCars(simulation)} cars</span>
                                   </div>
-                                </DialogHeader>
-                                
-                                {/* Per-Lane Throughput Section */}
-                                {simulation.finalStats.perLaneThroughputs?.length > 0 && (
-                                  <div className="p-4 border rounded-lg bg-muted/10">
-                                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                                      Per-Lane Throughput (cars/hour)
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <button className="text-muted-foreground hover:text-foreground">
-                                              <Info className="h-4 w-4" />
-                                              <span className="sr-only">How is this calculated?</span>
-                                            </button>
-                                          </TooltipTrigger>
-                                          <TooltipContent className="max-w-[300px] p-4">
-                                            <p className="font-medium mb-2">How throughput is calculated:</p>
-                                            <p className="text-sm mb-1">For each lane:</p>
-                                            <ul className="text-xs space-y-1 list-disc pl-4">
-                                              <li>Average speed = Sum of all car speeds / number of cars</li>
-                                              <li>Density = Number of cars / lane length (in km)</li>
-                                              <li>Throughput = Average speed × Density (cars/hour)</li>
-                                            </ul>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    </h3>
-                                    <div className="flex flex-wrap gap-3">
-                                      {simulation.finalStats.perLaneThroughputs.map((throughput, idx) => {
-                                        const laneName = idx === 0 ? 'Left' : 
-                                                      idx === simulation.finalStats.perLaneThroughputs.length - 1 ? 'Right' : 
-                                                      `Lane ${idx + 1}`;
-                                        const numLanes = simulation.params.numLanes || 3;
-                                        const freewayLength = simulation.params.freewayLength || 1;
-                                        const laneCars = simulation.finalStats.totalCars * (1/numLanes);
-                                        const avgSpeed = throughput / (laneCars / freewayLength) || 0;
-                                        
-                                        return (
-                                          <TooltipProvider key={idx}>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-background cursor-help">
-                                                  <span className="text-sm font-medium text-muted-foreground">{laneName}:</span>
-                                                  <span className="text-lg font-bold">{Math.round(throughput)}</span>
-                                                  <span className="text-xs text-muted-foreground">cars/hr</span>
-                                                </div>
-                                              </TooltipTrigger>
-                                              <TooltipContent className="max-w-[300px] p-3 text-sm" side="top">
-                                                <p className="font-medium mb-1">{laneName} Calculation:</p>
-                                                <p className="text-sm">
-                                                  {laneCars.toFixed(0)} cars • {avgSpeed.toFixed(1)} {unitConversions.speed.unit}
-                                                </p>
-                                                <p className="mt-1 text-muted-foreground text-xs">
-                                                  = {throughput.toFixed(1)} cars/hour
-                                                </p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                          </TooltipProvider>
-                                        );
-                                      })}
-                                    </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 bg-gray-400 rounded"></div>
+                                    <span>{simulation.params.numLanes} lanes</span>
                                   </div>
-                                )}
-                              </div>
-                              
-                              <div className="border-t">
-                                <ChartDashboard
-                                  cars={[]}
-                                  elapsedTime={simulation.duration}
-                                  laneLength={1000}
-                                  params={simulation.params}
-                                  trafficRule={simulation.trafficRule}
-                                  unitSystem={unitSystem}
-                                  speedDensityHistory={simulation.chartData.speedByLaneHistory}
-                                  densityOfCarPacksHistory={simulation.chartData.densityOfCarPacksHistory}
-                                  percentageByLaneHistory={simulation.chartData.percentageByLaneHistory}
-                                  densityThroughputHistory={simulation.chartData.densityThroughputHistory}
-                                  laneThroughputHistory={[]}
-                                  laneUtilizationHistory={[]}
-                                  packHistory={simulation.chartData.packHistory}
-                                  packLengthHistory={simulation.chartData.packLengthHistory}
-                                  showPackFormation={true}
-                                />
-                              </div>
-                            </DialogContent>
-                          </Dialog>
+                                  <div className="flex items-center gap-2">
+                                    <Gauge size={16} className="text-green-500" />
+                                    <span>{unitConversions.speed.toDisplay(simulation.finalStats.averageSpeed).toFixed(1)} {unitConversions.speed.unit} avg</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Repeat size={16} className="text-amber-500" />
+                                    <span>{simulation.finalStats.laneChanges} lane changes</span>
+                                  </div>
+                                </div>
+                              </DialogHeader>
+
+                              {/* Per-Lane Throughput Section */}
+                              {simulation.finalStats.perLaneThroughputs?.length > 0 && (
+                                <div className="p-4 border rounded-lg bg-muted/10">
+                                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                                    Per-Lane Throughput (cars/hour)
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button className="text-muted-foreground hover:text-foreground">
+                                            <Info className="h-4 w-4" />
+                                            <span className="sr-only">How is this calculated?</span>
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-[300px] p-4">
+                                          <p className="font-medium mb-2">How throughput is calculated:</p>
+                                          <p className="text-sm mb-1">For each lane:</p>
+                                          <ul className="text-xs space-y-1 list-disc pl-4">
+                                            <li>Average speed = Sum of all car speeds / number of cars</li>
+                                            <li>Density = Number of cars / lane length (in km)</li>
+                                            <li>Throughput = Average speed × Density (cars/hour)</li>
+                                          </ul>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </h3>
+                                  <div className="flex flex-wrap gap-3">
+                                    {simulation.finalStats.perLaneThroughputs.map((throughput, idx) => {
+                                      const laneName = idx === 0 ? 'Left' :
+                                        idx === simulation.finalStats.perLaneThroughputs.length - 1 ? 'Right' :
+                                          `Lane ${idx + 1}`;
+                                      const numLanes = simulation.params.numLanes || 3;
+                                      const freewayLength = simulation.params.freewayLength || 1;
+                                      const laneCars = simulation.finalStats.totalCars * (1 / numLanes);
+                                      const avgSpeed = throughput / (laneCars / freewayLength) || 0;
+
+                                      return (
+                                        <TooltipProvider key={idx}>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-background cursor-help">
+                                                <span className="text-sm font-medium text-muted-foreground">{laneName}:</span>
+                                                <span className="text-lg font-bold">{Math.round(throughput)}</span>
+                                                <span className="text-xs text-muted-foreground">cars/hr</span>
+                                              </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-[300px] p-3 text-sm" side="top">
+                                              <p className="font-medium mb-1">{laneName} Calculation:</p>
+                                              <p className="text-sm">
+                                                {laneCars.toFixed(0)} cars • {avgSpeed.toFixed(1)} {unitConversions.speed.unit}
+                                              </p>
+                                              <p className="mt-1 text-muted-foreground text-xs">
+                                                = {throughput.toFixed(1)} cars/hour
+                                              </p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="border-t">
+                              <ChartDashboard
+                                cars={[]}
+                                elapsedTime={simulation.duration}
+                                laneLength={1000}
+                                params={simulation.params}
+                                trafficRule={simulation.trafficRule}
+                                unitSystem={unitSystem}
+                                speedDensityHistory={simulation.chartData.speedByLaneHistory}
+                                densityOfCarPacksHistory={simulation.chartData.densityOfCarPacksHistory}
+                                percentageByLaneHistory={simulation.chartData.percentageByLaneHistory}
+                                densityThroughputHistory={simulation.chartData.densityThroughputHistory}
+                                laneThroughputHistory={[]}
+                                laneUtilizationHistory={[]}
+                                packHistory={simulation.chartData.packHistory}
+                                packLengthHistory={simulation.chartData.packLengthHistory}
+                                packsPerLaneHistory={simulation.chartData.packsPerLaneHistory || []}
+                                showPackFormation={true}
+                              />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                         <Button
                           variant="outline"
                           size="sm"
@@ -579,8 +580,8 @@ const SavedSimulations: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <CardTitle>Select Simulations for Comparison</CardTitle>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={selectAllForComparison}
                         disabled={savedSimulations.length === 0}
@@ -588,8 +589,8 @@ const SavedSimulations: React.FC = () => {
                         <CheckSquare size={16} className="mr-1" />
                         Select All
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={deselectAllForComparison}
                         disabled={selectedForComparison.size === 0}
@@ -610,13 +611,13 @@ const SavedSimulations: React.FC = () => {
                         <Checkbox
                           id={`comparison-${simulation.id}`}
                           checked={selectedForComparison.has(simulation.id)}
-                          onCheckedChange={(checked) => 
+                          onCheckedChange={(checked) =>
                             handleComparisonSelection(simulation.id, checked as boolean)
                           }
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <label 
+                            <label
                               htmlFor={`comparison-${simulation.id}`}
                               className="text-sm font-medium cursor-pointer truncate"
                             >
@@ -660,21 +661,27 @@ const SavedSimulations: React.FC = () => {
               {/* Comparison Charts */}
               {selectedForComparison.size > 0 ? (
                 <div className="grid gap-6">
-                  <OverlaySpeedDensityChart 
+                  <OverlaySpeedDensityChart
                     selectedSimulations={getSelectedSimulations()}
                     unitSystem={unitSystem}
                   />
-                  <OverlayThroughputDensityChart 
+                  <OverlayThroughputDensityChart
                     selectedSimulations={getSelectedSimulations()}
                   />
-                  <OverlayLaneThroughputDensityChart 
+                  <OverlayLaneThroughputDensityChart
                     selectedSimulations={getSelectedSimulations()}
                     unitSystem={unitSystem}
                   />
-                  <OverlayLaneChangesDensityChart 
+                  <OverlayLaneChangesDensityChart
                     selectedSimulations={getSelectedSimulations()}
                   />
-                  <OverlayPackFormationDensityChart 
+                  <OverlayPackFormationDensityChart
+                    selectedSimulations={getSelectedSimulations()}
+                  />
+                  <DensityLaneDistributionChart
+                    selectedSimulations={getSelectedSimulations()}
+                  />
+                  <OverlayPackFormationDensityChart
                     selectedSimulations={getSelectedSimulations()}
                   />
                   <DensityLaneDistributionChart
@@ -695,7 +702,7 @@ const SavedSimulations: React.FC = () => {
           </TabsContent>
         </Tabs>
       )}
-      
+
       <Footer />
     </div>
   );

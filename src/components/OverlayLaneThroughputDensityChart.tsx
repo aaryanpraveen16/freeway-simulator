@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { SavedSimulation } from '@/services/indexedDBService';
+import { SavedSimulation } from '@/services/simulationService';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getUnitConversions } from "@/utils/unitConversion";
 
@@ -18,7 +18,7 @@ const OverlayLaneThroughputDensityChart: React.FC<OverlayLaneThroughputDensityCh
   // Prepare data for the chart
   const chartData = useMemo(() => {
     const data: any[] = [];
-    
+
     selectedSimulations.forEach((sim) => {
       if (!sim.finalStats.perLaneThroughputs) {
         return;
@@ -29,16 +29,16 @@ const OverlayLaneThroughputDensityChart: React.FC<OverlayLaneThroughputDensityCh
       const totalCars = sim.finalStats.totalCars || 0;
       const trafficRule = sim.trafficRule || 'american';
       const color = trafficRule === 'american' ? '#ff4d4f' : '#1890ff';
-      
+
       // Create a data point for each lane
       for (let laneIdx = 0; laneIdx < numLanes; laneIdx++) {
         const throughput = sim.finalStats.perLaneThroughputs[laneIdx] || 0;
-        
+
         // Calculate density: assume equal distribution of cars across lanes
         // Density = cars per lane / freeway length
         const carsPerLane = totalCars / numLanes;
         const density = carsPerLane / freewayLength; // cars/km
-        
+
         if (throughput > 0 && density > 0) {
           data.push({
             simulationId: sim.id,
@@ -46,9 +46,9 @@ const OverlayLaneThroughputDensityChart: React.FC<OverlayLaneThroughputDensityCh
             simulationNumber: sim.simulationNumber,
             trafficRule: trafficRule,
             laneIndex: laneIdx,
-            laneName: laneIdx === 0 ? 'Left' : 
-                     laneIdx === numLanes - 1 ? 'Right' : 
-                     `Lane ${laneIdx + 1}`,
+            laneName: laneIdx === 0 ? 'Left' :
+              laneIdx === numLanes - 1 ? 'Right' :
+                `Lane ${laneIdx + 1}`,
             density: parseFloat(density.toFixed(3)),
             throughput: parseFloat(throughput.toFixed(2)),
             color: color
@@ -56,7 +56,7 @@ const OverlayLaneThroughputDensityChart: React.FC<OverlayLaneThroughputDensityCh
         }
       }
     });
-    
+
     return data;
   }, [selectedSimulations]);
 
@@ -66,13 +66,13 @@ const OverlayLaneThroughputDensityChart: React.FC<OverlayLaneThroughputDensityCh
       american: [],
       european: []
     };
-    
+
     chartData.forEach(point => {
       if (grouped[point.trafficRule]) {
         grouped[point.trafficRule].push(point);
       }
     });
-    
+
     return grouped;
   }, [chartData]);
 
@@ -117,36 +117,36 @@ const OverlayLaneThroughputDensityChart: React.FC<OverlayLaneThroughputDensityCh
             margin={{ top: 20, right: 30, bottom: 60, left: 60 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
+            <XAxis
               type="number"
-              dataKey="density" 
-              name="Density" 
-              label={{ 
-                value: 'Density (cars/km)', 
-                position: 'insideBottom', 
+              dataKey="density"
+              name="Density"
+              label={{
+                value: 'Density (cars/km)',
+                position: 'insideBottom',
                 offset: -40,
                 style: { fontWeight: 500 }
               }}
               domain={['dataMin - 0.1', 'dataMax + 0.1']}
             />
-            <YAxis 
+            <YAxis
               type="number"
               dataKey="throughput"
-              name="Throughput" 
-              label={{ 
-                value: 'Throughput (cars/hr)', 
-                angle: -90, 
+              name="Throughput"
+              label={{
+                value: 'Throughput (cars/hr)',
+                angle: -90,
                 position: 'insideLeft',
                 style: { fontWeight: 500 }
               }}
               domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend 
+            <Legend
               verticalAlign="top"
               height={36}
             />
-            
+
             {/* American rules scatter */}
             {dataByTrafficRule.american.length > 0 && (
               <Scatter
@@ -159,7 +159,7 @@ const OverlayLaneThroughputDensityChart: React.FC<OverlayLaneThroughputDensityCh
                 r={6}
               />
             )}
-            
+
             {/* European rules scatter */}
             {dataByTrafficRule.european.length > 0 && (
               <Scatter
@@ -174,7 +174,7 @@ const OverlayLaneThroughputDensityChart: React.FC<OverlayLaneThroughputDensityCh
             )}
           </ScatterChart>
         </ResponsiveContainer>
-        
+
         <div className="mt-4 text-xs text-muted-foreground space-y-1">
           <p>• Each point represents a lane from a selected simulation</p>
           <p>• <span className="text-red-500 font-semibold">Red</span>: American traffic rules (keep right, pass left)</p>

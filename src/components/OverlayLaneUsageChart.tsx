@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from "recharts";
-import { SavedSimulation } from "@/services/indexedDBService";
+import { SavedSimulation } from "@/services/simulationService";
 
 interface OverlayLaneUsageChartProps {
   selectedSimulations: SavedSimulation[];
@@ -22,7 +22,7 @@ const generateColors = (count: number): string[] => {
     '#f97316', // orange
     '#6366f1', // indigo
   ];
-  
+
   // If we need more colors than predefined, generate them
   if (count > colors.length) {
     for (let i = colors.length; i < count; i++) {
@@ -30,7 +30,7 @@ const generateColors = (count: number): string[] => {
       colors.push(`hsl(${hue}, 70%, 50%)`);
     }
   }
-  
+
   return colors.slice(0, count);
 };
 
@@ -39,35 +39,35 @@ const OverlayLaneUsageChart: React.FC<OverlayLaneUsageChartProps> = ({
 }) => {
   const { chartData, colors, simulationNames } = useMemo(() => {
     if (selectedSimulations.length === 0) return { chartData: [], colors: [], simulationNames: [] };
-    
+
     const colors = generateColors(selectedSimulations.length);
     const simulationNames: string[] = [];
-    
+
     // Get all unique time points across selected simulations
     const allTimePoints = new Set<number>();
     selectedSimulations.forEach(sim => {
       const simName = sim.name || `Simulation ${selectedSimulations.indexOf(sim) + 1}`;
       simulationNames.push(simName);
-      
+
       (sim.chartData?.percentageByLaneHistory || []).forEach(point => allTimePoints.add(point.time));
     });
 
     const sortedTimePoints = Array.from(allTimePoints).sort((a, b) => a - b);
-    
+
     // Generate lane usage comparison data (focusing on lane 0 for simplicity)
     const chartData = sortedTimePoints.map(time => {
       const dataPoint: any = { time };
-      
+
       selectedSimulations.forEach((sim, index) => {
         const percentagePoint = (sim.chartData?.percentageByLaneHistory || []).find(p => p.time === time);
         if (percentagePoint && percentagePoint.lane0 !== undefined) {
           dataPoint[`sim${index}_lane0`] = percentagePoint.lane0;
         }
       });
-      
+
       return dataPoint;
     }).filter(point => Object.keys(point).length > 1);
-    
+
     return {
       chartData,
       colors,
@@ -165,7 +165,7 @@ const OverlayLaneUsageChart: React.FC<OverlayLaneUsageChartProps> = ({
                   </div>
                 )}
               />
-              
+
               {selectedSimulations.map((_, index) => (
                 <Line
                   key={`sim${index}_lane0`}
@@ -179,7 +179,7 @@ const OverlayLaneUsageChart: React.FC<OverlayLaneUsageChartProps> = ({
             </LineChart>
           </ResponsiveContainer>
         </ChartContainer>
-        
+
         <div className="mt-4 text-sm text-gray-600 space-y-1">
           <p className="font-medium">Understanding the Chart:</p>
           <p>• Each line shows the percentage of cars in Lane 1 for different simulations</p>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { SavedSimulation } from '@/services/indexedDBService';
+import { SavedSimulation } from '@/services/simulationService';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getUnitConversions } from "@/utils/unitConversion";
 
@@ -18,7 +18,7 @@ const StabilizedComparisonChart: React.FC<StabilizedComparisonChartProps> = ({
   // Prepare data for the chart
   const getStabilizedData = () => {
     console.log('Processing simulations:', selectedSimulations);
-    
+
     return selectedSimulations.map(sim => {
       // Debug the simulation object structure
       console.log(`Simulation ${sim.id} (${sim.name})`, {
@@ -28,13 +28,13 @@ const StabilizedComparisonChart: React.FC<StabilizedComparisonChartProps> = ({
         stabilizedAverageSpeed: sim.finalStats?.stabilizedAverageSpeed,
         allFinalStats: sim.finalStats
       });
-      
+
       // Try to get the values with fallbacks
       const density = sim.finalStats?.stabilizedDensity ?? 0;
       const avgSpeed = sim.finalStats?.stabilizedAverageSpeed ?? 0;
-      
+
       console.log(`Extracted values - Density: ${density}, Speed: ${avgSpeed}`);
-      
+
       return {
         id: sim.id,
         name: sim.name,
@@ -90,14 +90,14 @@ const StabilizedComparisonChart: React.FC<StabilizedComparisonChartProps> = ({
             margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="density" 
-              name="Density" 
-              label={{ value: 'Density (veh/km)', position: 'insideBottomRight', offset: -5 }} 
+            <XAxis
+              dataKey="density"
+              name="Density"
+              label={{ value: 'Density (veh/km)', position: 'insideBottomRight', offset: -5 }}
             />
-            <YAxis 
-              name="Average Speed" 
-              label={{ value: `Average Speed (${unitConversions.speed.unit})`, angle: -90, position: 'insideLeft' }} 
+            <YAxis
+              name="Average Speed"
+              label={{ value: `Average Speed (${unitConversions.speed.unit})`, angle: -90, position: 'insideLeft' }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend />

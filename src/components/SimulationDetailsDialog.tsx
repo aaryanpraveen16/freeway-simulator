@@ -5,7 +5,7 @@ import { Users, Gauge, Repeat, Info } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import ChartDashboard from "./ChartDashboard";
 import { UnitSystem } from "@/utils/unitConversion";
-import { SavedSimulation } from "@/services/indexedDBService";
+import { SavedSimulation } from "@/services/simulationService";
 
 interface SimulationDetailsDialogProps {
   simulation: SavedSimulation | null;
@@ -59,7 +59,7 @@ const SimulationDetailsDialog: React.FC<SimulationDetailsDialogProps> = ({
               </div>
             </div>
           </DialogHeader>
-          
+
           {/* Per-Lane Throughput Section */}
           {simulation.finalStats.perLaneThroughputs?.length > 0 && (
             <div className="p-4 border rounded-lg bg-muted/10">
@@ -87,14 +87,14 @@ const SimulationDetailsDialog: React.FC<SimulationDetailsDialogProps> = ({
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {simulation.finalStats.perLaneThroughputs.map((throughput, idx) => {
-                  const laneName = idx === 0 ? 'Left' : 
-                                idx === simulation.finalStats.perLaneThroughputs.length - 1 ? 'Right' : 
-                                `Lane ${idx + 1}`;
+                  const laneName = idx === 0 ? 'Left' :
+                    idx === simulation.finalStats.perLaneThroughputs.length - 1 ? 'Right' :
+                      `Lane ${idx + 1}`;
                   const numLanes = simulation.params.numLanes || 3;
                   const freewayLength = simulation.params.freewayLength || 1;
-                  const laneCars = simulation.finalStats.totalCars * (1/numLanes);
+                  const laneCars = simulation.finalStats.totalCars * (1 / numLanes);
                   const avgSpeed = throughput / (laneCars / freewayLength) || 0;
-                  
+
                   return (
                     <div key={idx} className="space-y-2 p-3 border rounded-lg bg-background">
                       <div className="flex justify-between items-center">
@@ -124,12 +124,12 @@ const SimulationDetailsDialog: React.FC<SimulationDetailsDialogProps> = ({
                           {throughput.toFixed(1)}
                         </div>
                         <div className="flex-1 h-3 bg-primary/20 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary rounded-r-full" 
-                            style={{ 
+                          <div
+                            className="h-full bg-primary rounded-r-full"
+                            style={{
                               width: `${Math.min(100, (throughput / Math.max(1, ...simulation.finalStats.perLaneThroughputs)) * 100)}%`,
                               backgroundColor: throughput > 0 ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground)/0.5)'
-                            }} 
+                            }}
                           />
                         </div>
                       </div>
@@ -140,7 +140,7 @@ const SimulationDetailsDialog: React.FC<SimulationDetailsDialogProps> = ({
             </div>
           )}
         </div>
-        
+
         <div className="border-t">
           <ChartDashboard
             cars={[]}

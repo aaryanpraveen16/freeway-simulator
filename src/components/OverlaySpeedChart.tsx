@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
-import { SavedSimulation } from "@/services/indexedDBService";
+import { SavedSimulation } from "@/services/simulationService";
 
 interface OverlaySpeedChartProps {
   selectedSimulations: SavedSimulation[];
@@ -22,7 +22,7 @@ const generateColors = (count: number): string[] => {
     '#f97316', // orange
     '#6366f1', // indigo
   ];
-  
+
   // If we need more colors than predefined, generate them
   if (count > colors.length) {
     for (let i = colors.length; i < count; i++) {
@@ -30,7 +30,7 @@ const generateColors = (count: number): string[] => {
       colors.push(`hsl(${hue}, 70%, 50%)`);
     }
   }
-  
+
   return colors.slice(0, count);
 };
 
@@ -39,35 +39,35 @@ const OverlaySpeedChart: React.FC<OverlaySpeedChartProps> = ({
 }) => {
   const { chartData, colors, simulationNames } = useMemo(() => {
     if (selectedSimulations.length === 0) return { chartData: [], colors: [], simulationNames: [] };
-    
+
     const colors = generateColors(selectedSimulations.length);
     const simulationNames: string[] = [];
-    
+
     // Get all unique time points across selected simulations
     const allTimePoints = new Set<number>();
     selectedSimulations.forEach(sim => {
       const simName = sim.name || `Simulation ${selectedSimulations.indexOf(sim) + 1}`;
       simulationNames.push(simName);
-      
+
       (sim.chartData?.speedByLaneHistory || []).forEach(point => allTimePoints.add(point.time));
     });
 
     const sortedTimePoints = Array.from(allTimePoints).sort((a, b) => a - b);
-    
+
     // Generate speed comparison data
     const chartData = sortedTimePoints.map(time => {
       const dataPoint: any = { time };
-      
+
       selectedSimulations.forEach((sim, index) => {
         const speedPoint = (sim.chartData?.speedByLaneHistory || []).find(p => p.time === time);
         if (speedPoint) {
           dataPoint[`sim${index}_overall`] = speedPoint.overallAvgSpeed;
         }
       });
-      
+
       return dataPoint;
     }).filter(point => Object.keys(point).length > 1);
-    
+
     return {
       chartData,
       colors,
@@ -149,7 +149,7 @@ const OverlaySpeedChart: React.FC<OverlaySpeedChartProps> = ({
                 }}
               />
               <ChartTooltip content={<CustomTooltip />} />
-              
+
               {selectedSimulations.map((_, index) => (
                 <Line
                   key={`sim${index}_overall`}
@@ -163,7 +163,7 @@ const OverlaySpeedChart: React.FC<OverlaySpeedChartProps> = ({
             </LineChart>
           </ResponsiveContainer>
         </ChartContainer>
-        
+
         <div className="mt-4 text-sm text-gray-600 space-y-1">
           <p className="font-medium">Understanding the Chart:</p>
           <p>• Each line represents the overall average speed for a different simulation</p>

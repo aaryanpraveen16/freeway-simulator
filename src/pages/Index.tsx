@@ -23,7 +23,7 @@ import {
   type SimulationParams,
   type Car
 } from "@/utils/trafficSimulation";
-import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
+import { simulationService, SavedSimulation } from "@/services/simulationService";
 import { useToast } from "@/hooks/use-toast";
 import { UnitSystem } from "@/utils/unitConversion";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
@@ -740,7 +740,7 @@ const Index = () => {
     }
 
     try {
-      const simulationNumber = await indexedDBService.getNextSimulationNumber();
+      const simulationNumber = await simulationService.getNextSimulationNumber();
       const speeds = cars.map(car => car.speed);
       const avgSpeed = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
       const maxSpeed = Math.max(...speeds);
@@ -809,7 +809,7 @@ const Index = () => {
         },
       };
 
-      await indexedDBService.saveSimulation(savedSimulation);
+      await simulationService.saveSimulation(savedSimulation);
 
       if (showNotifications) {
         toast({
