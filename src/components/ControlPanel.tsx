@@ -18,7 +18,7 @@ interface BatchSimulation {
   name?: string;
   duration: number;
   params: Partial<SimulationParams>;
-  simulationSpeed?: number;
+  // simulationSpeed?: number;
 }
 
 interface ControlPanelProps {

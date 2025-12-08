@@ -42,8 +42,8 @@ interface BatchSimulation {
   name?: string;
   duration: number;
   params: Partial<SimulationParams>;
-  simulationSpeed?: number;
-  trafficRule?: 'american' | 'european';
+  // simulationSpeed?: number;
+  // trafficRule?: 'american' | 'european';
 }
 
 interface LaneThroughputDataPoint {
@@ -142,14 +142,15 @@ const Index = () => {
   const showPackFormationRef = useRef<boolean>(false);
   const carsRef = useRef<Car[]>([]);
   const laneChangesRef = useRef<number>(0);
-  const batchControllerRef = useRef<{
-    active: boolean;
-    originalParams: SimulationParams | null;
-    originalSimulationSpeed: number | null;
-    targetSimTime: number | null;
-    currentName: string | null;
-    next: (() => void) | null;
-  }>({ active: false, originalParams: null, originalSimulationSpeed: null, targetSimTime: null, currentName: null, next: null });
+  // const batchControllerRef = useRef<{
+  //   active: boolean;
+  //   originalParams: SimulationParams | null;
+  //   originalSimulationSpeed: number | null;
+  //   targetSimTime: number | null;
+  //   currentName: string | null;
+  //   next: (() => void) | null;
+  // }>({ active: false, originalParams: null, originalSimulationSpeed: null, targetSimTime: null, currentName: null, next: null });
+  // const paramsRef = useRef<SimulationParams>(defaultParams);
   const paramsRef = useRef<SimulationParams>(defaultParams);
   
   // Load saved runs from localStorage on component mount
@@ -713,7 +714,7 @@ const Index = () => {
       } else if (event.type === 'laneChange') {
         setLaneChanges(prev => prev + 1);
         setLaneChanges(prev => {
-          prev + 1;
+          //prev + 1;
           laneChangesRef.current = prev + 1;
           return laneChangesRef.current;
         });
@@ -803,38 +804,38 @@ const Index = () => {
     
     state.recordPackData(updatedCars, newElapsedTime, state.laneLength);
 
-    // If running a batch, stop when simulated elapsed time reaches the batch target
-    const batch = batchControllerRef.current;
-    if (batch.active && batch.targetSimTime !== null && newElapsedTime >= batch.targetSimTime) {
-      // Stop the run and save results, then restore original state and continue
-      batchControllerRef.current.active = false;
-      setIsRunning(false);
+    // // If running a batch, stop when simulated elapsed time reaches the batch target
+    // const batch = batchControllerRef.current;
+    // if (batch.active && batch.targetSimTime !== null && newElapsedTime >= batch.targetSimTime) {
+    //   // Stop the run and save results, then restore original state and continue
+    //   batchControllerRef.current.active = false;
+    //   setIsRunning(false);
 
-      const saveName = batch.currentName || `Batch Run`;
-      // Save using the batch-save path
-      saveSimulationRef.current(saveName, true).then(() => {
-        // Restore original application state
-        if (batch.originalParams) {
-          setParams(batch.originalParams);
-          resetSimulation(batch.originalParams);
-        }
-        if (batch.originalSimulationSpeed !== null) {
-          setSimulationSpeed(batch.originalSimulationSpeed);
-        }
+    //   const saveName = batch.currentName || `Batch Run`;
+    //   // Save using the batch-save path
+    //   saveSimulationRef.current(saveName, true).then(() => {
+    //     // Restore original application state
+    //     if (batch.originalParams) {
+    //       setParams(batch.originalParams);
+    //       resetSimulation(batch.originalParams);
+    //     }
+    //     if (batch.originalSimulationSpeed !== null) {
+    //       setSimulationSpeed(batch.originalSimulationSpeed);
+    //     }
 
-        // Continue to the next simulation in the batch
-        if (batch.next) {
-          setTimeout(() => batch.next && batch.next(), 200);
-        }
-      }).catch(err => {
-        console.error('Error saving batch run:', err);
-        if (batch.next) {
-          setTimeout(() => batch.next && batch.next(), 200);
-        }
-      });
+    //     // Continue to the next simulation in the batch
+    //     if (batch.next) {
+    //       setTimeout(() => batch.next && batch.next(), 200);
+    //     }
+    //   }).catch(err => {
+    //     console.error('Error saving batch run:', err);
+    //     if (batch.next) {
+    //       setTimeout(() => batch.next && batch.next(), 200);
+    //     }
+    //   });
 
-      return;
-    }
+    //   return;
+    // }
 
     animationFrameRef.current = requestAnimationFrame(animationLoop);
   }, []); // Empty dependency array - loop function never changes!
@@ -957,7 +958,7 @@ const Index = () => {
         const maxSpeed = Math.max(...speeds);
         const minSpeed = Math.min(...speeds);
         //console.clear();
-        console.log("?????\n", paramsRef)
+        console.log("?????\n", paramsRef.current)
         const savedSimulation: SavedSimulation = {
           id: `simulation-${Date.now()}`,
           name: name,
@@ -1011,16 +1012,74 @@ const Index = () => {
   }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast, showNotifications]);
 
   // Keep a ref to the latest handleSaveSimulation so the animation loop can call it
-  const saveSimulationRef = useRef(handleSaveSimulation);
-  useEffect(() => {
-    saveSimulationRef.current = handleSaveSimulation;
-  }, [handleSaveSimulation]);
+  // const saveSimulationRef = useRef(handleSaveSimulation);
+  // useEffect(() => {
+  //   saveSimulationRef.current = handleSaveSimulation;
+  // }, [handleSaveSimulation]);
+
+  // const handleBatchImport = useCallback((simulations: BatchSimulation[]) => {
+  //   console.log('Starting batch import:', simulations);
+
+  //   let currentIndex = 0;
+
+  //   const runNextSimulation = () => {
+  //     if (currentIndex >= simulations.length) {
+  //       console.log('All batch simulations completed');
+  //       if (showNotifications) {
+  //         toast({
+  //           title: "Batch Complete",
+  //           description: `All ${simulations.length} simulations have been completed.`,
+  //           variant: "default",
+  //         });
+  //       }
+  //       return;
+  //     }
+
+  //     const simulation = simulations[currentIndex];
+  //     console.log(`Starting simulation ${currentIndex + 1}/${simulations.length}:`, simulation);
+
+  //     // Save original app state so we can restore it after the batch run
+  //     batchControllerRef.current.originalParams = params;
+  //     batchControllerRef.current.originalSimulationSpeed = simulationSpeed;
+  
+
+  //     // Update parameters and reset simulation
+  //     const mergedParams = { ...params, ...simulation.params };
+  //     paramsRef.current = mergedParams;
+  //     setParams(mergedParams);
+  //     resetSimulation(mergedParams);
+
+  //     // Apply batch-specific simulation speed if provided
+  //     if (simulation.simulationSpeed !== undefined) {
+  //       setSimulationSpeed(simulation.simulationSpeed);
+  //     }
+
+  //     // Prepare batch controller and continuation
+  //     const name = simulation.name || `Batch Sim ${currentIndex + 1}`;
+  //     batchControllerRef.current.currentName = name;
+  //     batchControllerRef.current.next = () => {
+  //       currentIndex += 1;
+  //       // slight pause between runs
+  //       setTimeout(runNextSimulation, 1000);
+  //     };
+
+  //     // Set the target simulated end time and start the run after a short delay
+  //     // allow React to apply state updates for speed/trafficRule
+  //     setTimeout(() => {
+  //       const currentSimTime = simulationRef.current.elapsedTime || 0;
+  //       batchControllerRef.current.targetSimTime = currentSimTime + simulation.duration;
+  //       batchControllerRef.current.active = true;
+  //       setIsRunning(true);
+  //     }, 50);
+  //   };
+
+  //   // expose the runner then start
+  //   runNextSimulation();
+  // }, [params, resetSimulation, handleSaveSimulation, toast]);
 
   const handleBatchImport = useCallback((simulations: BatchSimulation[]) => {
     console.log('Starting batch import:', simulations);
-
     let currentIndex = 0;
-
     const runNextSimulation = () => {
       if (currentIndex >= simulations.length) {
         console.log('All batch simulations completed');
@@ -1033,46 +1092,40 @@ const Index = () => {
         }
         return;
       }
-
       const simulation = simulations[currentIndex];
       console.log(`Starting simulation ${currentIndex + 1}/${simulations.length}:`, simulation);
 
-      // Save original app state so we can restore it after the batch run
-      batchControllerRef.current.originalParams = params;
-      batchControllerRef.current.originalSimulationSpeed = simulationSpeed;
-  
-
-      // Update parameters and reset simulation
+      // Update parameters
+      // debugger;
+      // paramsRef.current = [];
       const mergedParams = { ...params, ...simulation.params };
-      paramsRef.current = mergedParams;
       setParams(mergedParams);
       resetSimulation(mergedParams);
+      paramsRef.current = mergedParams;
+       console.log("?????\n", paramsRef.current)
 
-      // Apply batch-specific simulation speed if provided
-      if (simulation.simulationSpeed !== undefined) {
-        setSimulationSpeed(simulation.simulationSpeed);
-      }
+      // Start the simulation
+      setIsRunning(true);
 
-      // Prepare batch controller and continuation
-      const name = simulation.name || `Batch Sim ${currentIndex + 1}`;
-      batchControllerRef.current.currentName = name;
-      batchControllerRef.current.next = () => {
-        currentIndex += 1;
-        // slight pause between runs
-        setTimeout(runNextSimulation, 1000);
-      };
-
-      // Set the target simulated end time and start the run after a short delay
-      // allow React to apply state updates for speed/trafficRule
+      //Stop after the specified duration
       setTimeout(() => {
-        const currentSimTime = simulationRef.current.elapsedTime || 0;
-        batchControllerRef.current.targetSimTime = currentSimTime + simulation.duration;
-        batchControllerRef.current.active = true;
-        setIsRunning(true);
-      }, 50);
-    };
+        setIsRunning(false);
+        // Auto-save this simulation
+        const name = simulation.name || `Batch Sim ${currentIndex + 1}`;
+        handleSaveSimulation(name, true);
+        toast({
+          title: "Simulation Complete",
+          description: `"${name}" completed and saved.`,
+          variant: "default",
+        });
 
-    // expose the runner then start
+        currentIndex++;
+
+        // Wait a bit before starting the next simulation
+        setTimeout(runNextSimulation, 5000);
+
+      }, simulation.duration * 1000);
+    };
     runNextSimulation();
   }, [params, resetSimulation, handleSaveSimulation, toast]);
 

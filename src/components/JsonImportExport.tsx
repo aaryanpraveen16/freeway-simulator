@@ -69,7 +69,7 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
             throw new Error(`Invalid batch item at index ${index}: Expected an object`);
           }
           
-          const { name, duration, params, simulationSpeed, ...rest } = item as any;
+          const { name, duration, params, ...rest } = item as any;
           
           if (typeof duration !== 'number' || duration <= 0) {
             throw new Error(`Invalid duration at index ${index}: Must be a positive number`);
@@ -79,7 +79,7 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
             throw new Error(`Invalid params at index ${index}: Missing or invalid params object`);
           }
           
-          return { name, duration, params, simulationSpeed } as BatchSimulation;
+          return { name, duration, params } as BatchSimulation;
         });
         
         console.log('Parsed batch simulations:', batchSimulations);
