@@ -76,7 +76,7 @@ export interface SimulationParams {
 
 // Default simulation parameters
 export const defaultParams: SimulationParams = {
-  trafficDensity: 0.62, // 1 car per 1.6 km (converted from 1 car per mile)
+  trafficDensity: 10, // 10 cars per km (default)
   vehicleTypeDensity: {
     car: 100,    // 100% cars by default
     truck: 0,    // No trucks by default
@@ -294,8 +294,8 @@ export function initializeSimulation(params: SimulationParams, showNotifications
   let laneLength = params.freewayLength ?? 16; // default 16 km if not set
   // All code below uses kilometers for laneLength and positions.
 
-  // Calculate total number of cars based on overall traffic density (cars/mile)
-  // Total cars = density (cars/mile) * lane length (miles)
+  // Calculate total number of cars based on overall traffic density (cars/km)
+  // Total cars = density (cars/km) * lane length (km)
   const totalCars = Math.round(params.trafficDensity * laneLength);
 
   // Calculate target number of cars per lane
@@ -918,6 +918,7 @@ export function updateSimulation(
         car,
         aheadCar,
         adjacentLanes,
+        updatedCars,
         params,
         laneLength,
         currentTime,
@@ -1133,6 +1134,7 @@ export function updateSimulation(
             car,
             undefined, // No current leader constraint for proactive moves
             adjacentLanes,
+            updatedCars,
             params,
             laneLength,
             currentTime,
@@ -1359,6 +1361,53 @@ function findAdjacentCars(
   return result;
 }
 
+// Check if car can maintain desired speed in target lane for look-ahead duration
+function canMaintainSpeedInLane(
+  car: Car,
+  targetLaneLeader: Car | undefined,
+  cars: Car[],
+  targetLane: number,
+  laneLength: number,
+  lookAheadTime: number = 5, // seconds
+  showNotifications: boolean = false
+): boolean {
+  const desiredSpeed = car.desiredSpeed || 130; // km/h
+
+  // If no leader in target lane, can definitely maintain speed
+  if (!targetLaneLeader) {
+    return true;
+  }
+
+  // Calculate look-ahead distance based on car's desired speed
+  // Convert km/h to km/s, then multiply by time
+  const lookAheadDistance = (desiredSpeed / 3600) * lookAheadTime; // km
+
+  // Find all cars in target lane ahead of our position within look-ahead distance
+  const carsInTargetLane = cars.filter((c) => c.lane === targetLane);
+
+  let currentPos = car.position;
+  let minSpeedAhead = Infinity;
+
+  for (const targetCar of carsInTargetLane) {
+    const distanceToTargetCar = (targetCar.position - currentPos + laneLength) % laneLength;
+
+    // Only consider cars within look-ahead distance
+    if (distanceToTargetCar > 0 && distanceToTargetCar <= lookAheadDistance) {
+      minSpeedAhead = Math.min(minSpeedAhead, targetCar.speed);
+    }
+  }
+
+  // Can maintain speed if slowest car ahead is at least 90% of desired speed
+  const speedThreshold = desiredSpeed * 0.9;
+  const canMaintain = minSpeedAhead === Infinity || minSpeedAhead >= speedThreshold;
+
+  if (showNotifications && !canMaintain) {
+    debugLog(showNotifications, `[LOOK-AHEAD] Car ${car.id} blocked from lane ${targetLane} - slowest car ahead: ${minSpeedAhead.toFixed(1)} km/h < ${speedThreshold.toFixed(1)} km/h (within ${lookAheadDistance.toFixed(3)} km)`);
+  }
+
+  return canMaintain;
+}
+
 // Calculate MOBIL incentive for lane change
 export function calculateLaneChangeIncentive(
   car: Car,
@@ -1480,113 +1529,124 @@ export interface Pack {
 export function identifyPacks(
   cars: Car[],
   laneLength: number,
-  gapThreshold: number = 0.02, // km (default 20m)
+  timeHeadway: number = 2.0, // seconds
   minPackSize: number = 2
 ): Pack[] {
   if (cars.length === 0) return [];
 
-  // Sort cars by position
-  const sortedCars = [...cars].sort((a, b) => a.position - b.position);
-
-  let packId = 1;
-  let packStartIdx = 0;
-  let rawPacks: {
-    cars: Car[];
-    startPos: number;
-    endPos: number;
-  }[] = [];
-
-  // First pass: Identify contiguous groups based on gap threshold
-  for (let i = 1; i < sortedCars.length; i++) {
-    const car = sortedCars[i];
-    const prevCar = sortedCars[i - 1];
-
-    // Calculate gap between current car and previous car
-    let gap = car.position - prevCar.position;
-
-    // Adjust for track wraparound (though sorted, so this shouldn't happen within the list, 
-    // but good for robustness if we change sorting logic)
-    if (gap < 0) {
-      gap += laneLength;
-    }
-
-    // Check for new pack based on gap
-    if (gap > gapThreshold) {
-      // End current pack
-      const packCars = sortedCars.slice(packStartIdx, i);
-      rawPacks.push({
-        cars: packCars,
-        startPos: packCars[0].position,
-        endPos: packCars[packCars.length - 1].position
-      });
-
-      // Start new pack
-      packStartIdx = i;
-    }
-  }
-
-  // Add the last pack
-  const lastPackCars = sortedCars.slice(packStartIdx);
-  rawPacks.push({
-    cars: lastPackCars,
-    startPos: lastPackCars[0].position,
-    endPos: lastPackCars[lastPackCars.length - 1].position
-  });
-
-  // Second pass: Check for wraparound continuity
-  // If the gap between the last car of the last pack and the first car of the first pack
-  // is small, they are actually the same pack wrapping around the loop.
-  if (rawPacks.length > 1) {
-    const firstPack = rawPacks[0];
-    const lastPack = rawPacks[rawPacks.length - 1];
-
-    const firstCar = firstPack.cars[0];
-    const lastCar = lastPack.cars[lastPack.cars.length - 1];
-
-    let wrapGap = firstCar.position - lastCar.position;
-    if (wrapGap < 0) wrapGap += laneLength;
-
-    if (wrapGap <= gapThreshold) {
-      // Merge last pack into first pack
-      // We prepend last pack's cars to first pack to maintain logical order if we were iterating,
-      // but for density calc it doesn't matter much. 
-      // However, visually/logically, the "start" of the merged pack is the start of the last pack.
-
-      firstPack.cars = [...lastPack.cars, ...firstPack.cars];
-      firstPack.startPos = lastPack.startPos;
-      // endPos remains firstPack.endPos
-
-      // Remove the last pack
-      rawPacks.pop();
-    }
-  }
-
-  // Third pass: Filter by size and calculate metrics
   const resultPacks: Pack[] = [];
+  let packIdCounter = 1;
 
-  for (const rawPack of rawPacks) {
-    if (rawPack.cars.length >= minPackSize) {
-      const carCount = rawPack.cars.length;
+  // Find the number of lanes based on the max lane index found in cars
+  const maxLane = cars.reduce((max, car) => Math.max(max, car.lane), 0);
+  const numLanes = maxLane + 1;
 
-      // Calculate pack length handling wraparound
-      let packLength = rawPack.endPos - rawPack.startPos;
-      if (packLength < 0) packLength += laneLength;
+  // Process specific lane
+  for (let lane = 0; lane < numLanes; lane++) {
+    const laneCars = cars.filter(car => car.lane === lane);
 
-      // Avoid division by zero for single cars (though filtered out by minPackSize=2 usually)
-      // For single cars, length is 0. For >1 cars, length is distance between first and last.
-      // Density = cars / mile
-      const density = packLength > 0.001 ? (carCount / packLength) : 0;
+    // Sort cars by position in this lane
+    const sortedCars = laneCars.sort((a, b) => a.position - b.position);
 
-      const avgSpeed = rawPack.cars.reduce((sum, car) => sum + car.speed, 0) / carCount;
+    if (sortedCars.length < minPackSize) continue;
 
-      resultPacks.push({
-        packId: packId++,
-        cars: rawPack.cars,
-        avgSpeed,
-        density,
-        startPos: rawPack.startPos,
-        endPos: rawPack.endPos
-      });
+    let packStartIdx = 0;
+    let rawPacks: {
+      cars: Car[];
+      startPos: number;
+      endPos: number;
+    }[] = [];
+
+    // First pass: Identify contiguous groups based on dynamic gap threshold
+    for (let i = 1; i < sortedCars.length; i++) {
+      const car = sortedCars[i];     // The car ahead
+      const prevCar = sortedCars[i - 1]; // The car behind (follower)
+
+      // Calculate gap between current car and previous car
+      let gap = car.position - prevCar.position;
+
+      if (gap < 0) {
+        gap += laneLength;
+      }
+
+      // Dynamic Threshold: Distance covered in `timeHeadway` seconds at follower's speed
+      const followerSpeed = prevCar.speed; // km/h
+      const dynamicThreshold = (followerSpeed * timeHeadway) / 3600;
+
+      // Use a minimum threshold to avoid merging cars that are stopped but slightly apart
+      const effectiveThreshold = Math.max(dynamicThreshold, 0.005);
+
+      // Check for new pack based on gap
+      if (gap > effectiveThreshold) {
+        // End current pack
+        const packCars = sortedCars.slice(packStartIdx, i);
+        rawPacks.push({
+          cars: packCars,
+          startPos: packCars[0].position,
+          endPos: packCars[packCars.length - 1].position
+        });
+
+        // Start new pack
+        packStartIdx = i;
+      }
+    }
+
+    // Add the last pack
+    const lastPackCars = sortedCars.slice(packStartIdx);
+    rawPacks.push({
+      cars: lastPackCars,
+      startPos: lastPackCars[0].position,
+      endPos: lastPackCars[lastPackCars.length - 1].position
+    });
+
+    // Second pass: Check for wraparound continuity
+    if (rawPacks.length > 1) {
+      const firstPack = rawPacks[0];
+      const lastPack = rawPacks[rawPacks.length - 1];
+
+      const firstCar = firstPack.cars[0];
+      const lastCar = lastPack.cars[lastPack.cars.length - 1];
+
+      let wrapGap = firstCar.position - lastCar.position;
+      if (wrapGap < 0) wrapGap += laneLength;
+
+      const followerSpeed = lastCar.speed;
+      const dynamicThreshold = (followerSpeed * timeHeadway) / 3600;
+      const effectiveThreshold = Math.max(dynamicThreshold, 0.005);
+
+      if (wrapGap <= effectiveThreshold) {
+        // Merge last pack into first pack
+        firstPack.cars = [...lastPack.cars, ...firstPack.cars];
+        firstPack.startPos = lastPack.startPos; // Keep logic simple, though strict start/end might be odd with wrap
+
+        // Remove the last pack
+        rawPacks.pop();
+      }
+    }
+
+    // Third pass: Filter by size and create result packs
+    for (const rawPack of rawPacks) {
+      if (rawPack.cars.length >= minPackSize) {
+        const carCount = rawPack.cars.length;
+
+        // Calculate pack length handling wraparound
+        let packLength = rawPack.endPos - rawPack.startPos;
+        if (packLength < 0) packLength += laneLength;
+
+        // Ensure density makes sense
+        const density = packLength > 0.001 ? (carCount / packLength) : 0;
+
+        const avgSpeed = rawPack.cars.reduce((sum, car) => sum + car.speed, 0) / carCount;
+
+        resultPacks.push({
+          packId: packIdCounter++,
+          cars: rawPack.cars,
+          avgSpeed,
+          density,
+          startPos: rawPack.startPos,
+          endPos: rawPack.endPos
+        });
+      }
     }
   }
 
@@ -1601,6 +1661,7 @@ function shouldChangeLane(
     leftLane: { leader?: Car; follower?: Car };
     rightLane: { leader?: Car; follower?: Car };
   },
+  cars: Car[],
   params: SimulationParams,
   laneLength: number,
   currentTime: number,
@@ -1726,28 +1787,49 @@ function shouldChangeLane(
     // 3. Pass on right if safe and beneficial
 
     // High priority for lane changes when slowed down
+    // High priority for lane changes when slowed down
     if (shouldChangeLaneWhenSlowed) {
       // No lane preference - check both directions equally
       // NOTE: Left = lower lane numbers, Right = higher lane numbers
       // Safety checks are ALWAYS enforced, only incentive threshold is bypassed when uniform
       if (isLeftLaneSafe && (params.uniformDriverBehavior || adjustedLeft > 0)) {
-        debugLog(showNotifications, `[AMERICAN SLOWDOWN] Car ${car.id} in lane ${car.lane} changing LEFT to lane ${car.lane - 1} due to slowdown (speed: ${car.speed.toFixed(1)} km/h, desired: ${desiredSpeed.toFixed(1)} km/h, isLeftLaneSafe: ${isLeftLaneSafe}, numLanes: ${params.numLanes}`);
-        return { shouldChange: true, targetLane: car.lane - 1 };
+        // Look-ahead check: can we maintain speed in left lane?
+        const canMaintainSpeedCheck = canMaintainSpeedInLane(car, adjacentLanes.leftLane.leader, cars, car.lane - 1, laneLength, 5, showNotifications);
+
+        if (canMaintainSpeedCheck) {
+          debugLog(showNotifications, `[AMERICAN SLOWDOWN] Car ${car.id} in lane ${car.lane} changing LEFT to lane ${car.lane - 1} due to slowdown (speed: ${car.speed.toFixed(1)} km/h, desired: ${desiredSpeed.toFixed(1)} km/h, isLeftLaneSafe: ${isLeftLaneSafe}, numLanes: ${params.numLanes}`);
+          return { shouldChange: true, targetLane: car.lane - 1 };
+        }
       }
       // Try right lane if left is not safe or not available
       if (isRightLaneSafe && (params.uniformDriverBehavior || adjustedRight > 0)) {
-        debugLog(showNotifications, `[AMERICAN SLOWDOWN] Car ${car.id} changing RIGHT due to slowdown (speed: ${car.speed.toFixed(1)} km/h, desired: ${desiredSpeed.toFixed(1)} km/h)`);
-        return { shouldChange: true, targetLane: car.lane + 1 };
+        // Look-ahead check: can we maintain speed in right lane?
+        const canMaintainSpeedCheck = canMaintainSpeedInLane(car, adjacentLanes.rightLane.leader, cars, car.lane + 1, laneLength, 5, showNotifications);
+
+        if (canMaintainSpeedCheck) {
+          debugLog(showNotifications, `[AMERICAN SLOWDOWN] Car ${car.id} changing RIGHT due to slowdown (speed: ${car.speed.toFixed(1)} km/h, desired: ${desiredSpeed.toFixed(1)} km/h)`);
+          return { shouldChange: true, targetLane: car.lane + 1 };
+        }
       }
     }
 
     // Overtaking decisions - no lane preference, but with safety checks
     if (shouldPassLeft && isLeftLaneSafe && (params.uniformDriverBehavior || Math.random() < car.laneChangeProbability)) {
-      debugLog(showNotifications, `[AMERICAN PASS] Car ${car.id} changing LEFT to pass slower vehicle`);
-      return { shouldChange: true, targetLane: car.lane - 1 };
+      // Look-ahead check
+      const canMaintainSpeedCheck = canMaintainSpeedInLane(car, adjacentLanes.leftLane.leader, cars, car.lane - 1, laneLength, 5, showNotifications);
+
+      if (canMaintainSpeedCheck) {
+        debugLog(showNotifications, `[AMERICAN PASS] Car ${car.id} changing LEFT to pass slower vehicle`);
+        return { shouldChange: true, targetLane: car.lane - 1 };
+      }
     } else if (shouldPassRight && isRightLaneSafe && (params.uniformDriverBehavior || Math.random() < car.laneChangeProbability)) {
-      debugLog(showNotifications, `[AMERICAN PASS] Car ${car.id} changing RIGHT to pass slower vehicle`);
-      return { shouldChange: true, targetLane: car.lane + 1 };
+      // Look-ahead check
+      const canMaintainSpeedCheck = canMaintainSpeedInLane(car, adjacentLanes.rightLane.leader, cars, car.lane + 1, laneLength, 5, showNotifications);
+
+      if (canMaintainSpeedCheck) {
+        debugLog(showNotifications, `[AMERICAN PASS] Car ${car.id} changing RIGHT to pass slower vehicle`);
+        return { shouldChange: true, targetLane: car.lane + 1 };
+      }
     }
   } else {
     // European rules: Aggressive rightmost lane preference - check every frame
@@ -1823,12 +1905,20 @@ function shouldChangeLane(
 
       // PRIORITY 1: If right lane is completely empty, always move there (unless it would cause behind to slow)
       if (!rightLaneLeader && !rightLaneFollower) {
-        debugLog(showNotifications, `[EUROPEAN FIX] Car ${car.id} moving RIGHT - empty lane, from lane ${car.lane} to ${car.lane + 1}`);
-        return { shouldChange: true, targetLane: car.lane + 1 };
+        // Look-ahead check (even for empty lane, check further ahead)
+        const canMaintainSpeedCheck = canMaintainSpeedInLane(car, undefined, cars, car.lane + 1, laneLength, 5, showNotifications);
+
+        if (canMaintainSpeedCheck) {
+          debugLog(showNotifications, `[EUROPEAN FIX] Car ${car.id} moving RIGHT - empty lane, from lane ${car.lane} to ${car.lane + 1}`);
+          return { shouldChange: true, targetLane: car.lane + 1 };
+        }
       }
 
       // PRIORITY 2: If right lane allows reasonable speed and is safe, move there (but don't cause behind to slow)
-      if (canMaintainSpeed && safeToChange && !willCauseRightBehindToSlow) {
+      // Look-ahead check
+      const canMaintainSpeedCheck = canMaintainSpeedInLane(car, rightLaneLeader, cars, car.lane + 1, laneLength, 5, showNotifications);
+
+      if (canMaintainSpeed && safeToChange && !willCauseRightBehindToSlow && canMaintainSpeedCheck) {
         debugLog(showNotifications, `[EUROPEAN FIX] Car ${car.id} moving RIGHT - can maintain speed, from lane ${car.lane} to ${car.lane + 1}`);
         return { shouldChange: true, targetLane: car.lane + 1 };
       } else if (canMaintainSpeed && safeToChange && willCauseRightBehindToSlow) {
@@ -1883,8 +1973,13 @@ function shouldChangeLane(
       // NOTE: Left = lower lane numbers, Right = higher lane numbers
       // When uniformDriverBehavior is enabled, bypass incentive threshold and make it deterministic
       if (!canReachDesiredSpeedInCurrentLane && car.lane > 0 && leftLaneIsSafe && (params.uniformDriverBehavior || adjustedLeft > 0.1) && !willCauseLeftBehindToSlow) {
-        debugLog(showNotifications, `[EUROPEAN OVERTAKE] Car ${car.id} moving LEFT to overtake slow car (gap: ${gapToLeader.toFixed(3)}km, safeGap: ${safeGap.toFixed(3)}km, speedDiff: ${speedDifference.toFixed(1)}km/h), from lane ${car.lane} to ${car.lane - 1}`);
-        return { shouldChange: true, targetLane: car.lane - 1 };
+        // Look-ahead check
+        const canMaintainSpeedCheck = canMaintainSpeedInLane(car, leftLaneLeader, cars, car.lane - 1, laneLength, 5, showNotifications);
+
+        if (canMaintainSpeedCheck) {
+          debugLog(showNotifications, `[EUROPEAN OVERTAKE] Car ${car.id} moving LEFT to overtake slow car (gap: ${gapToLeader.toFixed(3)}km, safeGap: ${safeGap.toFixed(3)}km, speedDiff: ${speedDifference.toFixed(1)}km/h), from lane ${car.lane} to ${car.lane - 1}`);
+          return { shouldChange: true, targetLane: car.lane - 1 };
+        }
       } else if (!canReachDesiredSpeedInCurrentLane && car.lane > 0 && leftLaneIsSafe && (params.uniformDriverBehavior || adjustedLeft > 0.1) && willCauseLeftBehindToSlow) {
         // Log when we would have overtaken but didn't due to safety concern
         debugLog(showNotifications, `[EUROPEAN SAFETY] Car ${car.id} NOT overtaking LEFT - would cause car behind to slow down (gap: ${leftGapBehind.toFixed(3)}km, follower speed: ${leftLaneFollower?.speed.toFixed(1) || 'N/A'} km/h, our speed: ${currentSpeed.toFixed(1)} km/h)`);
@@ -1903,6 +1998,7 @@ function shouldChangeLaneWithExitBehavior(
     leftLane: { leader?: Car; follower?: Car };
     rightLane: { leader?: Car; follower?: Car };
   },
+  cars: Car[],
   params: SimulationParams,
   laneLength: number,
   currentTime: number,
@@ -1985,5 +2081,5 @@ function shouldChangeLaneWithExitBehavior(
   }
 
   // Regular lane change logic for non-exiting cars
-  return shouldChangeLane(car, currentLeader, adjacentLanes, params, laneLength, currentTime, trafficRule, showNotifications);
+  return shouldChangeLane(car, currentLeader, adjacentLanes, cars, params, laneLength, currentTime, trafficRule, showNotifications);
 }

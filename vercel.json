@@ -1,0 +1,22 @@
+{
+    "buildCommand": "npm run build",
+    "outputDirectory": "dist",
+    "framework": "vite",
+    "routes": [
+        {
+            "handle": "filesystem"
+        },
+        {
+            "src": "/api/simulations/([^/]+)",
+            "dest": "/api/simulations/[id].ts?id=$1"
+        },
+        {
+            "src": "/api/simulations",
+            "dest": "/api/simulations.ts"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/index.html"
+        }
+    ]
+}

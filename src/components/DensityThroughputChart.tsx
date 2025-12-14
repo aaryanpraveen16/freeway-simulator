@@ -44,26 +44,26 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
 
   const currentPoint = useMemo(() => {
     if (cars.length === 0) return null;
-    
+
     // Calculate per-lane throughput and density
     let totalThroughput = 0;
     let totalDensity = 0;
-    
+
     // Calculate for each lane
     for (let lane = 0; lane < numLanes; lane++) {
       const laneCars = cars.filter(car => car.lane === lane);
       const carCount = laneCars.length;
-      
+
       if (carCount > 0) {
         const avgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / carCount;
         const density = carCount / laneLength; // cars/km
         totalThroughput += avgSpeed * density; // cars/hour for this lane
       }
     }
-    
+
     // Calculate total density (cars/km across all lanes)
     totalDensity = cars.length / laneLength;
-    
+
     return {
       time: parseFloat(elapsedTime.toFixed(2)),
       throughput: parseFloat(totalThroughput.toFixed(2)),
@@ -78,44 +78,37 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
       density: parseFloat(point.density.toFixed(2)),
       type: 'historical'
     }));
-    
+
     if (currentPoint) {
       return [...historicalData, { ...currentPoint, type: 'current' }];
     }
-    
+
     return historicalData;
   }, [dataHistory, currentPoint]);
 
   // Calculate stabilized values for density and throughput
   const stabilizedValues = useMemo(() => {
-    // Only use recent history to calculate stabilized values (last 30 seconds)
-    const recentHistory = dataHistory.filter(point => point.time > (elapsedTime - 30));
-    if (recentHistory.length === 0) return { density: 0, throughput: 0 };
-    
-    // Calculate average of recent values
-    const sum = recentHistory.reduce((acc, point) => ({
-      density: acc.density + point.density,
-      throughput: acc.throughput + point.throughput
-    }), { density: 0, throughput: 0 });
-    
+    const densityData = extractDataValues(dataHistory, 'density');
+    const throughputData = extractDataValues(dataHistory, 'throughput');
+
     return {
-      density: parseFloat((sum.density / recentHistory.length).toFixed(4)),
-      throughput: parseFloat((sum.throughput / recentHistory.length).toFixed(2))
+      density: calculateStabilizedValue(densityData),
+      throughput: calculateStabilizedValue(throughputData)
     };
-  }, [dataHistory, elapsedTime]);
+  }, [dataHistory]);
 
   const handleExportImage = () => {
     if (!chartRef.current) return;
-    
+
     try {
       const svgElement = chartRef.current.querySelector("svg");
       if (!svgElement) {
         throw new Error("SVG element not found");
       }
-      
+
       const clonedSvg = svgElement.cloneNode(true) as SVGElement;
       clonedSvg.setAttribute("style", "background-color: white;");
-      
+
       const allPaths = clonedSvg.querySelectorAll("path");
       allPaths.forEach(path => {
         const currentWidth = path.getAttribute("stroke-width") || "1";
@@ -123,23 +116,23 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
           path.setAttribute("stroke-width", "2");
         }
       });
-      
+
       const allCircles = clonedSvg.querySelectorAll("circle");
       allCircles.forEach(circle => {
         circle.setAttribute("r", "4");
         circle.setAttribute("stroke-width", "2");
       });
-      
+
       const svgData = new XMLSerializer().serializeToString(clonedSvg);
       const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-      
+
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(svgBlob);
       downloadLink.download = "density-throughput-chart.svg";
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      
+
       toast({
         title: "Chart exported",
         description: "Density-throughput chart has been exported successfully",
@@ -166,10 +159,10 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
               Relationship between time and freeway throughput
             </p>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1" 
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
             onClick={handleExportImage}
           >
             <Download size={16} />
@@ -202,12 +195,12 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
+              <XAxis
                 dataKey="time"
                 name="Time"
-                label={{ 
-                  value: "Time (seconds)", 
-                  position: "insideBottom", 
+                label={{
+                  value: "Time (seconds)",
+                  position: "insideBottom",
                   offset: -40,
                   style: { fontWeight: 500 }
                 }}
@@ -217,16 +210,16 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
               <YAxis
                 dataKey="throughput"
                 name="Throughput"
-                label={{ 
-                  value: "Throughput (cars/hr)", 
-                  angle: -90, 
+                label={{
+                  value: "Throughput (cars/hr)",
+                  angle: -90,
                   position: "insideLeft",
                   style: { fontWeight: 500 }
                 }}
                 domain={[0, (dataMax: number) => dataMax * 1.1]}
                 tickFormatter={(value) => value.toFixed(2)}
               />
-              <Tooltip 
+              <Tooltip
                 formatter={(value, name) => {
                   if (name === 'throughput') {
                     return [
@@ -276,41 +269,41 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
             </ScatterChart>
           </ChartContainer>
         </div>
-        
+
         {/* Stabilized Values Display */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-          <h4 className="text-sm font-semibold mb-2">Average Operating Point (Last 30s):</h4>
+          <h4 className="text-sm font-semibold mb-2">Stabilized Operating Point:</h4>
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div className="flex justify-between">
               <span>Density:</span>
               <span className="font-mono text-green-600">
-                {stabilizedValues.density > 0 ? 
-                  `${conversions.density.toDisplay(stabilizedValues.density).toFixed(3)} ${conversions.density.unit}` : 
+                {stabilizedValues.density && stabilizedValues.density.value !== undefined ?
+                  `${conversions.density.toDisplay(stabilizedValues.density.value).toFixed(3)} ${conversions.density.unit}` :
                   'N/A'}
               </span>
             </div>
             <div className="flex justify-between">
               <span>Throughput:</span>
               <span className="font-mono text-green-600">
-                {stabilizedValues.throughput > 0 ? 
-                  `${Math.round(stabilizedValues.throughput)} cars/h` : 
+                {stabilizedValues.throughput && stabilizedValues.throughput.value !== undefined ?
+                  `${Math.round(stabilizedValues.throughput.value)} cars/h` :
                   'N/A'}
               </span>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Shows average values over the last 30 seconds of simulation time.
+            ✓ indicates stabilized values.
           </p>
         </div>
-        
+
         <div className="mt-4 text-xs text-muted-foreground">
           <p>• Blue dots: Historical data points</p>
           <p>• Red dot: Current simulation state</p>
           <p>• Optimal throughput typically occurs at moderate densities</p>
         </div>
-        
-        <SimulationParameters 
-          params={simulationParams} 
+
+        <SimulationParameters
+          params={simulationParams}
           trafficRule={trafficRule}
           unitSystem={unitSystem}
         />

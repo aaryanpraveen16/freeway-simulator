@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from "recharts";
-import { SavedSimulation } from "@/services/indexedDBService";
+import { SavedSimulation } from "@/services/simulationService";
 
 interface OverlayPackFormationChartProps {
   selectedSimulations: SavedSimulation[];
@@ -22,7 +22,7 @@ const generateColors = (count: number): string[] => {
     '#f97316', // orange
     '#6366f1', // indigo
   ];
-  
+
   // If we need more colors than predefined, generate them
   if (count > colors.length) {
     for (let i = colors.length; i < count; i++) {
@@ -30,7 +30,7 @@ const generateColors = (count: number): string[] => {
       colors.push(`hsl(${hue}, 70%, 50%)`);
     }
   }
-  
+
   return colors.slice(0, count);
 };
 
@@ -39,27 +39,27 @@ const OverlayPackFormationChart: React.FC<OverlayPackFormationChartProps> = ({
 }) => {
   const { chartData, colors, simulationNames } = useMemo(() => {
     if (selectedSimulations.length === 0) return { chartData: [], colors: [], simulationNames: [] };
-    
+
     const colors = generateColors(selectedSimulations.length);
     const simulationNames: string[] = [];
-    
+
     // Get all unique time points across selected simulations
     const allTimePoints = new Set<number>();
     selectedSimulations.forEach(sim => {
       const simName = sim.name || `Simulation ${selectedSimulations.indexOf(sim) + 1}`;
       simulationNames.push(simName);
-      
-        if (sim.chartData?.packHistory) {
-          sim.chartData.packHistory.forEach(point => allTimePoints.add(point.time));
-        }
+
+      if (sim.chartData?.packHistory) {
+        sim.chartData.packHistory.forEach(point => allTimePoints.add(point.time));
+      }
     });
 
     const sortedTimePoints = Array.from(allTimePoints).sort((a, b) => a - b);
-    
+
     // Generate pack formation comparison data
     const chartData = sortedTimePoints.map(time => {
       const dataPoint: any = { time };
-      
+
       selectedSimulations.forEach((sim, index) => {
         if (sim.chartData?.packHistory) {
           const packPoint = sim.chartData.packHistory.find(p => p.time === time);
@@ -68,10 +68,10 @@ const OverlayPackFormationChart: React.FC<OverlayPackFormationChartProps> = ({
           }
         }
       });
-      
+
       return dataPoint;
     }).filter(point => Object.keys(point).length > 1);
-    
+
     return {
       chartData,
       colors,
@@ -183,7 +183,7 @@ const OverlayPackFormationChart: React.FC<OverlayPackFormationChartProps> = ({
                   </div>
                 )}
               />
-              
+
               {selectedSimulations.map((_, index) => (
                 <Line
                   key={`sim${index}_packCount`}
@@ -197,13 +197,8 @@ const OverlayPackFormationChart: React.FC<OverlayPackFormationChartProps> = ({
             </LineChart>
           </ResponsiveContainer>
         </ChartContainer>
-        
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p className="font-medium">Understanding the Chart:</p>
-          <p>• Each line shows the number of car packs formed over time</p>
-          <p>• More packs typically indicate higher congestion and clustering</p>
-          <p>• Compare how different traffic scenarios affect pack formation</p>
-        </div>
+
+
       </CardContent>
     </Card>
   );

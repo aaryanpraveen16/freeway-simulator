@@ -48,7 +48,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const handleVehicleTypeDensityChange = (vehicleType: 'car' | 'truck' | 'motorcycle', value: number) => {
     const newVehicleTypeDensity = { ...params.vehicleTypeDensity };
     newVehicleTypeDensity[vehicleType] = value;
-    
+
     // Ensure percentages add up to 100
     const total = Object.values(newVehicleTypeDensity).reduce((sum, val) => sum + val, 0);
     if (total !== 100) {
@@ -56,20 +56,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       const others = Object.keys(newVehicleTypeDensity).filter(key => key !== vehicleType) as ('car' | 'truck' | 'motorcycle')[];
       const remaining = 100 - value;
       const otherTotal = others.reduce((sum, key) => sum + newVehicleTypeDensity[key], 0);
-      
+
       if (otherTotal > 0) {
         others.forEach(key => {
           newVehicleTypeDensity[key] = Math.round((newVehicleTypeDensity[key] / otherTotal) * remaining);
         });
       }
     }
-    
+
     onUpdateParams({ vehicleTypeDensity: newVehicleTypeDensity });
   };
 
   const addLane = () => {
     if (params.numLanes < 6) {
-      onUpdateParams({ 
+      onUpdateParams({
         numLanes: params.numLanes + 1
       });
     }
@@ -77,7 +77,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   const removeLane = () => {
     if (params.numLanes > 1) {
-      onUpdateParams({ 
+      onUpdateParams({
         numLanes: params.numLanes - 1
       });
     }
@@ -91,7 +91,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
    * @param value The new density value in cars per mile
    */
   const handleOverallDensityChange = (value: string) => {
-    const newDensity = parseFloat(value) || 3;
+    const newDensity = parseFloat(value) || 10;
     onUpdateParams({ trafficDensity: newDensity });
   };
 
@@ -163,7 +163,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <Label className="text-sm font-medium">Vehicle Type Distribution</Label>
                 <InfoTooltip content="Percentage distribution of different vehicle types in the simulation" />
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center">
@@ -182,10 +182,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onKeyDown={(e) => {
                       // Allow: backspace, delete, tab, escape, enter, and decimal points
                       if ([46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
-                          // Allow: Ctrl+A, Command+A
-                          (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
-                          // Allow: home, end, left, right, down, up
-                          (e.keyCode >= 35 && e.keyCode <= 40)) {
+                        // Allow: Ctrl+A, Command+A
+                        (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                        // Allow: home, end, left, right, down, up
+                        (e.keyCode >= 35 && e.keyCode <= 40)) {
                         // Let it happen, don't do anything
                         return;
                       }
@@ -200,7 +200,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   />
                   <span className="text-xs text-gray-500">%</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <div className="flex items-center">
                     <Label>Trucks:</Label>
@@ -218,10 +218,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onKeyDown={(e) => {
                       // Allow: backspace, delete, tab, escape, enter, and decimal points
                       if ([46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
-                          // Allow: Ctrl+A, Command+A
-                          (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
-                          // Allow: home, end, left, right, down, up
-                          (e.keyCode >= 35 && e.keyCode <= 40)) {
+                        // Allow: Ctrl+A, Command+A
+                        (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                        // Allow: home, end, left, right, down, up
+                        (e.keyCode >= 35 && e.keyCode <= 40)) {
                         // Let it happen, don't do anything
                         return;
                       }
@@ -236,7 +236,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   />
                   <span className="text-xs text-gray-500">%</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <div className="flex items-center">
                     <Label>Motorcycles:</Label>
@@ -254,10 +254,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onKeyDown={(e) => {
                       // Allow: backspace, delete, tab, escape, enter, and decimal points
                       if ([46, 8, 9, 27, 13, 110, 190].includes(e.keyCode) ||
-                          // Allow: Ctrl+A, Command+A
-                          (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
-                          // Allow: home, end, left, right, down, up
-                          (e.keyCode >= 35 && e.keyCode <= 40)) {
+                        // Allow: Ctrl+A, Command+A
+                        (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+                        // Allow: home, end, left, right, down, up
+                        (e.keyCode >= 35 && e.keyCode <= 40)) {
                         // Let it happen, don't do anything
                         return;
                       }
@@ -272,7 +272,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   />
                   <span className="text-xs text-gray-500">%</span>
                 </div>
-                
+
                 <div className="text-xs text-gray-500">
                   Total: {Object.values(params.vehicleTypeDensity).reduce((sum, val) => sum + val, 0)}%
                 </div>
@@ -289,18 +289,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <InfoTooltip content="Number of lanes in the freeway" />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={removeLane}
                     disabled={params.numLanes <= 1}
                   >
                     -
                   </Button>
                   <span className="w-8 text-center">{params.numLanes}</span>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={addLane}
                     disabled={params.numLanes >= 6}
                   >
@@ -308,7 +308,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   </Button>
                 </div>
               </div>
-              
+
               {/* Overall Freeway Traffic Density */}
               <div className="space-y-2">
                 <div className="flex items-center">
@@ -326,13 +326,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     }}
                     className="flex-1"
                     min="0"
-                    max="80"
+                    max="500"
                     step="0.5"
                   />
                   <span className="text-xs text-gray-500">{conversions.density.unit}</span>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((density) => (
+                  {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300, 350, 400, 450, 500].map((density) => (
                     <Button
                       key={density}
                       variant="outline"
@@ -365,14 +365,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Slider
-                    value={[Math.min(params.simulationDuration || 0, 600)]}
-                    onValueChange={([value]) => onUpdateParams({ simulationDuration: Math.min(value, 600) })}
-                    min={0}
-                    max={600}
-                    step={10}
-                    className="flex-1"
-                  />
+
                   <Input
                     type="number"
                     value={params.simulationDuration || ''}
@@ -384,7 +377,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       const value = Math.min(Number(e.target.value) || 0, 600);
                       onUpdateParams({ simulationDuration: value });
                     }}
-                    className="w-20"
+                    className="flex-1"
                     min={0}
                     max={600}
                     step={10}
@@ -399,7 +392,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       className={`h-7 px-2 text-xs ${params.simulationDuration === duration ? 'bg-primary/10' : ''}`}
                       onClick={() => onUpdateParams({ simulationDuration: duration })}
                     >
-                      {duration < 60 ? `${duration}s` : duration === 60 ? '1 min' : duration < 300 ? `${duration/60} mins` : duration === 600 ? '10 mins (max)' : `${duration/60} mins`}
+                      {duration < 60 ? `${duration}s` : duration === 60 ? '1 min' : duration < 300 ? `${duration / 60} mins` : duration === 600 ? '10 mins (max)' : `${duration / 60} mins`}
                     </Button>
                   ))}
                 </div>
@@ -474,7 +467,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2 pt-4">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center">
@@ -501,7 +494,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   <span className="text-xs text-muted-foreground">Presets:</span>
                   <ToggleGroup type="single" size="sm" className="gap-1">
                     {[0.5, 0.75, 1, 1.5].map((ratio) => (
-                      <ToggleGroupItem 
+                      <ToggleGroupItem
                         key={ratio}
                         value={ratio.toString()}
                         onClick={() => onUpdateParams({ speedLimit: Math.round(params.meanSpeed * ratio) })}
@@ -510,7 +503,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                         {ratio}x
                       </ToggleGroupItem>
                     ))}
-                    <ToggleGroupItem 
+                    <ToggleGroupItem
                       value="none"
                       onClick={() => onUpdateParams({ speedLimit: 1000 })} // Effectively no limit
                       className="h-6 px-2 text-xs"
@@ -534,15 +527,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {conversions.distance.toDisplay(params.freewayLength).toFixed(1)} {conversions.distance.unit}
                     </span>
                   </div>
-                  <Slider
-                    value={[params.freewayLength]}
-                    onValueChange={([value]) => onUpdateParams({ freewayLength: value })}
-                    min={1}
-                    max={20}
-                    step={1}
+                  <Input
+                    type="number"
+                    value={Math.round(params.freewayLength)}
+                    onChange={(e) => {
+                      const value = Number(e.target.value) || 10;
+                      onUpdateParams({ freewayLength: Math.min(20, Math.max(1, value)) });
+                    }}
+                    min="1"
+                    max="20"
+                    step="1"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs">Time Headway</Label>
@@ -550,15 +547,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {params.tDist} seconds
                     </span>
                   </div>
-                  <Slider
-                    value={[params.tDist]}
-                    onValueChange={([value]) => onUpdateParams({ tDist: value })}
-                    min={1}
-                    max={5}
-                    step={0.5}
+                  <Input
+                    type="number"
+                    value={params.tDist}
+                    onChange={(e) => {
+                      const value = Number(e.target.value) || 1.5;
+                      onUpdateParams({ tDist: Math.min(5, Math.max(1, value)) });
+                    }}
+                    min="1"
+                    max="5"
+                    step="0.1"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs">Acceleration Reaction Time</Label>
@@ -566,15 +567,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {params.driverReactionTime?.toFixed(1) || '2.0'} seconds
                     </span>
                   </div>
-                  <Slider
-                    value={[params.driverReactionTime ?? 2.0]}
-                    onValueChange={([value]) => onUpdateParams({ driverReactionTime: value })}
-                    min={0}
-                    max={10}
-                    step={0.5}
+                  <Input
+                    type="number"
+                    value={params.driverReactionTime ?? 2.0}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      onUpdateParams({ driverReactionTime: Math.min(10, Math.max(0, value)) });
+                    }}
+                    min="0"
+                    max="10"
+                    step="0.1"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs">Braking Reaction Time</Label>
@@ -582,15 +587,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {params.brakingReactionTime?.toFixed(1) || '1.0'} seconds
                     </span>
                   </div>
-                  <Slider
-                    value={[params.brakingReactionTime ?? 1.0]}
-                    onValueChange={([value]) => onUpdateParams({ brakingReactionTime: value })}
-                    min={0}
-                    max={5}
-                    step={0.1}
+                  <Input
+                    type="number"
+                    value={params.brakingReactionTime ?? 1.0}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      onUpdateParams({ brakingReactionTime: Math.min(5, Math.max(0, value)) });
+                    }}
+                    min="0"
+                    max="5"
+                    step="0.1"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs">Mean Trip Distance</Label>
@@ -598,12 +607,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {conversions.distance.toDisplay(params.meanDistTripPlanned).toFixed(1)} {conversions.distance.unit}
                     </span>
                   </div>
-                  <Slider
-                    value={[params.meanDistTripPlanned]}
-                    onValueChange={([value]) => onUpdateParams({ meanDistTripPlanned: value })}
-                    min={1}
-                    max={50}
-                    step={1}
+                  <Input
+                    type="number"
+                    value={Math.round(params.meanDistTripPlanned)}
+                    onChange={(e) => {
+                      const value = Number(e.target.value) || 10;
+                      onUpdateParams({ meanDistTripPlanned: Math.min(50, Math.max(1, value)) });
+                    }}
+                    min="1"
+                    max="50"
+                    step="1"
                   />
                 </div>
               </div>
@@ -621,22 +634,27 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {carSize < 20 ? 'Small' : carSize > 30 ? 'Large' : 'Medium'}
                     </span>
                   </div>
-                  <Slider
-                    value={[carSize]}
-                    onValueChange={([value]) => onCarSizeChange(value)}
-                    min={12}
-                    max={48}
-                    step={2}
+                  <Input
+                    type="number"
+                    value={carSize}
+                    onChange={(e) => {
+                      const value = Number(e.target.value) || 24;
+                      onCarSizeChange(Math.min(48, Math.max(12, value)));
+                    }}
+                    min="12"
+                    max="48"
+                    step="2"
+                    className="flex-1"
                   />
                 </div>
               </CollapsibleSection>
             )}
 
             <Separator />
-            
+
             {/* JSON Import/Export */}
             <div className="pt-2">
-              <JsonImportExport 
+              <JsonImportExport
                 onImport={onUpdateParams}
                 onBatchImport={onBatchImport}
                 currentParams={params}

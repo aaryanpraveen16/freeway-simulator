@@ -7,21 +7,24 @@ import { Edit2 } from 'lucide-react';
 
 interface EditSimulationNameDialogProps {
   currentName: string;
-  onSave: (newName: string) => void;
+  currentFolder?: string;
+  onSave: (newName: string, newFolder?: string) => void;
   trigger?: React.ReactNode;
 }
 
 const EditSimulationNameDialog: React.FC<EditSimulationNameDialogProps> = ({
   currentName,
+  currentFolder,
   onSave,
   trigger
 }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(currentName);
+  const [folder, setFolder] = useState(currentFolder || '');
 
   const handleSave = () => {
-    if (name.trim() && name.trim() !== currentName) {
-      onSave(name.trim());
+    if (name.trim()) {
+      onSave(name.trim(), folder.trim() || undefined);
       setOpen(false);
     } else {
       setOpen(false);
@@ -32,6 +35,7 @@ const EditSimulationNameDialog: React.FC<EditSimulationNameDialogProps> = ({
     setOpen(newOpen);
     if (newOpen) {
       setName(currentName);
+      setFolder(currentFolder || '');
     }
   };
 
@@ -48,7 +52,7 @@ const EditSimulationNameDialog: React.FC<EditSimulationNameDialogProps> = ({
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Simulation Name</DialogTitle>
+          <DialogTitle>Edit Simulation Details</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -58,6 +62,20 @@ const EditSimulationNameDialog: React.FC<EditSimulationNameDialogProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter a new name for your simulation..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && name.trim()) {
+                  handleSave();
+                }
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="simulation-folder">Folder / Category</Label>
+            <Input
+              id="simulation-folder"
+              value={folder}
+              onChange={(e) => setFolder(e.target.value)}
+              placeholder="Uncategorized"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && name.trim()) {
                   handleSave();

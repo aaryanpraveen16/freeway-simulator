@@ -44,9 +44,9 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
 
   const currentPoint = useMemo(() => {
     if (cars.length === 0) return null;
-    
+
     const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
-    
+
     return {
       time: parseFloat(elapsedTime.toFixed(2)),
       speed: parseFloat(conversions.speed.toDisplay(avgSpeed).toFixed(2)),
@@ -61,11 +61,11 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
       density: parseFloat(conversions.density.toDisplay(point.density).toFixed(2)),
       type: 'historical'
     }));
-    
+
     if (currentPoint) {
       return [...historicalData, { ...currentPoint, type: 'current' }];
     }
-    
+
     return historicalData;
   }, [dataHistory, currentPoint, conversions]);
 
@@ -73,7 +73,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
   const stabilizedValues = useMemo(() => {
     const densityData = extractDataValues(dataHistory, 'density').map(d => conversions.density.toDisplay(d));
     const speedData = extractDataValues(dataHistory, 'speed').map(s => conversions.speed.toDisplay(s));
-    
+
     return {
       density: calculateStabilizedValue(densityData),
       speed: calculateStabilizedValue(speedData)
@@ -82,32 +82,32 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
 
   const handleExportImage = () => {
     if (!chartRef.current) return;
-    
+
     try {
       const svgElement = chartRef.current.querySelector("svg");
       if (!svgElement) {
         throw new Error("SVG element not found");
       }
-      
+
       const clonedSvg = svgElement.cloneNode(true) as SVGElement;
       clonedSvg.setAttribute("style", "background-color: white;");
-      
+
       const allCircles = clonedSvg.querySelectorAll("circle");
       allCircles.forEach(circle => {
         circle.setAttribute("r", "4");
         circle.setAttribute("stroke-width", "2");
       });
-      
+
       const svgData = new XMLSerializer().serializeToString(clonedSvg);
       const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-      
+
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(svgBlob);
       downloadLink.download = "speed-density-chart.svg";
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      
+
       toast({
         title: "Chart exported",
         description: "Speed-density chart has been exported successfully",
@@ -129,10 +129,10 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg">Speed-Density Relationship</CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1" 
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
             onClick={handleExportImage}
           >
             <Download size={16} />
@@ -144,7 +144,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
         </p>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]" ref={chartRef}>
+        <div className="h-[400px]" ref={chartRef}>
           <ChartContainer
             className="h-full"
             config={{
@@ -168,13 +168,13 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
+              <XAxis
                 dataKey="time"
                 name="Time"
-                label={{ 
-                  value: "Time (seconds)", 
-                  position: "insideBottom", 
-                  offset: -40 
+                label={{
+                  value: "Time (seconds)",
+                  position: "insideBottom",
+                  offset: -40
                 }}
                 domain={['dataMin - 10', 'dataMax + 10']}
                 tickFormatter={(value) => value.toFixed(2)}
@@ -182,19 +182,19 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
               <YAxis
                 dataKey="speed"
                 name="Speed"
-                label={{ 
-                  value: `Average Speed (${conversions.speed.unit})`, 
-                  angle: -90, 
-                  position: "insideLeft" 
+                label={{
+                  value: `Average Speed (${conversions.speed.unit})`,
+                  angle: -90,
+                  position: "insideLeft"
                 }}
                 domain={['dataMin - 5', 'dataMax + 5']}
                 tickFormatter={(value) => value.toFixed(2)}
               />
-              <Tooltip 
+              <Tooltip
                 formatter={(value, name) => [
-                  typeof value === 'number' ? value.toFixed(2) : value, 
-                  name === 'speed' ? `Speed (${conversions.speed.unit})` : 
-                  name === 'time' ? 'Time (seconds)' : name
+                  typeof value === 'number' ? value.toFixed(2) : value,
+                  name === 'speed' ? `Speed (${conversions.speed.unit})` :
+                    name === 'time' ? 'Time (seconds)' : name
                 ]}
                 labelFormatter={(label, payload) => {
                   if (payload && payload[0]) {
@@ -219,7 +219,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
             </ScatterChart>
           </ChartContainer>
         </div>
-        
+
         {/* Stabilized Values Display */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
           <h4 className="text-sm font-semibold mb-2">Stabilized Operating Point:</h4>
@@ -243,16 +243,16 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
             ✓ indicates stabilized values. Higher density typically leads to lower speeds.
           </p>
         </div>
-        
+
         <div className="mt-4 text-xs text-muted-foreground">
           <p>• Blue dots: Historical speed measurements</p>
           <p>• Red dot: Current simulation state</p>
           <p>• X-axis shows simulation time in seconds</p>
           <p>• Y-axis shows average speed in {conversions.speed.unit}</p>
         </div>
-        
-        <SimulationParameters 
-          params={simulationParams} 
+
+        <SimulationParameters
+          params={simulationParams}
           trafficRule={trafficRule}
           unitSystem={unitSystem}
         />

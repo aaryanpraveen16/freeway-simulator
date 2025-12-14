@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SavedSimulation } from '@/services/indexedDBService';
+import { SavedSimulation } from '@/services/simulationService';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { UnitSystem, getUnitConversions } from '@/utils/unitConversion';
@@ -47,10 +47,10 @@ const SimulationParametersCollapsible: React.FC<SimulationParametersCollapsibleP
                 <Badge variant="secondary" className="text-xs">
                   #{sim.simulationNumber}
                 </Badge>
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className="text-xs capitalize"
-                  style={{ 
+                  style={{
                     borderColor: sim.trafficRule === 'american' ? '#ff4d4f' : '#1890ff',
                     color: sim.trafficRule === 'american' ? '#ff4d4f' : '#1890ff'
                   }}

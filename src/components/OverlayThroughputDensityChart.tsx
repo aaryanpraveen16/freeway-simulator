@@ -2,11 +2,13 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { SavedSimulation } from "@/services/indexedDBService";
+import { SavedSimulation } from "@/services/simulationService";
 import SimulationParametersCollapsible from "./SimulationParametersCollapsible";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 
 interface OverlayThroughputDensityChartProps {
   selectedSimulations: SavedSimulation[];
+  unitSystem?: UnitSystem;
 }
 
 // Generate distinct colors for different simulations
@@ -23,7 +25,7 @@ const generateColors = (count: number): string[] => {
     '#f97316', // orange
     '#6366f1', // indigo
   ];
-  
+
   // If we need more colors than predefined, generate them
   if (count > colors.length) {
     for (let i = colors.length; i < count; i++) {
@@ -31,27 +33,29 @@ const generateColors = (count: number): string[] => {
       colors.push(`hsl(${hue}, 70%, 50%)`);
     }
   }
-  
+
   return colors.slice(0, count);
 };
 
 const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps> = ({
-  selectedSimulations
+  selectedSimulations,
+  unitSystem = 'metric'
 }) => {
-  const { chartData, colors, simulationNames } = useMemo(() => {
+  const { chartData, colors, simulationNames, units } = useMemo(() => {
+    const units = getUnitConversions(unitSystem);
     const colors = generateColors(selectedSimulations.length);
     const simulationNames: string[] = [];
     const allDataPoints: any[] = [];
-    
+
     selectedSimulations.forEach((simulation, index) => {
       const simName = simulation.name || `Simulation ${index + 1}`;
       simulationNames.push(simName);
-      
+
       // Use stabilized values from finalStats if available
-      if (simulation.finalStats?.stabilizedDensity !== undefined && 
-          simulation.finalStats?.stabilizedThroughput !== undefined) {
+      if (simulation.finalStats?.stabilizedDensity !== undefined &&
+        simulation.finalStats?.stabilizedThroughput !== undefined) {
         allDataPoints.push({
-          density: simulation.finalStats.stabilizedDensity,
+          density: units.density.toDisplay(simulation.finalStats.stabilizedDensity),
           throughput: simulation.finalStats.stabilizedThroughput,
           time: 0,
           simulationIndex: index,
@@ -65,7 +69,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
         const lastPoint = simulation.chartData.densityThroughputHistory.slice(-1)[0];
         if (lastPoint) {
           allDataPoints.push({
-            density: lastPoint.density,
+            density: units.density.toDisplay(lastPoint.density),
             throughput: lastPoint.throughput,
             time: lastPoint.time,
             simulationIndex: index,
@@ -76,13 +80,14 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
         }
       }
     });
-    
+
     return {
       chartData: allDataPoints,
       colors,
-      simulationNames
+      simulationNames,
+      units
     };
-  }, [selectedSimulations]);
+  }, [selectedSimulations, unitSystem]);
 
   if (selectedSimulations.length === 0) {
     return (
@@ -108,7 +113,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
             {data.simulationName}
           </p>
           <p className="text-sm">
-            <span className="font-medium">Density:</span> {data.density.toFixed(2)} cars/mile
+            <span className="font-medium">Density:</span> {data.density.toFixed(2)} {units.density.unit}
           </p>
           <p className="text-sm">
             <span className="font-medium">Throughput:</span> {Math.round(data.throughput).toLocaleString()} cars/hour
@@ -123,7 +128,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
   };
 
   return (
-    <Card>
+    <Card className="w-full min-w-0">
       <CardHeader>
         <CardTitle>Throughput vs Density Comparison</CardTitle>
         <div className="text-sm text-muted-foreground">
@@ -139,10 +144,10 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
                 type="number"
                 dataKey="density"
                 name="Density"
-                unit=" cars/mile"
+                unit={` ${units.density.unit}`}
                 tick={{ fontSize: 12 }}
                 label={{
-                  value: 'Density (cars/mile)',
+                  value: `Density (${units.density.unit})`,
                   position: 'insideBottom',
                   offset: -10,
                   style: { textAnchor: 'middle', fontWeight: 500 }
@@ -163,13 +168,13 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
                 tickFormatter={(value) => Math.round(value).toLocaleString()}
               />
               <Tooltip content={<CustomTooltip />} />
-              
+
               {/* Create a separate Scatter for each simulation */}
               {selectedSimulations.map((simulation, index) => {
                 const simulationData = chartData.filter(point => point.simulationIndex === index);
                 const trafficRule = simulation.trafficRule || 'american';
                 const color = trafficRule === 'american' ? '#ff4d4f' : '#1890ff';
-                
+
                 return (
                   <Scatter
                     key={index}
@@ -187,16 +192,10 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
             </ScatterChart>
           </ResponsiveContainer>
         </ChartContainer>
-        
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p className="font-medium">Understanding the Chart:</p>
-          <p>• Each color represents a different simulation</p>
-          <p>• Points show the relationship between traffic density and throughput over time</p>
-          <p>• Optimal throughput typically occurs at moderate densities</p>
-          <p>• Higher densities often lead to congestion and reduced throughput</p>
-        </div>
-        
-        <SimulationParametersCollapsible 
+
+
+
+        <SimulationParametersCollapsible
           selectedSimulations={selectedSimulations}
         />
       </CardContent>

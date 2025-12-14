@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { SavedSimulation } from "@/services/indexedDBService";
+import { SavedSimulation } from "@/services/simulationService";
 import SimulationParametersCollapsible from "./SimulationParametersCollapsible";
 
 interface OverlaySpeedDensityChartProps {
@@ -24,7 +24,7 @@ const generateColors = (count: number): string[] => {
     '#f97316', // orange
     '#6366f1', // indigo
   ];
-  
+
   // If we need more colors than predefined, generate them
   if (count > colors.length) {
     for (let i = colors.length; i < count; i++) {
@@ -32,7 +32,7 @@ const generateColors = (count: number): string[] => {
       colors.push(`hsl(${hue}, 70%, 50%)`);
     }
   }
-  
+
   return colors.slice(0, count);
 };
 
@@ -51,16 +51,16 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
   unitSystem
 }) => {
   const unitLabel = unitSystem === 'metric' ? 'km/h' : 'mph';
-  
+
   const { chartData, colors, simulationNames } = useMemo(() => {
     const colors = generateColors(selectedSimulations.length);
     const simulationNames: string[] = [];
     const allDataPoints: ChartDataPoint[] = [];
-    
+
     selectedSimulations.forEach((simulation, index) => {
       const simName = simulation.name || `Simulation ${index + 1}`;
       simulationNames.push(simName);
-      
+
       // Debug: Log available data keys for this simulation
       console.log(`Simulation ${index} (${simName}) has keys:`, {
         hasChartData: !!simulation.chartData,
@@ -69,13 +69,13 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
         hasFinalStats: !!simulation.finalStats,
         finalStatsKeys: simulation.finalStats ? Object.keys(simulation.finalStats) : 'none'
       });
-      
+
       // Try to get data from different possible locations
-      let points: Array<{density: number; speed: number; time: number}> = [];
-      
+      let points: Array<{ density: number; speed: number; time: number }> = [];
+
       // Always use stabilized values from finalStats if available
-      if (simulation.finalStats?.stabilizedDensity !== undefined && 
-          simulation.finalStats?.stabilizedAverageSpeed !== undefined) {
+      if (simulation.finalStats?.stabilizedDensity !== undefined &&
+        simulation.finalStats?.stabilizedAverageSpeed !== undefined) {
         points = [{
           density: simulation.finalStats.stabilizedDensity,
           speed: simulation.finalStats.stabilizedAverageSpeed,
@@ -90,7 +90,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
           time: point.time || 0
         }));
       }
-      
+
       // Add all points with metadata
       points.forEach(point => {
         allDataPoints.push({
@@ -102,10 +102,10 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
         });
       });
     });
-    
+
     // Debug: Log the first few data points
     console.log('First 3 data points:', allDataPoints.slice(0, 3));
-    
+
     return {
       chartData: allDataPoints,
       colors,
@@ -152,7 +152,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
   };
 
   return (
-    <Card>
+    <Card className="w-full min-w-0">
       <CardHeader>
         <CardTitle>Average Speed vs Density Comparison</CardTitle>
         <div className="text-sm text-muted-foreground">
@@ -162,7 +162,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
       <CardContent>
         <ChartContainer className="h-[400px]" config={{}}>
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart 
+            <ScatterChart
               margin={{ top: 20, right: 40, bottom: 40, left: 60 }}
               onClick={(data) => console.log('Chart clicked:', data)}
             >
@@ -196,7 +196,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
                   style: { textAnchor: 'middle', fontWeight: 500 }
                 }}
               />
-              <Tooltip 
+              <Tooltip
                 content={<CustomTooltip />}
                 formatter={(value: any, name: any, props: any) => {
                   if (name === 'speed') {
@@ -208,7 +208,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
                   return [value, name];
                 }}
               />
-              
+
               {/* Create a separate Scatter for each simulation */}
               {selectedSimulations.map((_, index) => {
                 const simulationData = chartData.filter(point => point.simulationIndex === index);
@@ -219,9 +219,9 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
                     data={simulationData}
                     fill={simulationData[0]?.trafficRule === 'american' ? '#ff4d4f' : '#1890ff'}
                     fillOpacity={0.7}
-                    line={{ 
-                      stroke: simulationData[0]?.trafficRule === 'american' ? '#ff4d4f' : '#1890ff', 
-                      strokeWidth: 2 
+                    line={{
+                      stroke: simulationData[0]?.trafficRule === 'american' ? '#ff4d4f' : '#1890ff',
+                      strokeWidth: 2
                     }}
                     lineType="joint"
                     isAnimationActive={false}
@@ -232,16 +232,10 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
             </ScatterChart>
           </ResponsiveContainer>
         </ChartContainer>
-        
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p className="font-medium">Understanding the Chart:</p>
-          <p>• Each color represents a different simulation</p>
-          <p>• Points show the relationship between traffic density and average speed over time</p>
-          <p>• Higher densities typically lead to reduced speeds due to congestion</p>
-          <p>• The shape of the curve can indicate traffic flow characteristics</p>
-        </div>
-        
-        <SimulationParametersCollapsible 
+
+
+
+        <SimulationParametersCollapsible
           selectedSimulations={selectedSimulations}
           unitSystem={unitSystem}
         />

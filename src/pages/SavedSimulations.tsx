@@ -7,15 +7,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { BarChart3, Calendar, CheckSquare, Clock, Copy, Edit2, Eye, FileDown, FileUp, Gauge, Info, Plus, Repeat, Square, Trash2, Users } from "lucide-react";
+import { BarChart3, Calendar, CheckSquare, Clock, Copy, Edit2, Eye, FileDown, FileUp, Gauge, Info, Plus, Repeat, Square, Trash2, Users, Folder, FolderPlus, FolderInput, ChevronDown, ChevronRight } from "lucide-react";
 import { exportSimulation, importSimulation, triggerFileInput } from "@/utils/simulationExport";
-import { indexedDBService, SavedSimulation } from "@/services/indexedDBService";
+import { simulationService, SavedSimulation } from "@/services/simulationService";
 import { useToast } from "@/hooks/use-toast";
 import { extractSimulationParams, formatParamsWithUnits } from "../utils/simulationUtils";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import ChartDashboard from "@/components/ChartDashboard";
 import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
+import MoveToFolderDialog from "@/components/MoveToFolderDialog";
 import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensityChart";
 import OverlayLaneThroughputDensityChart from "@/components/OverlayLaneThroughputDensityChart";
 import OverlaySpeedDensityChart from "@/components/OverlaySpeedDensityChart";
@@ -23,6 +25,337 @@ import OverlayLaneChangesDensityChart from "@/components/OverlayLaneChangesDensi
 import OverlayPackFormationDensityChart from "@/components/OverlayPackFormationDensityChart";
 import DensityLaneDistributionChart from "@/components/DensityLaneDistributionChart";
 import Footer from "@/components/Footer";
+import SimulationCard from "@/components/SimulationCard";
+
+// Sub-component for the collapsible selection list
+const ComparisonSelectionList: React.FC<{
+  savedSimulations: SavedSimulation[];
+  selectedForComparison: Set<string>;
+  onSelectionChange: (id: string, checked: boolean) => void;
+  calculateNumCars: (sim: SavedSimulation) => number;
+  updateSimulationDetails: (id: string, name: string, folder?: string) => void;
+  deleteSimulation: (id: string) => void;
+  openMoveDialogForSingle: (sim: SavedSimulation) => void;
+}> = ({
+  savedSimulations,
+  selectedForComparison,
+  onSelectionChange,
+  calculateNumCars,
+  updateSimulationDetails,
+  deleteSimulation,
+  openMoveDialogForSingle
+}) => {
+    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+    // Group simulations
+    const groupedSimulations: { [key: string]: SavedSimulation[] } = {};
+    const uncategorized: SavedSimulation[] = [];
+
+    savedSimulations.forEach(sim => {
+      if (sim.folder && sim.folder.trim()) {
+        if (!groupedSimulations[sim.folder]) {
+          groupedSimulations[sim.folder] = [];
+        }
+        groupedSimulations[sim.folder].push(sim);
+      } else {
+        uncategorized.push(sim);
+      }
+    });
+
+    const folders = Object.keys(groupedSimulations).sort();
+
+    const toggleFolder = (folder: string) => {
+      setExpandedFolders(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(folder)) {
+          newSet.delete(folder);
+        } else {
+          newSet.add(folder);
+        }
+        return newSet;
+      });
+    };
+
+    const toggleFolderSelection = (folder: string, checked: boolean | 'indeterminate') => {
+      if (checked === 'indeterminate') return; // Should not happen via click usually
+
+      const simsInFolder = groupedSimulations[folder];
+      simsInFolder.forEach(sim => {
+        onSelectionChange(sim.id, !!checked);
+      });
+    };
+
+    const renderSimulationItem = (simulation: SavedSimulation) => (
+      <div key={simulation.id} className="flex items-center space-x-3 p-3 border rounded-lg bg-card">
+        <Checkbox
+          id={`comparison-${simulation.id}`}
+          checked={selectedForComparison.has(simulation.id)}
+          onCheckedChange={(checked) => onSelectionChange(simulation.id, checked as boolean)}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor={`comparison-${simulation.id}`}
+              className="text-sm font-medium cursor-pointer truncate"
+            >
+              {simulation.name}
+            </label>
+            <Badge variant="secondary" className="text-xs">
+              #{simulation.simulationNumber}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-muted-foreground">
+              {calculateNumCars(simulation)} cars, {simulation.params.numLanes} lanes
+            </span>
+            <div className="flex gap-1">
+              <EditSimulationNameDialog
+                currentName={simulation.name}
+                currentFolder={simulation.folder}
+                onSave={(newName, newFolder) => updateSimulationDetails(simulation.id, newName, newFolder)}
+                trigger={
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                    <Edit2 size={12} />
+                  </Button>
+                }
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                onClick={() => deleteSimulation(simulation.id)}
+              >
+                <Trash2 size={12} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => openMoveDialogForSingle(simulation)}
+                title="Move to folder"
+                className="h-6 w-6 p-0"
+              >
+                <FolderInput size={12} />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="space-y-4">
+        {folders.map(folder => {
+          const sims = groupedSimulations[folder];
+          const allSelected = sims.every(s => selectedForComparison.has(s.id));
+          const someSelected = sims.some(s => selectedForComparison.has(s.id));
+          const isExpanded = expandedFolders.has(folder);
+
+          return (
+            <div key={folder} className="border rounded-lg overflow-hidden">
+              <div className="flex items-center gap-2 p-3 bg-muted/30 hover:bg-muted/50 transition-colors">
+                <button onClick={() => toggleFolder(folder)} className="p-1 hover:bg-muted rounded text-gray-500">
+                  {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                </button>
+
+                <div className="flex items-center gap-3 flex-1">
+                  <Checkbox
+                    checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                    onCheckedChange={(c) => toggleFolderSelection(folder, c)}
+                  />
+                  <div className="flex items-center gap-2 cursor-pointer" onClick={() => toggleFolder(folder)}>
+                    <Folder size={18} className="text-blue-500" />
+                    <span className="font-semibold">{folder}</span>
+                    <Badge variant="outline" className="ml-1 text-xs">{sims.length}</Badge>
+                  </div>
+                </div>
+              </div>
+
+              {isExpanded && (
+                <div className="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 border-t bg-slate-50/50">
+                  {sims.map(renderSimulationItem)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {uncategorized.length > 0 && (
+          <div className="space-y-2 mt-4">
+            <div className="flex items-center gap-2 pb-2 px-1">
+              <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Uncategorized</span>
+              <div className="h-px bg-border flex-1" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {uncategorized.map(renderSimulationItem)}
+            </div>
+          </div>
+        )}
+
+        {savedSimulations.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            No simulations available to select.
+          </div>
+        )}
+      </div>
+    );
+  };
+
+const IndividualSimulationList: React.FC<{
+  savedSimulations: SavedSimulation[];
+  unitConversions: any;
+  calculateNumCars: (sim: SavedSimulation) => number;
+  formatDate: (timestamp: number) => string;
+  formatDuration: (seconds: number) => string;
+  updateSimulationDetails: (id: string, name: string, folder?: string) => void;
+  handleExportSimulation: (sim: SavedSimulation) => void;
+  setSelectedSimulation: (sim: SavedSimulation | null) => void;
+  copySimulationParams: (sim: SavedSimulation) => void;
+  deleteSimulation: (id: string) => void;
+  unitSystem: UnitSystem;
+  openMoveDialogForSingle: (sim: SavedSimulation) => void;
+  selectedIds: Set<string>;
+  onSelectionChange: (id: string, checked: boolean) => void;
+}> = ({
+  savedSimulations,
+  unitConversions,
+  calculateNumCars,
+  formatDate,
+  formatDuration,
+  updateSimulationDetails,
+  handleExportSimulation,
+  setSelectedSimulation,
+  copySimulationParams,
+  deleteSimulation,
+  unitSystem,
+  openMoveDialogForSingle,
+  selectedIds,
+  onSelectionChange
+}) => {
+    // Default to all folders expanded? Or perhaps keep track of expanded set.
+    // Let's default to expanded for better initial visibility, or track collapsed ones.
+    // Tracking collapsed might be better if we want everything open by default.
+    // Actually, toggling "Expanded" is standard. Let's start with all folders expand or empty?
+    // User request: "collapsible button". Usually implies start open or closed. "Show me the folders from which I can select... then I am able to see simulations" implies start CLOSED.
+    // "AT first only the folders and uncategorized simulations..." -> Start CLOSED.
+
+    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+    const groupedSimulations: { [key: string]: SavedSimulation[] } = {};
+    const uncategorized: SavedSimulation[] = [];
+
+    savedSimulations.forEach(sim => {
+      if (sim.folder && sim.folder.trim()) {
+        if (!groupedSimulations[sim.folder]) {
+          groupedSimulations[sim.folder] = [];
+        }
+        groupedSimulations[sim.folder].push(sim);
+      } else {
+        uncategorized.push(sim);
+      }
+    });
+
+    const folders = Object.keys(groupedSimulations).sort();
+
+    const toggleFolder = (folder: string) => {
+      setExpandedFolders(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(folder)) {
+          newSet.delete(folder);
+        } else {
+          newSet.add(folder);
+        }
+        return newSet;
+      });
+    };
+
+    return (
+      <div className="space-y-4">
+        {folders.map(folder => {
+          const sims = groupedSimulations[folder];
+          const isExpanded = expandedFolders.has(folder);
+
+          return (
+            <div key={folder} className="border rounded-lg bg-card overflow-hidden">
+              <div
+                className="flex items-center gap-2 p-4 bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
+                onClick={() => toggleFolder(folder)}
+              >
+                <button className="p-1 hover:bg-muted rounded text-gray-500">
+                  {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                </button>
+                <Folder className="h-5 w-5 text-blue-500" />
+                <h2 className="text-xl font-semibold text-gray-800 select-none">{folder}</h2>
+                <Badge variant="secondary" className="ml-2">{sims.length}</Badge>
+              </div>
+
+              {isExpanded && (
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 border-t">
+                  {sims.map(simulation => (
+                    <SimulationCard
+                      key={simulation.id}
+                      simulation={simulation}
+                      unitConversions={unitConversions}
+                      calculateNumCars={calculateNumCars}
+                      formatDate={formatDate}
+                      formatDuration={formatDuration}
+                      updateSimulationDetails={updateSimulationDetails}
+                      handleExportSimulation={handleExportSimulation}
+                      setSelectedSimulation={setSelectedSimulation}
+                      copySimulationParams={copySimulationParams}
+                      deleteSimulation={deleteSimulation}
+                      unitSystem={unitSystem}
+                      onMoveToFolder={openMoveDialogForSingle}
+                      isSelected={selectedIds.has(simulation.id)}
+                      onSelectionChange={onSelectionChange}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {uncategorized.length > 0 && (
+          <div className="space-y-4">
+            {folders.length > 0 && (
+              <div className="flex items-center gap-2 pb-2 px-1 border-b mt-6">
+                <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Uncategorized Simulations</span>
+                <Badge variant="secondary" className="ml-2 text-muted-foreground">{uncategorized.length}</Badge>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {uncategorized.map(simulation => (
+                <SimulationCard
+                  key={simulation.id}
+                  simulation={simulation}
+                  unitConversions={unitConversions}
+                  calculateNumCars={calculateNumCars}
+                  formatDate={formatDate}
+                  formatDuration={formatDuration}
+                  updateSimulationDetails={updateSimulationDetails}
+                  handleExportSimulation={handleExportSimulation}
+                  setSelectedSimulation={setSelectedSimulation}
+                  copySimulationParams={copySimulationParams}
+                  deleteSimulation={deleteSimulation}
+                  unitSystem={unitSystem}
+                  onMoveToFolder={openMoveDialogForSingle}
+                  isSelected={selectedIds.has(simulation.id)}
+                  onSelectionChange={onSelectionChange}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {savedSimulations.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Saved Simulations</h3>
+            <p className="text-gray-500 mb-4">You haven't saved any simulations yet.</p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
 const SavedSimulations: React.FC = () => {
   const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
@@ -30,8 +363,13 @@ const SavedSimulations: React.FC = () => {
   const [selectedSimulation, setSelectedSimulation] = useState<SavedSimulation | null>(null);
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set());
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
+
+  // Folder management state
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [simulationsToMove, setSimulationsToMove] = useState<Set<string>>(new Set());
+
   const { toast } = useToast();
-  
+
   const unitConversions = getUnitConversions(unitSystem);
 
   useEffect(() => {
@@ -59,20 +397,20 @@ const SavedSimulations: React.FC = () => {
   const handleImportSimulation = async (file: File) => {
     try {
       const simulation = await importSimulation(file);
-      
+
       // Check if simulation with same ID already exists
       const exists = savedSimulations.some(s => s.id === simulation.id);
-      
+
       if (exists) {
         // Add a timestamp to make the ID unique
         simulation.id = `${simulation.id}_${Date.now()}`;
         simulation.name = `${simulation.name} (Imported)`;
       }
-      
+
       // Save the imported simulation
-      await indexedDBService.saveSimulation(simulation);
+      await simulationService.saveSimulation(simulation);
       await loadSimulations();
-      
+
       toast({
         title: "Success",
         description: "Simulation imported successfully",
@@ -93,7 +431,7 @@ const SavedSimulations: React.FC = () => {
       const params = extractSimulationParams(simulation);
       const formattedString = formatParamsWithUnits(params, unitSystem);
       await navigator.clipboard.writeText(formattedString);
-      
+
       toast({
         title: "Success",
         description: "Simulation parameters copied to clipboard",
@@ -111,7 +449,7 @@ const SavedSimulations: React.FC = () => {
 
   const loadSimulations = async () => {
     try {
-      const simulations = await indexedDBService.getAllSimulations();
+      const simulations = await simulationService.getAllSimulations();
       console.log('Loaded simulations:', simulations);
       setSavedSimulations(simulations.sort((a, b) => b.timestamp - a.timestamp));
     } catch (error) {
@@ -128,7 +466,7 @@ const SavedSimulations: React.FC = () => {
 
   const deleteSimulation = async (id: string) => {
     try {
-      await indexedDBService.deleteSimulation(id);
+      await simulationService.deleteSimulation(id);
       setSavedSimulations(prev => prev.filter(sim => sim.id !== id));
       toast({
         title: "Success",
@@ -144,31 +482,86 @@ const SavedSimulations: React.FC = () => {
     }
   };
 
-  const updateSimulationName = async (id: string, newName: string) => {
+  const updateSimulationDetails = async (id: string, newName: string, newFolder?: string) => {
     try {
       const simulation = savedSimulations.find(sim => sim.id === id);
       if (!simulation) return;
 
-      const updatedSimulation = { ...simulation, name: newName };
-      await indexedDBService.updateSimulation(updatedSimulation);
-      
-      setSavedSimulations(prev => 
+      const updatedSimulation = { ...simulation, name: newName, folder: newFolder };
+      await simulationService.updateSimulation(updatedSimulation);
+
+      setSavedSimulations(prev =>
         prev.map(sim => sim.id === id ? updatedSimulation : sim)
       );
-      
+
       toast({
         title: "Success",
-        description: "Simulation name updated successfully",
+        description: "Simulation details updated successfully",
       });
     } catch (error) {
-      console.error('Error updating simulation name:', error);
+      console.error('Error updating simulation details:', error);
       toast({
         title: "Error",
-        description: "Failed to update simulation name",
+        description: "Failed to update simulation details",
         variant: "destructive",
       });
     }
   };
+
+  const handleMoveSimulations = async (folderName: string) => {
+    try {
+      const updates = Array.from(simulationsToMove).map(id => {
+        const sim = savedSimulations.find(s => s.id === id);
+        if (sim) {
+          return { ...sim, folder: folderName };
+        }
+        return null;
+      }).filter(Boolean) as SavedSimulation[];
+
+      await Promise.all(updates.map(sim => simulationService.updateSimulation(sim)));
+
+      setSavedSimulations(prev =>
+        prev.map(sim => simulationsToMove.has(sim.id) ? { ...sim, folder: folderName } : sim)
+      );
+
+      toast({
+        title: "Success",
+        description: `Moved ${updates.length} simulation${updates.length !== 1 ? 's' : ''} to folder "${folderName}"`,
+      });
+    } catch (error) {
+      console.error('Error moving simulations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to move simulations",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openMoveDialogForSelection = () => {
+    if (selectedForComparison.size === 0) {
+      toast({
+        title: "Selection Required",
+        description: "Please select simulations to move using the checkboxes.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setSimulationsToMove(new Set(selectedForComparison));
+    setIsMoveDialogOpen(true);
+  };
+
+  const openMoveDialogForSingle = (simulation: SavedSimulation) => {
+    setSimulationsToMove(new Set([simulation.id]));
+    setIsMoveDialogOpen(true);
+  };
+
+  // Get unique existing folders
+  const existingFolders = Array.from(new Set(
+    savedSimulations
+      .map(s => s.folder)
+      .filter((f): f is string => !!f && f.trim() !== '')
+  )).sort();
 
   const handleComparisonSelection = (simulationId: string, checked: boolean) => {
     setSelectedForComparison(prev => {
@@ -205,10 +598,10 @@ const SavedSimulations: React.FC = () => {
     const numLanes = simulation.params.numLanes || 2;
     const freewayLength = simulation.params.freewayLength || 10;
     const trafficDensity = simulation.params.trafficDensity || 0.62;
-    
+
     // Total cars = density (cars/km) * freeway length (km) * number of lanes
     const totalCars = Math.round(trafficDensity * freewayLength * numLanes);
-    
+
     return totalCars;
   };
 
@@ -246,13 +639,23 @@ const SavedSimulations: React.FC = () => {
             />
             <span className="text-sm text-gray-600">Imperial</span>
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => triggerFileInput(handleImportSimulation)}
             className="flex items-center gap-2"
           >
             <FileUp className="h-4 w-4" />
             Import
+          </Button>
+          <Button
+            variant="outline"
+            onClick={openMoveDialogForSelection}
+            className="flex items-center gap-2"
+            disabled={selectedForComparison.size === 0}
+            title={selectedForComparison.size === 0 ? "Select simulations to move first" : "Move selected simulations to a folder"}
+          >
+            <FolderPlus className="h-4 w-4" />
+            Move Selected to Folder
           </Button>
           <Link to="/freeway-simulator">
             <Button className="flex items-center gap-2">
@@ -289,279 +692,22 @@ const SavedSimulations: React.FC = () => {
           </TabsList>
 
           <TabsContent value="individual">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {savedSimulations.map((simulation) => (
-                <Card key={simulation.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <span>{simulation.name}</span>
-                          <Badge variant="secondary">#{simulation.simulationNumber}</Badge>
-                          <EditSimulationNameDialog
-                            currentName={simulation.name}
-                            onSave={(newName) => updateSimulationName(simulation.id, newName)}
-                          />
-                        </CardTitle>
-                        <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
-                          <Calendar size={14} />
-                          {formatDate(simulation.timestamp)}
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Users size={16} className="text-blue-500" />
-                        <span>{calculateNumCars(simulation)} cars</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-gray-400 rounded"></div>
-                        <span>{simulation.params.numLanes} lanes</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Gauge size={16} className="text-green-500" />
-                        <span>{unitConversions.speed.toDisplay(simulation.finalStats.averageSpeed).toFixed(1)} {unitConversions.speed.unit} avg</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock size={16} className="text-purple-500" />
-                        <span>{formatDuration(simulation.duration)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Repeat size={16} className="text-amber-500" />
-                        <span>{simulation.finalStats.laneChanges} lane changes</span>
-                      </div>
-                      {simulation.finalStats.perLaneThroughputs && simulation.finalStats.perLaneThroughputs.length > 0 && (
-                        <div className="col-span-2 pt-2">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs font-medium text-gray-500">Per-Lane Throughput</span>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button className="text-muted-foreground hover:text-foreground">
-                                    <Info className="h-3 w-3" />
-                                    <span className="sr-only">How is this calculated?</span>
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-[300px] p-4">
-                                  <p className="font-medium mb-2">How throughput is calculated:</p>
-                                  <p className="text-sm mb-1">For each lane:</p>
-                                  <ul className="text-xs space-y-1 list-disc pl-4">
-                                    <li>Average speed = Sum of all car speeds / number of cars</li>
-                                    <li>Density = Number of cars / lane length (in km)</li>
-                                    <li>Throughput = Average speed × Density (cars/hour)</li>
-                                  </ul>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {simulation.finalStats.perLaneThroughputs.map((throughput, idx) => {
-                              const laneName = idx === 0 ? 'L' : 
-                                            idx === simulation.finalStats.perLaneThroughputs.length - 1 ? 'R' : 
-                                            `L${idx + 1}`;
-                              const numLanes = simulation.params.numLanes || 3;
-                              const freewayLength = simulation.params.freewayLength || 1;
-                              const laneCars = simulation.finalStats.totalCars * (1/numLanes);
-                              const avgSpeed = throughput / (laneCars / freewayLength) || 0;
-                              
-                              return (
-                                <TooltipProvider key={idx}>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-muted/20 cursor-help">
-                                        <span className="text-xs font-medium text-muted-foreground">{laneName}:</span>
-                                        <span className="text-sm font-bold">{Math.round(throughput)}</span>
-                                        <span className="text-xs text-muted-foreground">cars/hr</span>
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-[300px] p-3 text-sm" side="top">
-                                      <p className="font-medium mb-1">{idx === 0 ? 'Left' : idx === simulation.finalStats.perLaneThroughputs.length - 1 ? 'Right' : `Lane ${idx + 1}`}</p>
-                                      <p className="text-sm">
-                                        {laneCars.toFixed(0)} cars • {avgSpeed.toFixed(1)} {unitConversions.speed.unit}
-                                      </p>
-                                      <p className="mt-1 text-muted-foreground text-xs">
-                                        = {throughput.toFixed(1)} cars/hour
-                                      </p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t gap-2">
-                      <Badge variant="outline" className="capitalize">
-                        {simulation.trafficRule}
-                      </Badge>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleExportSimulation(simulation);
-                          }}
-                          title="Export simulation"
-                        >
-                          <FileDown size={16} />
-                        </Button>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedSimulation(simulation)}
-                            >
-                              <Eye size={16} />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto p-0">
-                            <div className="p-6 space-y-6">
-                              <DialogHeader>
-                                <DialogTitle className="flex items-center gap-2">
-                                  {simulation.name} - Simulation #{simulation.simulationNumber}
-                                  <Badge variant="outline" className="capitalize">
-                                    {simulation.trafficRule}
-                                  </Badge>
-                                </DialogTitle>
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 text-sm">
-                                    <div className="flex items-center gap-2">
-                                      <Users size={16} className="text-blue-500" />
-                                      <span>{calculateNumCars(simulation)} cars</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-4 h-4 bg-gray-400 rounded"></div>
-                                      <span>{simulation.params.numLanes} lanes</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Gauge size={16} className="text-green-500" />
-                                      <span>{unitConversions.speed.toDisplay(simulation.finalStats.averageSpeed).toFixed(1)} {unitConversions.speed.unit} avg</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Repeat size={16} className="text-amber-500" />
-                                      <span>{simulation.finalStats.laneChanges} lane changes</span>
-                                    </div>
-                                  </div>
-                                </DialogHeader>
-                                
-                                {/* Per-Lane Throughput Section */}
-                                {simulation.finalStats.perLaneThroughputs?.length > 0 && (
-                                  <div className="p-4 border rounded-lg bg-muted/10">
-                                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                                      Per-Lane Throughput (cars/hour)
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <button className="text-muted-foreground hover:text-foreground">
-                                              <Info className="h-4 w-4" />
-                                              <span className="sr-only">How is this calculated?</span>
-                                            </button>
-                                          </TooltipTrigger>
-                                          <TooltipContent className="max-w-[300px] p-4">
-                                            <p className="font-medium mb-2">How throughput is calculated:</p>
-                                            <p className="text-sm mb-1">For each lane:</p>
-                                            <ul className="text-xs space-y-1 list-disc pl-4">
-                                              <li>Average speed = Sum of all car speeds / number of cars</li>
-                                              <li>Density = Number of cars / lane length (in km)</li>
-                                              <li>Throughput = Average speed × Density (cars/hour)</li>
-                                            </ul>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    </h3>
-                                    <div className="flex flex-wrap gap-3">
-                                      {simulation.finalStats.perLaneThroughputs.map((throughput, idx) => {
-                                        const laneName = idx === 0 ? 'Left' : 
-                                                      idx === simulation.finalStats.perLaneThroughputs.length - 1 ? 'Right' : 
-                                                      `Lane ${idx + 1}`;
-                                        const numLanes = simulation.params.numLanes || 3;
-                                        const freewayLength = simulation.params.freewayLength || 1;
-                                        const laneCars = simulation.finalStats.totalCars * (1/numLanes);
-                                        const avgSpeed = throughput / (laneCars / freewayLength) || 0;
-                                        
-                                        return (
-                                          <TooltipProvider key={idx}>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-background cursor-help">
-                                                  <span className="text-sm font-medium text-muted-foreground">{laneName}:</span>
-                                                  <span className="text-lg font-bold">{Math.round(throughput)}</span>
-                                                  <span className="text-xs text-muted-foreground">cars/hr</span>
-                                                </div>
-                                              </TooltipTrigger>
-                                              <TooltipContent className="max-w-[300px] p-3 text-sm" side="top">
-                                                <p className="font-medium mb-1">{laneName} Calculation:</p>
-                                                <p className="text-sm">
-                                                  {laneCars.toFixed(0)} cars • {avgSpeed.toFixed(1)} {unitConversions.speed.unit}
-                                                </p>
-                                                <p className="mt-1 text-muted-foreground text-xs">
-                                                  = {throughput.toFixed(1)} cars/hour
-                                                </p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                          </TooltipProvider>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <div className="border-t">
-                                <ChartDashboard
-                                  cars={[]}
-                                  elapsedTime={simulation.duration}
-                                  laneLength={1000}
-                                  params={simulation.params}
-                                  trafficRule={simulation.trafficRule}
-                                  unitSystem={unitSystem}
-                                  speedDensityHistory={simulation.chartData.speedByLaneHistory}
-                                  densityOfCarPacksHistory={simulation.chartData.densityOfCarPacksHistory}
-                                  percentageByLaneHistory={simulation.chartData.percentageByLaneHistory}
-                                  densityThroughputHistory={simulation.chartData.densityThroughputHistory}
-                                  laneThroughputHistory={[]}
-                                  laneUtilizationHistory={[]}
-                                  packHistory={simulation.chartData.packHistory}
-                                  packLengthHistory={simulation.chartData.packLengthHistory}
-                                  showPackFormation={true}
-                                />
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            copySimulationParams(simulation);
-                          }}
-                          title="Copy simulation parameters"
-                        >
-                          <Copy size={16} />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteSimulation(simulation.id);
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                          title="Delete simulation"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <IndividualSimulationList
+              savedSimulations={savedSimulations}
+              unitConversions={unitConversions}
+              calculateNumCars={calculateNumCars}
+              formatDate={formatDate}
+              formatDuration={formatDuration}
+              updateSimulationDetails={updateSimulationDetails}
+              handleExportSimulation={handleExportSimulation}
+              setSelectedSimulation={setSelectedSimulation}
+              copySimulationParams={copySimulationParams}
+              deleteSimulation={deleteSimulation}
+              unitSystem={unitSystem}
+              openMoveDialogForSingle={openMoveDialogForSingle}
+              selectedIds={selectedForComparison}
+              onSelectionChange={handleComparisonSelection}
+            />
           </TabsContent>
 
           <TabsContent value="comparison">
@@ -579,8 +725,8 @@ const SavedSimulations: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <CardTitle>Select Simulations for Comparison</CardTitle>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={selectAllForComparison}
                         disabled={savedSimulations.length === 0}
@@ -588,8 +734,8 @@ const SavedSimulations: React.FC = () => {
                         <CheckSquare size={16} className="mr-1" />
                         Select All
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={deselectAllForComparison}
                         disabled={selectedForComparison.size === 0}
@@ -597,6 +743,19 @@ const SavedSimulations: React.FC = () => {
                         <Square size={16} className="mr-1" />
                         Deselect All
                       </Button>
+                      {selectedForComparison.size > 0 && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setSimulationsToMove(new Set(selectedForComparison));
+                            setIsMoveDialogOpen(true);
+                          }}
+                        >
+                          <FolderInput size={16} className="mr-1" />
+                          Move Selected
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -604,82 +763,57 @@ const SavedSimulations: React.FC = () => {
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {savedSimulations.map((simulation) => (
-                      <div key={simulation.id} className="flex items-center space-x-3 p-3 border rounded-lg">
-                        <Checkbox
-                          id={`comparison-${simulation.id}`}
-                          checked={selectedForComparison.has(simulation.id)}
-                          onCheckedChange={(checked) => 
-                            handleComparisonSelection(simulation.id, checked as boolean)
-                          }
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <label 
-                              htmlFor={`comparison-${simulation.id}`}
-                              className="text-sm font-medium cursor-pointer truncate"
-                            >
-                              {simulation.name}
-                            </label>
-                            <Badge variant="secondary" className="text-xs">
-                              #{simulation.simulationNumber}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-muted-foreground">
-                              {calculateNumCars(simulation)} cars, {simulation.params.numLanes} lanes
-                            </span>
-                            <div className="flex gap-1">
-                              <EditSimulationNameDialog
-                                currentName={simulation.name}
-                                onSave={(newName) => updateSimulationName(simulation.id, newName)}
-                                trigger={
-                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                    <Edit2 size={12} />
-                                  </Button>
-                                }
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
-                                onClick={() => deleteSimulation(simulation.id)}
-                              >
-                                <Trash2 size={12} />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <ComparisonSelectionList
+                    savedSimulations={savedSimulations}
+                    selectedForComparison={selectedForComparison}
+                    onSelectionChange={(id, checked) => handleComparisonSelection(id, checked)}
+                    calculateNumCars={calculateNumCars}
+                    updateSimulationDetails={updateSimulationDetails}
+                    deleteSimulation={deleteSimulation}
+                    openMoveDialogForSingle={openMoveDialogForSingle}
+                  />
                 </CardContent>
               </Card>
 
               {/* Comparison Charts */}
               {selectedForComparison.size > 0 ? (
-                <div className="grid gap-6">
-                  <OverlaySpeedDensityChart 
-                    selectedSimulations={getSelectedSimulations()}
-                    unitSystem={unitSystem}
-                  />
-                  <OverlayThroughputDensityChart 
-                    selectedSimulations={getSelectedSimulations()}
-                  />
-                  <OverlayLaneThroughputDensityChart 
-                    selectedSimulations={getSelectedSimulations()}
-                    unitSystem={unitSystem}
-                  />
-                  <OverlayLaneChangesDensityChart 
-                    selectedSimulations={getSelectedSimulations()}
-                  />
-                  <OverlayPackFormationDensityChart 
-                    selectedSimulations={getSelectedSimulations()}
-                  />
-                  <DensityLaneDistributionChart
-                    selectedSimulations={getSelectedSimulations()}
-                  />
+                <div className="space-y-6">
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Understanding the Comparison Charts</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
+                        <li>Each color represents a different simulation.</li>
+                        <li>Solid points indicate stabilized data, while lines show trends over time.</li>
+                        <li>Compare density, throughput, speed, and lane usage to understand traffic flow characteristics.</li>
+                        <li>American rules (red) usually keep right/pass left, while European rules (blue) keep left/pass right.</li>
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="flex flex-col space-y-8 min-w-0">
+                    <OverlaySpeedDensityChart
+                      selectedSimulations={getSelectedSimulations()}
+                      unitSystem={unitSystem}
+                    />
+                    <OverlayThroughputDensityChart
+                      selectedSimulations={getSelectedSimulations()}
+                      unitSystem={unitSystem}
+                    />
+                    <OverlayLaneThroughputDensityChart
+                      selectedSimulations={getSelectedSimulations()}
+                      unitSystem={unitSystem}
+                    />
+                    <OverlayLaneChangesDensityChart
+                      selectedSimulations={getSelectedSimulations()}
+                    />
+                    <OverlayPackFormationDensityChart
+                      selectedSimulations={getSelectedSimulations()}
+                    />
+                    <DensityLaneDistributionChart
+                      selectedSimulations={getSelectedSimulations()}
+                    />
+                  </div>
                 </div>
               ) : (
                 <Card>
@@ -695,8 +829,16 @@ const SavedSimulations: React.FC = () => {
           </TabsContent>
         </Tabs>
       )}
-      
+
       <Footer />
+
+      <MoveToFolderDialog
+        open={isMoveDialogOpen}
+        onOpenChange={setIsMoveDialogOpen}
+        existingFolders={existingFolders}
+        onMove={handleMoveSimulations}
+        selectedCount={simulationsToMove.size}
+      />
     </div>
   );
 };

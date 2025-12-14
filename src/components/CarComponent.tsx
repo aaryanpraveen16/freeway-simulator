@@ -37,22 +37,22 @@ const CarComponent: React.FC<CarComponentProps> = ({
   carSize = 24,
   unitSystem = 'imperial',
 }) => {
-  
+
   // Calculate position based on track type
   // Add a small vertical offset to position cars lower in their lanes
-  const verticalOffset = 10; // pixels to offset the car downward
-  
+
+
 
   const position = trackType === "circular" && trackRadius
     ? {
-        x: trackRadius + trackRadius * Math.cos((car.position / laneLength) * 2 * Math.PI),
-        y: trackRadius + trackRadius * Math.sin((car.position / laneLength) * 2 * Math.PI) + verticalOffset,
-      }
+      x: trackRadius + trackRadius * Math.cos((car.position / laneLength) * 2 * Math.PI),
+      y: trackRadius + trackRadius * Math.sin((car.position / laneLength) * 2 * Math.PI),
+    }
     : {
-        x: (car.position / laneLength) * (trackLength || 0),
-        y: (laneOffset || 0) + verticalOffset, // Add vertical offset to position lower in the lane
-      };
-  
+      x: (car.position / laneLength) * (trackLength || 0),
+      y: (laneOffset || 0),
+    };
+
   // Calculate rotation for circular track
   const rotation = trackType === "circular"
     ? (car.position / laneLength) * 360 + 90
@@ -72,7 +72,7 @@ const CarComponent: React.FC<CarComponentProps> = ({
   const getVehicleIcon = () => {
     const baseClass = "transition-all duration-200 ease-out";
     const hoverClass = isStopped ? "" : "group-hover:scale-110 group-hover:drop-shadow-lg";
-    
+
     const iconProps = {
       size: carSize,
       className: cn(baseClass, hoverClass, isStopped ? "opacity-70" : ""),
@@ -101,7 +101,7 @@ const CarComponent: React.FC<CarComponentProps> = ({
         return <CarIcon {...iconProps} />;
     }
   };
-  
+
   return (
     <TooltipProvider delayDuration={200}>
       <motion.div
@@ -129,8 +129,8 @@ const CarComponent: React.FC<CarComponentProps> = ({
               {getVehicleIcon()}
             </motion.div>
           </TooltipTrigger>
-          <TooltipContent 
-            side="top" 
+          <TooltipContent
+            side="top"
             className="bg-gray-900/95 backdrop-blur-sm border border-gray-700 shadow-xl p-3 max-w-xs"
             sideOffset={8}
             align="center"
@@ -142,7 +142,7 @@ const CarComponent: React.FC<CarComponentProps> = ({
                   {car.vehicleType}
                 </span>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400">Speed:</span>
@@ -167,15 +167,15 @@ const CarComponent: React.FC<CarComponentProps> = ({
                   <span className="text-gray-400">Status:</span>
                   <span className={cn(
                     "text-xs px-1.5 py-0.5 rounded-full font-medium",
-                    isStopped 
-                      ? "bg-red-900/30 text-red-400" 
+                    isStopped
+                      ? "bg-red-900/30 text-red-400"
                       : "bg-emerald-900/30 text-emerald-400"
                   )}>
                     {isStopped ? 'Stopped' : 'Moving'}
                   </span>
                 </div>
               </div>
-              
+
               <div className="mt-2 pt-2 border-t border-gray-800 text-xs text-amber-400/90 flex items-center gap-1.5">
                 <Info size={12} />
                 <span>Click to {isStopped ? 'resume' : 'stop'}</span>
