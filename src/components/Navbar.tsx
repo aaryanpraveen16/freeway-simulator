@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Linkedin, ExternalLink, Save, Archive } from "lucide-react";
 import { Link } from "react-router-dom";
 import { contributors } from "@/types/contributor";
-import SaveSimulationDialog from "./SaveSimulationDialog";
+import { SaveSimulationDialog } from "./SaveSimulationDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { UnitSystem } from "@/utils/unitConversion";
@@ -28,10 +28,16 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3">
           {onSaveSimulation && (
-            <SaveSimulationDialog
-              onSave={onSaveSimulation}
-              canSave={canSave}
-            />
+            <Button
+              variant="secondary"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => onSaveSimulation("default", undefined)} // Parent handles dialog opening, args ignored
+              disabled={!canSave}
+            >
+              <Save size={16} />
+              Save Run
+            </Button>
           )}
 
           <Link to="/saved-simulations">

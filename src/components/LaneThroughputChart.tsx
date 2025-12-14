@@ -6,6 +6,7 @@ import { UnitSystem } from "@/utils/unitConversion";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
 interface LaneThroughputDataPoint {
   time: number;
@@ -53,29 +54,29 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
   // Calculate average throughput for each lane
   const averageThroughput = useMemo(() => {
     if (dataHistory.length === 0) return Array(numLanes).fill(0);
-    
+
     const sums = Array(numLanes).fill(0);
     dataHistory.forEach(point => {
       for (let i = 0; i < numLanes; i++) {
         sums[i] += point[`lane${i}`] || 0;
       }
     });
-    
+
     return sums.map(sum => parseFloat((sum / dataHistory.length).toFixed(2)));
   }, [dataHistory, numLanes]);
 
   const handleExportImage = () => {
     if (!chartRef.current) return;
-    
+
     try {
       const svgElement = chartRef.current.querySelector("svg");
       if (!svgElement) {
         throw new Error("SVG element not found");
       }
-      
+
       const clonedSvg = svgElement.cloneNode(true) as SVGElement;
       clonedSvg.setAttribute("style", "background-color: white;");
-      
+
       const allPaths = clonedSvg.querySelectorAll("path");
       allPaths.forEach(path => {
         const currentWidth = path.getAttribute("stroke-width") || "1";
@@ -83,17 +84,17 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
           path.setAttribute("stroke-width", "2");
         }
       });
-      
+
       const svgData = new XMLSerializer().serializeToString(clonedSvg);
       const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-      
+
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(svgBlob);
       downloadLink.download = "lane-throughput-chart.svg";
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      
+
       toast({
         title: "Chart exported",
         description: "Lane throughput chart has been exported successfully",
@@ -120,10 +121,10 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
               Individual lane throughput comparison
             </p>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1" 
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
             onClick={handleExportImage}
           >
             <Download size={16} />
@@ -155,12 +156,12 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
+              <XAxis
                 dataKey="time"
                 name="Time"
-                label={{ 
-                  value: "Time (seconds)", 
-                  position: "insideBottom", 
+                label={{
+                  value: "Time (seconds)",
+                  position: "insideBottom",
                   offset: -40,
                   style: { fontWeight: 500 }
                 }}
@@ -168,16 +169,16 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
               />
               <YAxis
                 name="Throughput"
-                label={{ 
-                  value: "Throughput (cars/hr)", 
-                  angle: -90, 
+                label={{
+                  value: "Throughput (cars/hr)",
+                  angle: -90,
                   position: "insideLeft",
                   style: { fontWeight: 500 }
                 }}
                 domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
                 tickFormatter={(value) => value.toFixed(0)}
               />
-              <Tooltip 
+              <Tooltip
                 formatter={(value, name) => {
                   const laneMatch = String(name).match(/lane(\d+)/);
                   if (laneMatch) {
@@ -198,7 +199,7 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
                   fontSize: '14px'
                 }}
               />
-              <Legend 
+              <Legend
                 verticalAlign="top"
                 height={36}
                 formatter={(value) => {
@@ -223,7 +224,7 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
             </LineChart>
           </ChartContainer>
         </div>
-        
+
         {/* Average Throughput Display */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
           <h4 className="text-sm font-semibold mb-2">Average Throughput by Lane:</h4>
@@ -231,15 +232,15 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
             {Array.from({ length: numLanes }, (_, i) => (
               <div key={i} className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
+                  <div
+                    className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: laneColors[i % laneColors.length] }}
                   />
                   <span>Lane {i + 1}:</span>
                 </div>
                 <span className="font-mono text-green-600">
-                  {averageThroughput[i] > 0 ? 
-                    `${Math.round(averageThroughput[i])} cars/h` : 
+                  {averageThroughput[i] > 0 ?
+                    `${Math.round(averageThroughput[i])} cars/h` :
                     'N/A'}
                 </span>
               </div>
@@ -249,7 +250,7 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
             Shows average throughput for each lane across the entire simulation.
           </p>
         </div>
-        
+
         <div className="mt-4 text-xs text-muted-foreground">
           <p>• Higher throughput indicates more efficient traffic flow</p>
           <p>• Compare lanes to identify bottlenecks or imbalances</p>

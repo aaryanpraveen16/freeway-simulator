@@ -26,6 +26,7 @@ import {
 import { simulationService, SavedSimulation } from "@/services/simulationService";
 import { useToast } from "@/hooks/use-toast";
 import { UnitSystem } from "@/utils/unitConversion";
+import { SaveSimulationDialog } from "@/components/SaveSimulationDialog";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
 interface SimulationEvent {
@@ -110,6 +111,8 @@ const Index = () => {
   const [carSize, setCarSize] = useState<number>(24);
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  const [showSaveDialog, setShowSaveDialog] = useState<boolean>(false);
+  const [saveDialogDefaultName, setSaveDialogDefaultName] = useState<string>("");
 
   // Chart history state variables - moved here to be declared before use
   const [densityThroughputHistory, setDensityThroughputHistory] = useState<any[]>([]);
@@ -333,6 +336,7 @@ const Index = () => {
       // Calculate per-lane metrics for density throughput
       const laneThroughputs: number[] = [];
       const laneDensities: number[] = [];
+      const laneSpeeds: number[] = [];
 
       for (let i = 0; i < numLanes; i++) {
         const laneCars = newCars.filter(car => car.lane === i);
@@ -341,6 +345,7 @@ const Index = () => {
         if (laneCarCount === 0) {
           laneThroughputs.push(0);
           laneDensities.push(0);
+          laneSpeeds.push(0);
           continue;
         }
 
@@ -350,6 +355,7 @@ const Index = () => {
 
         laneThroughputs.push(parseFloat(throughput.toFixed(2)));
         laneDensities.push(parseFloat(laneDensity.toFixed(4)));
+        laneSpeeds.push(parseFloat(laneAvgSpeed.toFixed(2)));
       }
 
       setDensityThroughputHistory(prev => {
@@ -358,7 +364,8 @@ const Index = () => {
           throughput: parseFloat(totalThroughput.toFixed(2)),
           time: parseFloat(time.toFixed(1)),
           laneThroughputs,
-          laneDensities
+          laneDensities,
+          laneSpeeds
         }];
         if (newHistory.length > 100) {
           return newHistory.slice(-100);
@@ -399,6 +406,11 @@ const Index = () => {
       const packs = identifyPacks(newCars, currentLaneLength, params.tDist);
       const packCount = packs.length;
 
+      // Classify packs by size
+      const smallPacks = packs.filter(p => p.cars.length < 5).length;
+      const mediumPacks = packs.filter(p => p.cars.length >= 5 && p.cars.length <= 10).length;
+      const largePacks = packs.filter(p => p.cars.length > 10).length;
+
       // Calculate average pack length
       const averagePackLength = packCount > 0
         ? packs.reduce((sum, pack) => sum + pack.cars.length, 0) / packCount
@@ -408,7 +420,10 @@ const Index = () => {
       setPackHistory(prev => {
         const newHistory = [...prev, {
           time: parseFloat(time.toFixed(1)),
-          packCount: packCount
+          packCount: packCount,
+          smallPacks: smallPacks,
+          mediumPacks: mediumPacks,
+          largePacks: largePacks
         }];
         if (newHistory.length > 100) {
           return newHistory.slice(-100);
@@ -616,6 +631,7 @@ const Index = () => {
       const densityData = calculatePackDensityMetrics(newCars, currentLaneLength);
       setPackDensityData(densityData);
       lastDensityUpdateTimeRef.current = time;
+      lastPackRecordTimeRef.current = time;
     }
   }, [params.numLanes, params.trafficDensity, params.speedLimit, params.vehicleTypeDensity, params.driverTypeDensity, params.uniformDriverBehavior, trafficRule]);
 
@@ -727,7 +743,7 @@ const Index = () => {
     animationFrameRef.current = requestAnimationFrame(animationLoop);
   }, []); // Empty dependency array - loop function never changes!
 
-  const handleSaveSimulation = useCallback(async (name: string, folder?: string) => {
+  const executeSave = useCallback(async (name: string, folder?: string) => {
     if (elapsedTime === 0 || cars.length === 0) {
       if (showNotifications) {
         toast({
@@ -742,9 +758,9 @@ const Index = () => {
     try {
       const simulationNumber = await simulationService.getNextSimulationNumber();
       const speeds = cars.map(car => car.speed);
-      const avgSpeed = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
-      const maxSpeed = Math.max(...speeds);
-      const minSpeed = Math.min(...speeds);
+      const avgSpeed = speeds.length > 0 ? speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length : 0;
+      const maxSpeed = speeds.length > 0 ? Math.max(...speeds) : 0;
+      const minSpeed = speeds.length > 0 ? Math.min(...speeds) : 0;
 
       // Calculate per-lane throughput
       const perLaneThroughputs = [];
@@ -815,7 +831,7 @@ const Index = () => {
       if (showNotifications) {
         toast({
           title: "Simulation Saved",
-          description: `"${name}" has been saved successfully.`,
+          description: `"${name}" has been saved successfully${folder ? ` in folder "${folder}"` : ''}.`,
           duration: 3000,
         });
       }
@@ -829,7 +845,12 @@ const Index = () => {
         });
       }
     }
-  }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, toast, showNotifications]);
+  }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, laneChanges, toast, showNotifications]);
+
+  const onSaveClick = useCallback(() => {
+    setSaveDialogDefaultName(`Simulation ${new Date().toLocaleTimeString()}`);
+    setShowSaveDialog(true);
+  }, []);
 
   const handleBatchImport = useCallback((simulations: BatchSimulation[]) => {
     console.log('Starting batch import:', simulations);
@@ -866,7 +887,7 @@ const Index = () => {
 
         // Auto-save this simulation
         const name = simulation.name || `Batch Sim ${currentIndex + 1}`;
-        handleSaveSimulation(name, "Batch Experiments");
+        executeSave(name, "Batch Experiments");
 
         if (showNotifications) {
           toast({
@@ -883,7 +904,7 @@ const Index = () => {
     };
 
     runNextSimulation();
-  }, [params, resetSimulation, handleSaveSimulation, toast]);
+  }, [params, resetSimulation, executeSave, toast]);
 
   useEffect(() => {
     initSimulation();
@@ -917,7 +938,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <Navbar
-        onSaveSimulation={handleSaveSimulation}
+        onSaveSimulation={onSaveClick}
         canSave={packHistory.length > 0}
         unitSystem={unitSystem}
         onUnitSystemChange={setUnitSystem}
@@ -929,12 +950,19 @@ const Index = () => {
       <StickyControlBar
         isRunning={isRunning}
         onToggleSimulation={toggleSimulation}
-        onReset={handleReset}
+        onReset={() => resetSimulation(params)}
         setSimulationSpeed={setSimulationSpeed}
         showPackFormation={showPackFormation}
         onTogglePackFormation={setShowPackFormation}
-        onSaveSimulation={handleSaveSimulation}
+        onSaveSimulation={onSaveClick}
         canSave={elapsedTime > 0 && cars.length > 0}
+      />
+
+      <SaveSimulationDialog
+        open={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        onSave={executeSave}
+        defaultName={saveDialogDefaultName}
       />
 
       {/* Color Legend - moved down to avoid overlap */}

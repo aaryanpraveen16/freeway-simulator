@@ -9,6 +9,10 @@ import LaneThroughputChart from "./LaneThroughputChart";
 import PackFormationChart from "./PackFormationChart";
 import AveragePackLengthChart from "./AveragePackLengthChart";
 import PacksPerLaneChart from "./PacksPerLaneChart";
+import SpeedDensityPerLaneChart from "./SpeedDensityPerLaneChart";
+import DensityPerLaneComparisonChart from "./DensityPerLaneComparisonChart";
+import PackDensityByTypeChart from "./PackDensityByTypeChart";
+
 import { Car, SimulationParams } from "@/utils/trafficSimulation";
 import { UnitSystem } from "@/utils/unitConversion";
 
@@ -115,6 +119,18 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
               </div>
 
               <div className="space-y-4">
+                <SpeedDensityPerLaneChart
+                  dataHistory={densityThroughputHistory}
+                  numLanes={params.numLanes}
+                  unitSystem={unitSystem}
+                />
+                <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
+                  <strong>Speed per Lane Over Time:</strong> Analysis of how speed varies over time for each lane individually.
+                  Differences between lanes can indicate uneven flow or "fast lane" efficiency.
+                </div>
+              </div>
+
+              <div className="space-y-4">
                 <DensityThroughputChart
                   cars={cars}
                   laneLength={laneLength}
@@ -179,6 +195,17 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                     Shows lane preference patterns under {trafficRule} traffic rules.
                   </div>
                 </div>
+
+                <div className="space-y-4">
+                  <DensityPerLaneComparisonChart
+                    dataHistory={densityThroughputHistory}
+                    numLanes={params.numLanes}
+                    unitSystem={unitSystem}
+                  />
+                  <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
+                    <strong>Density per Lane Over Time:</strong> (Chart 2.3) Tracking how traffic load is distributed across lanes over the simulation duration.
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -241,6 +268,18 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
                 <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
                   <strong>Packs Per Lane:</strong> Shows the number of traffic packs in each individual lane over time.
                   Helps identify which lanes experience more pack formation and congestion.
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  <PackDensityByTypeChart
+                    packHistory={packHistory}
+                    densityHistory={densityThroughputHistory}
+                    freewayLength={params.freewayLength || 10}
+                    unitSystem={unitSystem}
+                  />
+                  <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded">
+                    <strong>Pack Density by Type vs Density:</strong> (Chart 2.4a) Breakdown of packs per km/mile by size category (Small, Medium, Large) vs Total Traffic Density.
+                  </div>
                 </div>
               </div>
             </CardContent>

@@ -76,7 +76,7 @@ export interface SimulationParams {
 
 // Default simulation parameters
 export const defaultParams: SimulationParams = {
-  trafficDensity: 0.62, // 1 car per 1.6 km (converted from 1 car per mile)
+  trafficDensity: 10, // 10 cars per km (default)
   vehicleTypeDensity: {
     car: 100,    // 100% cars by default
     truck: 0,    // No trucks by default
@@ -294,8 +294,8 @@ export function initializeSimulation(params: SimulationParams, showNotifications
   let laneLength = params.freewayLength ?? 16; // default 16 km if not set
   // All code below uses kilometers for laneLength and positions.
 
-  // Calculate total number of cars based on overall traffic density (cars/mile)
-  // Total cars = density (cars/mile) * lane length (miles)
+  // Calculate total number of cars based on overall traffic density (cars/km)
+  // Total cars = density (cars/km) * lane length (km)
   const totalCars = Math.round(params.trafficDensity * laneLength);
 
   // Calculate target number of cars per lane

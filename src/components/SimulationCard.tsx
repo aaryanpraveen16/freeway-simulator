@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -23,6 +24,8 @@ interface SimulationCardProps {
     deleteSimulation: (id: string) => void;
     unitSystem: UnitSystem;
     onMoveToFolder: (simulation: SavedSimulation) => void;
+    isSelected?: boolean;
+    onSelectionChange?: (id: string, checked: boolean) => void;
 }
 
 const SimulationCard: React.FC<SimulationCardProps> = ({
@@ -37,12 +40,23 @@ const SimulationCard: React.FC<SimulationCardProps> = ({
     copySimulationParams,
     deleteSimulation,
     unitSystem,
-    onMoveToFolder
+    onMoveToFolder,
+    isSelected,
+    onSelectionChange
 }) => {
     return (
         <Card className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-start gap-3">
+                    {onSelectionChange && (
+                        <div className="pt-1">
+                            <Checkbox
+                                id={`select-${simulation.id}`}
+                                checked={isSelected}
+                                onCheckedChange={(checked) => onSelectionChange(simulation.id, checked as boolean)}
+                            />
+                        </div>
+                    )}
                     <div className="flex-1">
                         <CardTitle className="text-lg flex items-center gap-2">
                             <span>{simulation.name}</span>

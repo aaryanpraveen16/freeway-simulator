@@ -90,7 +90,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
    * @param value The new density value in cars per mile
    */
   const handleOverallDensityChange = (value: string) => {
-    const newDensity = parseFloat(value) || 3;
+    const newDensity = parseFloat(value) || 10;
     onUpdateParams({ trafficDensity: newDensity });
   };
 
@@ -526,25 +526,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {conversions.distance.toDisplay(params.freewayLength).toFixed(1)} {conversions.distance.unit}
                     </span>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs">Freeway Length</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {conversions.distance.toDisplay(params.freewayLength).toFixed(1)} {conversions.distance.unit}
-                      </span>
-                    </div>
-                    <Input
-                      type="number"
-                      value={Math.round(params.freewayLength)}
-                      onChange={(e) => {
-                        const value = Number(e.target.value) || 10;
-                        onUpdateParams({ freewayLength: Math.min(20, Math.max(1, value)) });
-                      }}
-                      min="1"
-                      max="20"
-                      step="1"
-                    />
-                  </div>
+                  <Input
+                    type="number"
+                    value={Math.round(params.freewayLength)}
+                    onChange={(e) => {
+                      const value = Number(e.target.value) || 10;
+                      onUpdateParams({ freewayLength: Math.min(20, Math.max(1, value)) });
+                    }}
+                    min="1"
+                    max="20"
+                    step="1"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -554,25 +546,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {params.tDist} seconds
                     </span>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs">Time Headway</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {params.tDist} seconds
-                      </span>
-                    </div>
-                    <Input
-                      type="number"
-                      value={params.tDist}
-                      onChange={(e) => {
-                        const value = Number(e.target.value) || 1.5;
-                        onUpdateParams({ tDist: Math.min(5, Math.max(1, value)) });
-                      }}
-                      min="1"
-                      max="5"
-                      step="0.1"
-                    />
-                  </div>
+                  <Input
+                    type="number"
+                    value={params.tDist}
+                    onChange={(e) => {
+                      const value = Number(e.target.value) || 1.5;
+                      onUpdateParams({ tDist: Math.min(5, Math.max(1, value)) });
+                    }}
+                    min="1"
+                    max="5"
+                    step="0.1"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -582,25 +566,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {params.driverReactionTime?.toFixed(1) || '2.0'} seconds
                     </span>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs">Acceleration Reaction Time</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {params.driverReactionTime?.toFixed(1) || '2.0'} seconds
-                      </span>
-                    </div>
-                    <Input
-                      type="number"
-                      value={params.driverReactionTime ?? 2.0}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-                        onUpdateParams({ driverReactionTime: Math.min(10, Math.max(0, value)) });
-                      }}
-                      min="0"
-                      max="10"
-                      step="0.1"
-                    />
-                  </div>
+                  <Input
+                    type="number"
+                    value={params.driverReactionTime ?? 2.0}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      onUpdateParams({ driverReactionTime: Math.min(10, Math.max(0, value)) });
+                    }}
+                    min="0"
+                    max="10"
+                    step="0.1"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -610,25 +586,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {params.brakingReactionTime?.toFixed(1) || '1.0'} seconds
                     </span>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs">Braking Reaction Time</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {params.brakingReactionTime?.toFixed(1) || '1.0'} seconds
-                      </span>
-                    </div>
-                    <Input
-                      type="number"
-                      value={params.brakingReactionTime ?? 1.0}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-                        onUpdateParams({ brakingReactionTime: Math.min(5, Math.max(0, value)) });
-                      }}
-                      min="0"
-                      max="5"
-                      step="0.1"
-                    />
-                  </div>
+                  <Input
+                    type="number"
+                    value={params.brakingReactionTime ?? 1.0}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      onUpdateParams({ brakingReactionTime: Math.min(5, Math.max(0, value)) });
+                    }}
+                    min="0"
+                    max="5"
+                    step="0.1"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -638,25 +606,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       {conversions.distance.toDisplay(params.meanDistTripPlanned).toFixed(1)} {conversions.distance.unit}
                     </span>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs">Mean Trip Distance</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {conversions.distance.toDisplay(params.meanDistTripPlanned).toFixed(1)} {conversions.distance.unit}
-                      </span>
-                    </div>
-                    <Input
-                      type="number"
-                      value={Math.round(params.meanDistTripPlanned)}
-                      onChange={(e) => {
-                        const value = Number(e.target.value) || 10;
-                        onUpdateParams({ meanDistTripPlanned: Math.min(50, Math.max(1, value)) });
-                      }}
-                      min="1"
-                      max="50"
-                      step="1"
-                    />
-                  </div>
+                  <Input
+                    type="number"
+                    value={Math.round(params.meanDistTripPlanned)}
+                    onChange={(e) => {
+                      const value = Number(e.target.value) || 10;
+                      onUpdateParams({ meanDistTripPlanned: Math.min(50, Math.max(1, value)) });
+                    }}
+                    min="1"
+                    max="50"
+                    step="1"
+                  />
                 </div>
               </div>
             </CollapsibleSection>

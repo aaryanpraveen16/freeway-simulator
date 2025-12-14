@@ -213,6 +213,8 @@ const IndividualSimulationList: React.FC<{
   deleteSimulation: (id: string) => void;
   unitSystem: UnitSystem;
   openMoveDialogForSingle: (sim: SavedSimulation) => void;
+  selectedIds: Set<string>;
+  onSelectionChange: (id: string, checked: boolean) => void;
 }> = ({
   savedSimulations,
   unitConversions,
@@ -225,7 +227,9 @@ const IndividualSimulationList: React.FC<{
   copySimulationParams,
   deleteSimulation,
   unitSystem,
-  openMoveDialogForSingle
+  openMoveDialogForSingle,
+  selectedIds,
+  onSelectionChange
 }) => {
     // Default to all folders expanded? Or perhaps keep track of expanded set.
     // Let's default to expanded for better initial visibility, or track collapsed ones.
@@ -301,6 +305,8 @@ const IndividualSimulationList: React.FC<{
                       deleteSimulation={deleteSimulation}
                       unitSystem={unitSystem}
                       onMoveToFolder={openMoveDialogForSingle}
+                      isSelected={selectedIds.has(simulation.id)}
+                      onSelectionChange={onSelectionChange}
                     />
                   ))}
                 </div>
@@ -333,6 +339,8 @@ const IndividualSimulationList: React.FC<{
                   deleteSimulation={deleteSimulation}
                   unitSystem={unitSystem}
                   onMoveToFolder={openMoveDialogForSingle}
+                  isSelected={selectedIds.has(simulation.id)}
+                  onSelectionChange={onSelectionChange}
                 />
               ))}
             </div>
@@ -643,9 +651,11 @@ const SavedSimulations: React.FC = () => {
             variant="outline"
             onClick={openMoveDialogForSelection}
             className="flex items-center gap-2"
+            disabled={selectedForComparison.size === 0}
+            title={selectedForComparison.size === 0 ? "Select simulations to move first" : "Move selected simulations to a folder"}
           >
             <FolderPlus className="h-4 w-4" />
-            Create Folder
+            Move Selected to Folder
           </Button>
           <Link to="/freeway-simulator">
             <Button className="flex items-center gap-2">
@@ -695,6 +705,8 @@ const SavedSimulations: React.FC = () => {
               deleteSimulation={deleteSimulation}
               unitSystem={unitSystem}
               openMoveDialogForSingle={openMoveDialogForSingle}
+              selectedIds={selectedForComparison}
+              onSelectionChange={handleComparisonSelection}
             />
           </TabsContent>
 
