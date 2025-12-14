@@ -179,12 +179,7 @@ const OverlayDensityChart: React.FC<OverlayDensityChartProps> = ({
           </ResponsiveContainer>
         </ChartContainer>
 
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p className="font-medium">Understanding the Chart:</p>
-          <p>• Each line represents the traffic density for a different simulation</p>
-          <p>• Higher values indicate more car packs (congested areas) per kilometer</p>
-          <p>• Compare how density evolves over time in different scenarios</p>
-        </div>
+
       </CardContent>
     </Card>
   );

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { SavedSimulation } from "@/services/simulationService";
+import SimulationParametersCollapsible from "./SimulationParametersCollapsible";
 
 interface OverlayLaneChangesDensityChartProps {
   selectedSimulations: SavedSimulation[];
@@ -109,7 +110,7 @@ const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartPro
   };
 
   return (
-    <Card>
+    <Card className="w-full min-w-0">
       <CardHeader>
         <CardTitle>Lane Changes vs Density Comparison</CardTitle>
         <div className="text-sm text-muted-foreground">
@@ -178,13 +179,9 @@ const OverlayLaneChangesDensityChart: React.FC<OverlayLaneChangesDensityChartPro
           </ResponsiveContainer>
         </ChartContainer>
 
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p className="font-medium">Understanding the Chart:</p>
-          <p>• Each color represents a different simulation</p>
-          <p>• Points show the relationship between traffic density and total lane changes</p>
-          <p>• Higher densities may lead to more lane changes as drivers seek faster lanes</p>
-          <p>• Traffic rules (American vs European) can significantly affect lane change behavior</p>
-        </div>
+        <SimulationParametersCollapsible
+          selectedSimulations={selectedSimulations}
+        />
       </CardContent>
     </Card>
   );

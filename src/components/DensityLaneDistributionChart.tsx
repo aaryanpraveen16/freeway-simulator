@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { SavedSimulation } from "@/services/simulationService";
+import SimulationParametersCollapsible from "./SimulationParametersCollapsible";
 
 interface DensityLaneDistributionChartProps {
   selectedSimulations: SavedSimulation[];
@@ -215,54 +216,59 @@ const DensityLaneDistributionChart: React.FC<DensityLaneDistributionChartProps> 
       <CardHeader>
         <CardTitle>Lane Distribution by Traffic Density</CardTitle>
       </CardHeader>
-      <CardContent className="h-96">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={chartData}
-            margin={{
-              top: 20,
-              right: 30,
-              left: 20,
-              bottom: 5,
-            }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis
-              dataKey="density"
-              label={{ value: 'Traffic Density (veh/km)', position: 'insideBottomRight', offset: -5 }}
-              tick={{ fill: '#666' }}
-            />
-            <YAxis
-              label={{
-                value: 'Percentage of Cars (%)',
-                angle: -90,
-                position: 'insideLeft',
-                offset: 10
+      <CardContent>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: 5,
               }}
-              domain={[0, 100]}
-              tick={{ fill: '#666' }}
-            />
-            <Tooltip
-              formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
-              labelFormatter={(density) => `Density: ${density} veh/km`}
-            />
-
-            {lineKeys.map(({ key, name, color }) => (
-              <Line
-                key={key}
-                type="monotone"
-                dataKey={key}
-                name={name}
-                stroke={color}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4 }}
-                isAnimationActive={false}
-                connectNulls
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="density"
+                label={{ value: 'Traffic Density (cars/km)', position: 'insideBottomRight', offset: -5 }}
+                tick={{ fill: '#666' }}
               />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+              <YAxis
+                label={{
+                  value: 'Percentage of Cars (%)',
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: 10
+                }}
+                domain={[0, 100]}
+                tick={{ fill: '#666' }}
+              />
+              <Tooltip
+                formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
+                labelFormatter={(density) => `Density: ${density} cars/km`}
+              />
+
+              {lineKeys.map(({ key, name, color }) => (
+                <Line
+                  key={key}
+                  type="monotone"
+                  dataKey={key}
+                  name={name}
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                  isAnimationActive={false}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="mt-4">
+          <SimulationParametersCollapsible selectedSimulations={selectedSimulations} />
+        </div>
       </CardContent>
     </Card>
   );

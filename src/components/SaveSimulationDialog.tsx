@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Save } from 'lucide-react';
 
 interface SaveSimulationDialogProps {
-  onSave: (name: string) => void;
+  onSave: (name: string, folder?: string) => void;
   canSave: boolean;
   trigger?: React.ReactNode;
 }
@@ -18,12 +18,14 @@ const SaveSimulationDialog: React.FC<SaveSimulationDialogProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [folder, setFolder] = useState('');
 
   const handleSave = () => {
     if (name.trim()) {
-      onSave(name.trim());
+      onSave(name.trim(), folder.trim() || undefined);
       setOpen(false);
       setName('');
+      setFolder('');
     }
   };
 
@@ -56,6 +58,20 @@ const SaveSimulationDialog: React.FC<SaveSimulationDialogProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter a name for your simulation..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && name.trim()) {
+                  handleSave();
+                }
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="simulation-folder">Folder / Category (Optional)</Label>
+            <Input
+              id="simulation-folder"
+              value={folder}
+              onChange={(e) => setFolder(e.target.value)}
+              placeholder="e.g. Experiments, Final Runs..."
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && name.trim()) {
                   handleSave();

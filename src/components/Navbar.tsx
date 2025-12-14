@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { UnitSystem } from "@/utils/unitConversion";
 
 interface NavbarProps {
-  onSaveSimulation?: (name: string) => void;
+  onSaveSimulation?: (name: string, folder?: string) => void;
   canSave?: boolean;
   unitSystem?: UnitSystem;
   onUnitSystemChange?: (system: UnitSystem) => void;
@@ -33,14 +33,14 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
               canSave={canSave}
             />
           )}
-          
+
           <Link to="/saved-simulations">
             <Button variant="secondary" size="sm" className="flex items-center gap-2">
               <Archive size={16} />
               View Saved
             </Button>
           </Link>
-          
+
           <div className="flex items-center gap-2 bg-secondary/30 px-3 py-2 rounded-lg border border-secondary/50">
             <div className="flex items-center gap-2">
               <Switch
@@ -51,16 +51,16 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
               />
               <Label htmlFor="notifications-toggle" className="text-sm font-medium cursor-pointer">
                 {showNotifications ? (
-                  <span className="text-green-400">🔔 Toasts On</span>
+                  <span className="text-green-400">🔔</span>
                 ) : (
-                  <span className="text-gray-400">🔕 Toasts Off</span>
+                  <span className="text-gray-400">🔕</span>
                 )}
               </Label>
             </div>
           </div>
-          
-          <Button 
-            variant="secondary" 
+
+          <Button
+            variant="secondary"
             size="sm"
             onClick={() => setShowCredits(true)}
           >
@@ -80,9 +80,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
                 <h3 className="font-medium text-lg">{contributor.name}</h3>
                 <div className="flex flex-wrap gap-3">
                   {contributor.linkedin && (
-                    <a 
-                      href={contributor.linkedin} 
-                      target="_blank" 
+                    <a
+                      href={contributor.linkedin}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
                     >
@@ -90,9 +90,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
                     </a>
                   )}
                   {contributor.portfolio && (
-                    <a 
-                      href={contributor.portfolio} 
-                      target="_blank" 
+                    <a
+                      href={contributor.portfolio}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
                     >

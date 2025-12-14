@@ -29,6 +29,7 @@ export interface SavedSimulation {
         stabilizedAverageSpeed?: number;
         stabilizedThroughput?: number;
     };
+    folder?: string;
 }
 
 class SimulationService {

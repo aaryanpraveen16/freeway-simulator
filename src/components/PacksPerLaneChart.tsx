@@ -5,6 +5,7 @@ import { ChartContainer } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 
 export interface PacksPerLaneHistoryItem {
     time: number;
@@ -154,6 +155,33 @@ const PacksPerLaneChart: React.FC<PacksPerLaneChartProps> = ({
                                 ))}
                             </LineChart>
                         </ChartContainer>
+                    </div>
+                )}
+
+                {/* Stabilized Values Display */}
+                {packsPerLaneHistory.length > 0 && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                        <h4 className="text-sm font-semibold mb-2">Stabilized Values:</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                            {Array.from({ length: numLanes }, (_, i) => {
+                                const laneKey = `lane${i}`;
+                                const laneData = extractDataValues(packsPerLaneHistory, laneKey);
+                                const stabilized = calculateStabilizedValue(laneData);
+
+                                return (
+                                    <div key={i} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100">
+                                        <span className="font-medium" style={{ color: LANE_COLORS[i % LANE_COLORS.length] }}>Lane {i + 1}:</span>
+                                        <span className={`font-mono ${stabilized.isStabilized ? 'text-green-600' : 'text-orange-600'}`}>
+                                            {stabilized.value.toFixed(1)}
+                                            {stabilized.isStabilized && ' ✓'}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                            ✓ indicates stabilized values.
+                        </p>
                     </div>
                 )}
             </CardContent>

@@ -164,12 +164,7 @@ const OverlaySpeedChart: React.FC<OverlaySpeedChartProps> = ({
           </ResponsiveContainer>
         </ChartContainer>
 
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p className="font-medium">Understanding the Chart:</p>
-          <p>• Each line represents the overall average speed for a different simulation</p>
-          <p>• Compare how speed changes over time across different traffic scenarios</p>
-          <p>• Look for patterns in speed stabilization or fluctuation</p>
-        </div>
+
       </CardContent>
     </Card>
   );

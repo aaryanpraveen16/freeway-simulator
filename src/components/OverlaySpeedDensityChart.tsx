@@ -152,7 +152,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
   };
 
   return (
-    <Card>
+    <Card className="w-full min-w-0">
       <CardHeader>
         <CardTitle>Average Speed vs Density Comparison</CardTitle>
         <div className="text-sm text-muted-foreground">
@@ -233,13 +233,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
           </ResponsiveContainer>
         </ChartContainer>
 
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p className="font-medium">Understanding the Chart:</p>
-          <p>• Each color represents a different simulation</p>
-          <p>• Points show the relationship between traffic density and average speed over time</p>
-          <p>• Higher densities typically lead to reduced speeds due to congestion</p>
-          <p>• The shape of the curve can indicate traffic flow characteristics</p>
-        </div>
+
 
         <SimulationParametersCollapsible
           selectedSimulations={selectedSimulations}

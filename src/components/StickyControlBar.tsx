@@ -15,7 +15,7 @@ interface StickyControlBarProps {
   setSimulationSpeed: (speed: number) => void;
   showPackFormation: boolean;
   onTogglePackFormation: (show: boolean) => void;
-  onSaveSimulation?: (name: string) => void;
+  onSaveSimulation?: (name: string, folder?: string) => void;
   canSave?: boolean;
 }
 
@@ -37,7 +37,7 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
         <div className="w-full max-w-2xl px-4 py-1">
           <Card>
             <CardContent className="p-2">
-              <div 
+              <div
                 className="flex items-center justify-center cursor-pointer py-1 text-sm text-muted-foreground hover:text-foreground"
                 onClick={() => setIsCollapsed(!isCollapsed)}
               >
@@ -73,7 +73,7 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
                         </>
                       )}
                     </Button>
-                    
+
                     <Button
                       onClick={onReset}
                       variant="outline"

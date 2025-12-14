@@ -28,6 +28,18 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // Add CORS headers
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+    // Handle OPTIONS preflight request
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
     const mongoClient = await clientPromise;
     const db = mongoClient.db('traffic-simulator');
     const collection = db.collection('simulations');
@@ -48,6 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 simulation.id = `simulation-${Date.now()}`;
             }
 
+            console.log('Saving simulation:', simulation.id);
             await collection.insertOne(simulation);
             res.status(201).json({ message: 'Simulation saved successfully', id: simulation.id });
         } catch (error) {
@@ -55,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             res.status(500).json({ error: 'Failed to save simulation' });
         }
     } else {
-        res.setHeader('Allow', ['GET', 'POST']);
+        res.setHeader('Allow', ['GET', 'POST', 'OPTIONS']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 }

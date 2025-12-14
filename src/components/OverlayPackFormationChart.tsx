@@ -198,12 +198,7 @@ const OverlayPackFormationChart: React.FC<OverlayPackFormationChartProps> = ({
           </ResponsiveContainer>
         </ChartContainer>
 
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p className="font-medium">Understanding the Chart:</p>
-          <p>• Each line shows the number of car packs formed over time</p>
-          <p>• More packs typically indicate higher congestion and clustering</p>
-          <p>• Compare how different traffic scenarios affect pack formation</p>
-        </div>
+
       </CardContent>
     </Card>
   );

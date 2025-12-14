@@ -727,7 +727,7 @@ const Index = () => {
     animationFrameRef.current = requestAnimationFrame(animationLoop);
   }, []); // Empty dependency array - loop function never changes!
 
-  const handleSaveSimulation = useCallback(async (name: string) => {
+  const handleSaveSimulation = useCallback(async (name: string, folder?: string) => {
     if (elapsedTime === 0 || cars.length === 0) {
       if (showNotifications) {
         toast({
@@ -782,6 +782,7 @@ const Index = () => {
       const savedSimulation: SavedSimulation = {
         id: `simulation-${Date.now()}`,
         name: name,
+        folder: folder,
         timestamp: Date.now(),
         simulationNumber,
         params: { ...params },
@@ -865,7 +866,7 @@ const Index = () => {
 
         // Auto-save this simulation
         const name = simulation.name || `Batch Sim ${currentIndex + 1}`;
-        handleSaveSimulation(name);
+        handleSaveSimulation(name, "Batch Experiments");
 
         if (showNotifications) {
           toast({

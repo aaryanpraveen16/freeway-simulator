@@ -4,9 +4,11 @@ import { ChartContainer } from "@/components/ui/chart";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { SavedSimulation } from "@/services/simulationService";
 import SimulationParametersCollapsible from "./SimulationParametersCollapsible";
+import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 
 interface OverlayThroughputDensityChartProps {
   selectedSimulations: SavedSimulation[];
+  unitSystem?: UnitSystem;
 }
 
 // Generate distinct colors for different simulations
@@ -36,9 +38,11 @@ const generateColors = (count: number): string[] => {
 };
 
 const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps> = ({
-  selectedSimulations
+  selectedSimulations,
+  unitSystem = 'metric'
 }) => {
-  const { chartData, colors, simulationNames } = useMemo(() => {
+  const { chartData, colors, simulationNames, units } = useMemo(() => {
+    const units = getUnitConversions(unitSystem);
     const colors = generateColors(selectedSimulations.length);
     const simulationNames: string[] = [];
     const allDataPoints: any[] = [];
@@ -51,7 +55,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
       if (simulation.finalStats?.stabilizedDensity !== undefined &&
         simulation.finalStats?.stabilizedThroughput !== undefined) {
         allDataPoints.push({
-          density: simulation.finalStats.stabilizedDensity,
+          density: units.density.toDisplay(simulation.finalStats.stabilizedDensity),
           throughput: simulation.finalStats.stabilizedThroughput,
           time: 0,
           simulationIndex: index,
@@ -65,7 +69,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
         const lastPoint = simulation.chartData.densityThroughputHistory.slice(-1)[0];
         if (lastPoint) {
           allDataPoints.push({
-            density: lastPoint.density,
+            density: units.density.toDisplay(lastPoint.density),
             throughput: lastPoint.throughput,
             time: lastPoint.time,
             simulationIndex: index,
@@ -80,9 +84,10 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
     return {
       chartData: allDataPoints,
       colors,
-      simulationNames
+      simulationNames,
+      units
     };
-  }, [selectedSimulations]);
+  }, [selectedSimulations, unitSystem]);
 
   if (selectedSimulations.length === 0) {
     return (
@@ -108,7 +113,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
             {data.simulationName}
           </p>
           <p className="text-sm">
-            <span className="font-medium">Density:</span> {data.density.toFixed(2)} cars/mile
+            <span className="font-medium">Density:</span> {data.density.toFixed(2)} {units.density.unit}
           </p>
           <p className="text-sm">
             <span className="font-medium">Throughput:</span> {Math.round(data.throughput).toLocaleString()} cars/hour
@@ -123,7 +128,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
   };
 
   return (
-    <Card>
+    <Card className="w-full min-w-0">
       <CardHeader>
         <CardTitle>Throughput vs Density Comparison</CardTitle>
         <div className="text-sm text-muted-foreground">
@@ -139,10 +144,10 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
                 type="number"
                 dataKey="density"
                 name="Density"
-                unit=" cars/mile"
+                unit={` ${units.density.unit}`}
                 tick={{ fontSize: 12 }}
                 label={{
-                  value: 'Density (cars/mile)',
+                  value: `Density (${units.density.unit})`,
                   position: 'insideBottom',
                   offset: -10,
                   style: { textAnchor: 'middle', fontWeight: 500 }
@@ -188,13 +193,7 @@ const OverlayThroughputDensityChart: React.FC<OverlayThroughputDensityChartProps
           </ResponsiveContainer>
         </ChartContainer>
 
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p className="font-medium">Understanding the Chart:</p>
-          <p>• Each color represents a different simulation</p>
-          <p>• Points show the relationship between traffic density and throughput over time</p>
-          <p>• Optimal throughput typically occurs at moderate densities</p>
-          <p>• Higher densities often lead to congestion and reduced throughput</p>
-        </div>
+
 
         <SimulationParametersCollapsible
           selectedSimulations={selectedSimulations}

@@ -68,7 +68,7 @@ const StabilizedComparisonChart: React.FC<StabilizedComparisonChartProps> = ({
           <p className="font-medium">{data.name}</p>
           <p className="text-sm">Density: {data.density.toFixed(2)} vehicles/km</p>
           <p className="text-sm">
-            {label}: {payload[0].value.toFixed(2)} {label.includes('Speed') ? unitConversions.speed.unit : 'veh/h'}
+            {label}: {payload[0].value.toFixed(2)} {label.includes('Speed') ? unitConversions.speed.unit : 'cars/h'}
           </p>
           <p className="text-xs text-muted-foreground">Simulation #{data.simulationNumber}</p>
           <p className="text-xs text-muted-foreground capitalize">{data.trafficRule} rules</p>
@@ -93,7 +93,7 @@ const StabilizedComparisonChart: React.FC<StabilizedComparisonChartProps> = ({
             <XAxis
               dataKey="density"
               name="Density"
-              label={{ value: 'Density (veh/km)', position: 'insideBottomRight', offset: -5 }}
+              label={{ value: 'Density (cars/km)', position: 'insideBottomRight', offset: -5 }}
             />
             <YAxis
               name="Average Speed"

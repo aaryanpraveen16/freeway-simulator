@@ -180,12 +180,7 @@ const OverlayLaneUsageChart: React.FC<OverlayLaneUsageChartProps> = ({
           </ResponsiveContainer>
         </ChartContainer>
 
-        <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p className="font-medium">Understanding the Chart:</p>
-          <p>• Each line shows the percentage of cars in Lane 1 for different simulations</p>
-          <p>• Higher percentages indicate more cars prefer the first lane</p>
-          <p>• Compare lane distribution patterns across different traffic scenarios</p>
-        </div>
+
       </CardContent>
     </Card>
   );

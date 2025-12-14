@@ -28,10 +28,25 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // Add CORS headers
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,DELETE,PUT,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+    // Handle OPTIONS preflight request
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
     const mongoClient = await clientPromise;
     const db = mongoClient.db('traffic-simulator');
     const collection = db.collection('simulations');
     const { id } = req.query;
+    console.log('[DEBUG] Request URL:', req.url);
+    console.log('[DEBUG] Request Query:', JSON.stringify(req.query));
+    console.log('[DEBUG] Raw ID:', id, 'Type:', typeof id);
 
     if (typeof id !== 'string') {
         res.status(400).json({ error: 'Invalid ID' });
@@ -52,7 +67,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     } else if (req.method === 'DELETE') {
         try {
+            console.log('DELETE request for simulation:', id);
             const result = await collection.deleteOne({ id });
+            console.log('Delete result:', result);
             if (result.deletedCount === 0) {
                 res.status(404).json({ error: 'Simulation not found' });
                 return;
@@ -64,11 +81,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     } else if (req.method === 'PUT') {
         try {
+            console.log('PUT request for simulation:', id);
             const updateData = req.body;
+            console.log('Update data:', updateData);
+
+            // Remove _id from update data as it's immutable
+            const { _id, ...safeUpdateData } = updateData;
+
             const result = await collection.updateOne(
                 { id },
-                { $set: updateData }
+                { $set: safeUpdateData }
             );
+            console.log('Update result:', result);
             if (result.matchedCount === 0) {
                 res.status(404).json({ error: 'Simulation not found' });
                 return;
@@ -79,7 +103,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             res.status(500).json({ error: 'Failed to update simulation' });
         }
     } else {
-        res.setHeader('Allow', ['GET', 'DELETE', 'PUT']);
+        res.setHeader('Allow', ['GET', 'DELETE', 'PUT', 'OPTIONS']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 }
+
