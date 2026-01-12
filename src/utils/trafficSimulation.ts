@@ -1727,15 +1727,27 @@ export function identifyPacks(
         gap += laneLength;
       }
 
-      // Dynamic Threshold: Distance covered in `timeHeadway` seconds at follower's speed
+      // Research-based Platoon Identification (Inspired by Vogel 2006)
+      // A car follows another if it's very close OR reasonably close with synchronized speed.
       const followerSpeed = prevCar.speed; // km/h
-      const dynamicThreshold = (followerSpeed * timeHeadway) / 3600;
+      const leadSpeed = car.speed;
+      const speedDiff = Math.abs(followerSpeed - leadSpeed);
 
-      // Use a minimum threshold to avoid merging cars that are stopped but slightly apart
-      const effectiveThreshold = Math.max(dynamicThreshold, 0.005);
+      const tightHeadway = (followerSpeed * timeHeadway) / 3600;
+      const looseHeadway = (followerSpeed * (timeHeadway * 1.8)) / 3600; // Grace zone for stable convoys
 
-      // Check for new pack based on gap
-      if (gap > effectiveThreshold) {
+      // Minimum gap floor to handle stop-and-go/jam density
+      const minGapFloor = 0.007;
+
+      let isFollowing = false;
+      if (gap <= Math.max(tightHeadway, minGapFloor)) {
+        isFollowing = true; // Tight clustering
+      } else if (gap <= looseHeadway && speedDiff < 10) {
+        isFollowing = true; // Synchronized flow (grace zone)
+      }
+
+      // If not following, start a new pack
+      if (!isFollowing) {
         // End current pack
         const packCars = sortedCars.slice(packStartIdx, i);
         rawPacks.push({

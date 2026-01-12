@@ -196,15 +196,15 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
-                dataKey="time"
-                name="Time"
+                dataKey="density"
+                name="Density"
                 label={{
-                  value: "Time (seconds)",
+                  value: `Density (${conversions.density.unit})`,
                   position: "insideBottom",
                   offset: -40,
                   style: { fontWeight: 500 }
                 }}
-                domain={['dataMin - 10', 'dataMax + 10']}
+                domain={['auto', 'auto']}
                 tickFormatter={(value) => value.toFixed(2)}
               />
               <YAxis
@@ -228,7 +228,7 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
                     ];
                   } else if (name === 'density') {
                     return [
-                      `${Number(value).toFixed(2)} cars/mile`,
+                      `${Number(value).toFixed(2)} ${conversions.density.unit}`,
                       'Density'
                     ];
                   } else if (name === 'time') {

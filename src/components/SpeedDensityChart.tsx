@@ -169,14 +169,14 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
-                dataKey="time"
-                name="Time"
+                dataKey="density"
+                name="Density"
                 label={{
-                  value: "Time (seconds)",
+                  value: `Density (${conversions.density.unit})`,
                   position: "insideBottom",
                   offset: -40
                 }}
-                domain={['dataMin - 10', 'dataMax + 10']}
+                domain={['auto', 'auto']}
                 tickFormatter={(value) => value.toFixed(2)}
               />
               <YAxis
@@ -187,14 +187,15 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
                   angle: -90,
                   position: "insideLeft"
                 }}
-                domain={['dataMin - 5', 'dataMax + 5']}
+                domain={['auto', 'auto']}
                 tickFormatter={(value) => value.toFixed(2)}
               />
               <Tooltip
                 formatter={(value, name) => [
                   typeof value === 'number' ? value.toFixed(2) : value,
                   name === 'speed' ? `Speed (${conversions.speed.unit})` :
-                    name === 'time' ? 'Time (seconds)' : name
+                    name === 'density' ? `Density (${conversions.density.unit})` :
+                      name === 'time' ? 'Time (seconds)' : name
                 ]}
                 labelFormatter={(label, payload) => {
                   if (payload && payload[0]) {

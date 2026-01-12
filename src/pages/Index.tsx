@@ -134,10 +134,22 @@ const Index = () => {
   const [percentageByLaneHistory, setPercentageByLaneHistory] = useState<PercentageOfCarsByLaneDataPoint[]>([]);
   const [packsPerLaneHistory, setPacksPerLaneHistory] = useState<any[]>([]);
   const [currentPacks, setCurrentPacks] = useState<Pack[]>([]);
+  const [batchQueue, setBatchQueue] = useState<BatchSimulation[]>([]);
+  const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
 
+  const batchQueueRef = useRef<BatchSimulation[]>([]);
+  const isBatchProcessingRef = useRef<boolean>(false);
+  const isStartingRef = useRef<boolean>(false);
+  const batchFolderRef = useRef<string | undefined>(undefined);
+  const executeSaveRef = useRef<((name: string, folder?: string) => Promise<any>) | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const lastPackRecordTimeRef = useRef<number>(0);
   const { toast } = useToast();
+
+  const paramsRef = useRef<SimulationParams>(params);
+  const trafficRuleRef = useRef<'american' | 'european'>(trafficRule);
+  const simulationSpeedRef = useRef<number>(simulationSpeed);
+  const showNotificationsRef = useRef<boolean>(showNotifications);
 
   const handleSimulationEvents = useCallback((events: SimulationEvent[]) => {
     events.forEach(event => {
@@ -193,7 +205,7 @@ const Index = () => {
         laneDensities,
         laneSpeeds
       }];
-      return newHistory.length > 100 ? newHistory.slice(-100) : newHistory;
+      return newHistory.length > 1000 ? newHistory.slice(-1000) : newHistory;
     });
 
     setSpeedDensityHistory(prev => {
@@ -209,7 +221,7 @@ const Index = () => {
         driverTypeDensity: params.driverTypeDensity,
         uniformDriverBehavior: params.uniformDriverBehavior || false
       }];
-      return newHistory.length > 100 ? newHistory.slice(-100) : newHistory;
+      return newHistory.length > 1000 ? newHistory.slice(-1000) : newHistory;
     });
 
     const packs = identifyPacks(newCars, currentLaneLength, params.tDist);
@@ -227,7 +239,7 @@ const Index = () => {
         mediumPacks,
         largePacks
       }];
-      return newHistory.length > 100 ? newHistory.slice(-100) : newHistory;
+      return newHistory.length > 1000 ? newHistory.slice(-1000) : newHistory;
     });
 
     setPackLengthHistory(prev => {
@@ -235,7 +247,7 @@ const Index = () => {
         time: parseFloat(time.toFixed(1)),
         averageLength: parseFloat(averagePackLength.toFixed(2))
       }];
-      return newHistory.length > 100 ? newHistory.slice(-100) : newHistory;
+      return newHistory.length > 1000 ? newHistory.slice(-1000) : newHistory;
     });
 
     setPacksPerLaneHistory(prev => {
@@ -250,7 +262,7 @@ const Index = () => {
         });
         packsPerLane[`lane${dominant}`]++;
       });
-      return [...prev, packsPerLane].slice(-100);
+      return [...prev, packsPerLane].slice(-1000);
     });
 
     setPackFormationHistory(prev => {
@@ -260,7 +272,7 @@ const Index = () => {
         speedStdDev: parseFloat(Math.sqrt(speedVariance).toFixed(2)),
         packCount: packs.length,
         time: parseFloat(time.toFixed(1))
-      }].slice(-100);
+      }].slice(-1000);
     });
 
     const totalCars = newCars.length;
@@ -282,13 +294,24 @@ const Index = () => {
       } else laneTP[`lane${i}`] = 0;
     }
 
-    setDensityOfCarPacksHistory(prev => [...prev, dataPoint].slice(-50));
-    setPercentageByLaneHistory(prev => [...prev, percentagePoint].slice(-50));
-    setLaneUtilizationHistory(prev => [...prev, laneDist].slice(-50));
-    setLaneThroughputHistory(prev => [...prev, laneTP].slice(-50));
+    setDensityOfCarPacksHistory(prev => [...prev, dataPoint].slice(-1000));
+    setPercentageByLaneHistory(prev => [...prev, percentagePoint].slice(-1000));
+    setLaneUtilizationHistory(prev => [...prev, laneDist].slice(-1000));
+    setLaneThroughputHistory(prev => [...prev, laneTP].slice(-1000));
 
     lastPackRecordTimeRef.current = time;
   }, [params, trafficRule]);
+
+  // Stable refs for callbacks used in worker and batch logic
+  const handleSimulationEventsRef = useRef<typeof handleSimulationEvents | null>(null);
+  const recordPackDataRef = useRef<typeof recordPackData | null>(null);
+  const laneLengthRef = useRef<number>(laneLength);
+
+  useEffect(() => { handleSimulationEventsRef.current = handleSimulationEvents; }, [handleSimulationEvents]);
+  useEffect(() => { recordPackDataRef.current = recordPackData; }, [recordPackData]);
+  useEffect(() => { laneLengthRef.current = laneLength; }, [laneLength]);
+  useEffect(() => { batchQueueRef.current = batchQueue; }, [batchQueue]);
+  useEffect(() => { isBatchProcessingRef.current = isBatchProcessing; }, [isBatchProcessing]);
 
   const initSimulation = useCallback(() => {
     const { cars: freshCars, laneLength: newLaneLength } = initializeSimulation(params, showNotifications);
@@ -402,24 +425,108 @@ const Index = () => {
       if (type === 'TICK') {
         setCars(data.cars);
         setElapsedTime(data.time);
-        if (data.events && data.events.length > 0) handleSimulationEvents(data.events);
-        if (data.metrics) recordPackData(data.cars, data.time, laneLength);
+        if (data.events && data.events.length > 0 && handleSimulationEventsRef.current) {
+          handleSimulationEventsRef.current(data.events);
+        }
+        if (data.metrics && recordPackDataRef.current) {
+          recordPackDataRef.current(data.cars, data.time, laneLengthRef.current);
+        }
       } else if (type === 'COMPLETED') {
         setIsRunning(false);
+        if (isBatchProcessingRef.current && batchQueueRef.current.length > 0) {
+          const finishedSim = batchQueueRef.current[0];
+          const name = finishedSim.name || `Batch Sim ${Date.now()}`;
+
+          toast({ title: "Simulation Complete", description: `Saving "${name}" and starting next scenario...` });
+
+          if (executeSaveRef.current) {
+            executeSaveRef.current(name, batchFolderRef.current || "Batch Results").then(() => {
+              // Remove the completed simulation from the queue
+              setBatchQueue(prev => prev.slice(1));
+            });
+          }
+        }
       }
     };
-    initSimulation();
+
+    // Initial setup using refs if they are already initialized, otherwise state
+    const { cars: freshCars, laneLength: newLaneLength } = initializeSimulation(paramsRef.current, showNotificationsRef.current);
+    setCars(freshCars);
+    setLaneLength(newLaneLength);
+
+    worker.postMessage({
+      type: 'INIT',
+      data: {
+        cars: freshCars,
+        laneLength: newLaneLength,
+        params: paramsRef.current,
+        trafficRule: trafficRuleRef.current,
+        simulationSpeed: simulationSpeedRef.current,
+        showNotifications: showNotificationsRef.current
+      }
+    });
+
     return () => worker.terminate();
-  }, [handleSimulationEvents, recordPackData, laneLength, initSimulation]);
+  }, []); // Run ONLY once on mount
 
   // Sync state changes to worker
-  useEffect(() => { if (workerRef.current) workerRef.current.postMessage({ type: 'UPDATE_PARAMS', data: { params } }); }, [params]);
-  useEffect(() => { if (workerRef.current) workerRef.current.postMessage({ type: 'UPDATE_SPEED', data: { speed: simulationSpeed } }); }, [simulationSpeed]);
-  useEffect(() => { if (workerRef.current) workerRef.current.postMessage({ type: 'UPDATE_TRAFFIC_RULE', data: { rule: trafficRule } }); }, [trafficRule]);
+  useEffect(() => { if (workerRef.current) workerRef.current.postMessage({ type: 'UPDATE_PARAMS', data: { params } }); paramsRef.current = params; }, [params]);
+  useEffect(() => { if (workerRef.current) workerRef.current.postMessage({ type: 'UPDATE_SPEED', data: { speed: simulationSpeed } }); simulationSpeedRef.current = simulationSpeed; }, [simulationSpeed]);
+  useEffect(() => { if (workerRef.current) workerRef.current.postMessage({ type: 'UPDATE_TRAFFIC_RULE', data: { rule: trafficRule } }); trafficRuleRef.current = trafficRule; }, [trafficRule]);
   useEffect(() => { if (workerRef.current) workerRef.current.postMessage({ type: 'UPDATE_STOPPED_CARS', data: { stoppedCars } }); }, [stoppedCars]);
   useEffect(() => { if (workerRef.current) workerRef.current.postMessage({ type: 'UPDATE_SHOW_NOTIFICATIONS', data: { showNotifications } }); }, [showNotifications]);
 
-  const handleUpdateParams = useCallback((newParams: Partial<SimulationParams>) => { setParams(prev => ({ ...prev, ...newParams })); }, []);
+  // Handle batch simulation progression
+  useEffect(() => {
+    if (isBatchProcessing && batchQueue.length > 0 && !isRunning && !isStartingRef.current) {
+      console.log('Starting next batch item:', batchQueue[0]);
+      isStartingRef.current = true;
+
+      const currentSim = batchQueue[0];
+      // Build parameters for the next run
+      const newParams = { ...defaultParams, ...currentSim.params };
+      if (currentSim.duration) newParams.simulationDuration = currentSim.duration;
+
+      // Reset state and notify worker
+      setParams(newParams);
+      resetSimulation(newParams);
+
+      // Small delay to ensure initialization is clean
+      const timer = setTimeout(() => {
+        setIsRunning(true);
+        isStartingRef.current = false;
+        if (workerRef.current) workerRef.current.postMessage({ type: 'START' });
+      }, 1500); // Slightly longer delay for safety
+
+      return () => {
+        clearTimeout(timer);
+        isStartingRef.current = false;
+      };
+    } else if (isBatchProcessing && batchQueue.length === 0 && !isRunning && !isStartingRef.current) {
+      setIsBatchProcessing(false);
+      toast({
+        title: "Batch Complete",
+        description: "All simulations in the batch have been successfully completed and saved.",
+      });
+    }
+  }, [batchQueue, isBatchProcessing, isRunning, resetSimulation, toast]);
+
+  const handleUpdateParams = useCallback((newParams: Partial<SimulationParams>, autoStart?: boolean) => {
+    if (autoStart) {
+      if (batchQueue.length === 0) {
+        batchFolderRef.current = `Batch - ${new Date().toLocaleString()}`;
+      }
+      const singleBatch: BatchSimulation = {
+        name: `Imported Sim ${new Date().toLocaleTimeString()}`,
+        duration: newParams.simulationDuration || params.simulationDuration || 60,
+        params: newParams
+      };
+      setBatchQueue(prev => [...prev, singleBatch]);
+      setIsBatchProcessing(true);
+    } else {
+      setParams(prev => ({ ...prev, ...newParams }));
+    }
+  }, [params, batchQueue.length]);
   const handleReset = useCallback(() => { resetSimulation(params); }, [resetSimulation, params]);
   const toggleSimulation = useCallback(() => {
     const nextRunning = !isRunning;
@@ -464,32 +571,61 @@ const Index = () => {
         laneStats.push(parseFloat(((lc.reduce((s, c) => s + c.speed, 0) / lc.length) * (lc.length / (params.freewayLength || 1))).toFixed(2)));
       }
       const savedDoc: SavedSimulation = {
-        id: `simulation-${Date.now()}`, name, folder, timestamp: Date.now(), simulationNumber, params: { ...params }, trafficRule,
-        chartData: { speedByLaneHistory: [...speedDensityHistory], densityOfCarPacksHistory: [...densityOfCarPacksHistory], percentageByLaneHistory: [...percentageByLaneHistory], densityThroughputHistory: [...densityThroughputHistory], packHistory: [...packHistory], packLengthHistory: [...packLengthHistory] },
+        id: `simulation-${Date.now()}`,
+        name,
+        folder,
+        timestamp: Date.now(),
+        simulationNumber,
+        params: { ...params },
+        trafficRule,
+        chartData: {
+          speedByLaneHistory: [...speedDensityHistory],
+          densityOfCarPacksHistory: [...densityOfCarPacksHistory],
+          percentageByLaneHistory: [...percentageByLaneHistory],
+          densityThroughputHistory: [...densityThroughputHistory],
+          laneThroughputHistory: [...laneThroughputHistory],
+          laneUtilizationHistory: [...laneUtilizationHistory],
+          packHistory: [...packHistory],
+          packLengthHistory: [...packLengthHistory],
+          packsPerLaneHistory: [...packsPerLaneHistory]
+        },
         duration: elapsedTime,
-        finalStats: { totalCars: cars.length, averageSpeed: parseFloat(avgSpeed.toFixed(1)), maxSpeed: Math.max(...speeds, 0), minSpeed: Math.min(...speeds, 0), laneChanges, perLaneThroughputs: laneStats, stabilizedDensity: 0, stabilizedAverageSpeed: 0, stabilizedThroughput: 0 }
+        finalStats: {
+          totalCars: cars.length,
+          averageSpeed: parseFloat(avgSpeed.toFixed(1)),
+          maxSpeed: Math.max(...speeds, 0),
+          minSpeed: Math.min(...speeds, 0),
+          laneChanges,
+          perLaneThroughputs: laneStats,
+          stabilizedDensity: 0,
+          stabilizedAverageSpeed: 0,
+          stabilizedThroughput: 0
+        }
       };
-      await simulationService.saveSimulation(savedDoc);
+      const result = await simulationService.saveSimulation(savedDoc);
       if (showNotifications) toast({ title: "Simulation Saved", description: `"${name}" saved successfully.` });
-    } catch (e) { console.error(e); }
+      return result;
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Save Failed", description: "Could not save simulation results.", variant: "destructive" });
+    }
   }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, laneChanges, toast, showNotifications]);
+  useEffect(() => { executeSaveRef.current = executeSave; }, [executeSave]);
 
   const onSaveClick = () => { setSaveDialogDefaultName(`Simulation ${new Date().toLocaleTimeString()}`); setShowSaveDialog(true); };
   const togglePreviousRuns = () => setShowPreviousRuns(p => !p);
 
   const handleBatchImport = useCallback((simulations: BatchSimulation[]) => {
-    simulations.forEach(sim => {
-      const sp = new URLSearchParams();
-      const p = { ...params, ...sim.params };
-      if (sim.duration) p.simulationDuration = sim.duration;
-      Object.entries(p).forEach(([k, v]) => {
-        if (typeof v === 'object' && v !== null) Object.entries(v as any).forEach(([sk, sv]) => sp.append(`${k}.${sk}`, String(sv)));
-        else sp.append(k, String(v));
-      });
-      sp.append('trafficRule', trafficRule);
-      window.open(`${window.location.origin}${window.location.pathname}?${sp.toString()}`, '_blank');
+    if (batchQueue.length === 0) {
+      batchFolderRef.current = `Batch - ${new Date().toLocaleString()}`;
+    }
+    toast({
+      title: simulations.length > 1 ? "Batch Added" : "Simulation Added",
+      description: `Queued ${simulations.length} simulations.`,
     });
-  }, [params, trafficRule]);
+    setBatchQueue(prev => [...prev, ...simulations]);
+    setIsBatchProcessing(true);
+  }, [toast, batchQueue.length]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">

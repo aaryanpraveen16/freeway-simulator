@@ -12,6 +12,8 @@ export interface SavedSimulation {
         densityOfCarPacksHistory: any[];
         percentageByLaneHistory: any[];
         densityThroughputHistory: any[];
+        laneThroughputHistory?: any[];
+        laneUtilizationHistory?: any[];
         packHistory: any[];
         packLengthHistory: any[];
         packsPerLaneHistory?: any[];

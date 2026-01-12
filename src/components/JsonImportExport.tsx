@@ -13,7 +13,7 @@ interface BatchSimulation {
 }
 
 interface JsonImportExportProps {
-  onImport: (params: Partial<SimulationParams>) => void;
+  onImport: (params: Partial<SimulationParams>, autoStart?: boolean) => void;
   onBatchImport?: (simulations: BatchSimulation[]) => void;
   currentParams: SimulationParams;
 }
@@ -170,7 +170,7 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
       }
 
       console.log('Final params to import:', validParams);
-      onImport(validParams);
+      onImport(validParams, true); // Auto-start single imports
       console.log('Import complete, showing success toast');
 
       toast({
