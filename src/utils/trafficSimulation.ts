@@ -1856,8 +1856,8 @@ function shouldChangeLane(
   const leftIsSafe = leftIncentive > -9;
   const rightIsSafe = rightIncentive > -9;
 
-  let adjustedLeft = leftIsSafe ? leftIncentive * (1 - car.laneStickiness) : -10;
-  let adjustedRight = rightIsSafe ? rightIncentive * (1 - car.laneStickiness) : -10;
+  let adjustedLeft = leftIsSafe ? leftIncentive : -10;
+  let adjustedRight = rightIsSafe ? rightIncentive : -10;
 
   // Lane memory penalty
   if (car.previousLane !== undefined && currentTime - (car.lastLaneChange || 0) < 30.0) {
