@@ -152,8 +152,7 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, s
               const distanceToCarAhead = calculateDistanceToCarAhead(
                 originalIndex,
                 cars,
-                laneLength,
-                params.lengthCar // Pass the car length in meters
+                laneLength
               );
 
               const packId = carPackMap[car.id];
@@ -214,9 +213,9 @@ const CarStatsCard: React.FC<CarStatsCardProps> = ({ cars, laneLength, params, s
                       <span className="font-medium ml-1">
                         {unitSystem === 'metric' ? (
                           <>
-                            {distanceToCarAhead.toFixed(3)} km
+                            {distanceToCarAhead.toFixed(4)} km
                             <span className="text-muted-foreground">
-                              {' '}({Math.round(distanceToCarAhead * 1000)} m)
+                              {' '}({(distanceToCarAhead * 1000).toFixed(2)} m)
                             </span>
                           </>
                         ) : (

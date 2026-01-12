@@ -8,7 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
-import { SimulationParams } from "@/utils/trafficSimulation";
+import { AlertCircle } from "lucide-react";
+import { SimulationParams, calculatePhysicalLimit } from "@/utils/trafficSimulation";
 import { JsonImportExport } from "./JsonImportExport";
 import { InfoTooltip } from "./InfoTooltip";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
@@ -30,6 +31,8 @@ interface ControlPanelProps {
   onCarSizeChange?: (size: number) => void;
   unitSystem?: UnitSystem;
   onUnitSystemChange?: (system: UnitSystem) => void;
+  showFreewayUI?: boolean;
+  onShowFreewayUIChange?: (show: boolean) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -42,6 +45,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onCarSizeChange,
   unitSystem = 'metric',
   onUnitSystemChange,
+  showFreewayUI = true,
+  onShowFreewayUIChange,
 }) => {
   const conversions = getUnitConversions(unitSystem);
   const handleVehicleTypeDensityChange = (vehicleType: 'car' | 'truck' | 'motorcycle', value: number) => {
@@ -93,6 +98,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     const newDensity = parseFloat(value) || 10;
     onUpdateParams({ trafficDensity: newDensity });
   };
+
+  const physicalLimit = calculatePhysicalLimit(params);
+  const isOverLimit = overallDensity > physicalLimit;
 
   return (
     <div className="flex flex-col h-full">
@@ -325,23 +333,35 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     }}
                     className="flex-1"
                     min="0"
-                    max="500"
+                    max="700"
                     step="0.5"
                   />
                   <span className="text-xs text-gray-500">{conversions.density.unit}</span>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300, 350, 400, 450, 500].map((density) => (
+                  {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700].map((density) => (
                     <Button
                       key={density}
                       variant="outline"
                       size="sm"
-                      className={`h-7 px-2 text-xs ${Math.abs(overallDensity - density) < 0.1 ? 'bg-primary/10' : ''}`}
+                      className={`h-7 px-2 text-xs ${Math.abs(overallDensity - density) < 0.1 ? 'bg-primary/10' : ''} ${density > physicalLimit ? 'opacity-50 border-dashed' : ''}`}
                       onClick={() => handleOverallDensityChange(density.toString())}
                     >
                       {conversions.density.toDisplay(density).toFixed(0)}
                     </Button>
                   ))}
+                </div>
+                {isOverLimit && (
+                  <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-[10px] animate-in fade-in slide-in-from-top-1">
+                    <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-semibold">Density exceeds physical capacity!</p>
+                      <p>At {params.numLanes} lanes, the road can only fit ~{conversions.density.toDisplay(physicalLimit).toFixed(0)} {conversions.density.unit} bumper-to-bumper. The simulation will clamp the car count to this limit.</p>
+                    </div>
+                  </div>
+                )}
+                <div className="text-xs text-gray-500">
+                  Physical limit: ~{conversions.density.toDisplay(physicalLimit).toFixed(0)} {conversions.density.unit} (clamped)
                 </div>
                 <div className="text-xs text-gray-500">
                   This density will be applied uniformly across all {params.numLanes} lane(s)
@@ -601,6 +621,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Label className="text-xs">Lane Change Cooldown</Label>
+                      <InfoTooltip content="Minimum time between consecutive lane changes for the same vehicle (seconds)" />
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {params.laneChangeCooldown || 5} seconds
+                    </span>
+                  </div>
+                  <Input
+                    type="number"
+                    value={params.laneChangeCooldown ?? 5}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      onUpdateParams({ laneChangeCooldown: Math.min(60, Math.max(0, value)) });
+                    }}
+                    min="0"
+                    max="60"
+                    step="0.5"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
                     <Label className="text-xs">Mean Trip Distance</Label>
                     <span className="text-xs text-muted-foreground">
                       {conversions.distance.toDisplay(params.meanDistTripPlanned).toFixed(1)} {conversions.distance.unit}
@@ -626,25 +669,42 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             {/* Car Display Size */}
             {onCarSizeChange && (
               <CollapsibleSection title="Display Settings" defaultCollapsed={true}>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">Car Size: {carSize}px</Label>
-                    <span className="text-xs text-muted-foreground">
-                      {carSize < 20 ? 'Small' : carSize > 30 ? 'Large' : 'Medium'}
-                    </span>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Car Size: {carSize}px</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {carSize < 20 ? 'Small' : carSize > 30 ? 'Large' : 'Medium'}
+                      </span>
+                    </div>
+                    <Input
+                      type="number"
+                      value={carSize}
+                      onChange={(e) => {
+                        const value = Number(e.target.value) || 24;
+                        onCarSizeChange(Math.min(48, Math.max(12, value)));
+                      }}
+                      min="12"
+                      max="48"
+                      step="2"
+                      className="flex-1"
+                    />
                   </div>
-                  <Input
-                    type="number"
-                    value={carSize}
-                    onChange={(e) => {
-                      const value = Number(e.target.value) || 24;
-                      onCarSizeChange(Math.min(48, Math.max(12, value)));
-                    }}
-                    min="12"
-                    max="48"
-                    step="2"
-                    className="flex-1"
-                  />
+
+                  {onShowFreewayUIChange && (
+                    <div className="flex items-center justify-between space-x-2 pt-2">
+                      <div className="space-y-0.5">
+                        <Label className="text-xs">Freeway Visualization</Label>
+                        <div className="text-[10px] text-muted-foreground">
+                          Disable to save system resources
+                        </div>
+                      </div>
+                      <Switch
+                        checked={showFreewayUI}
+                        onCheckedChange={onShowFreewayUIChange}
+                      />
+                    </div>
+                  )}
                 </div>
               </CollapsibleSection>
             )}

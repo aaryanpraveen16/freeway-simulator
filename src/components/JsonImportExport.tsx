@@ -69,17 +69,19 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
             throw new Error(`Invalid batch item at index ${index}: Expected an object`);
           }
 
-          const { name, duration, params, ...rest } = item;
-
-          if (typeof duration !== 'number' || duration <= 0) {
-            throw new Error(`Invalid duration at index ${index}: Must be a positive number`);
+          // Support both strict {name, duration, params} and flat parameter objects
+          if ('params' in item && typeof item.params === 'object') {
+            const { name, duration, params } = item;
+            if (typeof duration !== 'number' || duration <= 0) {
+              throw new Error(`Invalid duration at index ${index}: Must be a positive number`);
+            }
+            return { name, duration, params };
+          } else {
+            // Treat the whole object as params
+            const duration = item.simulationDuration || item.duration || 60;
+            const name = item.name || `Sim ${index + 1}`;
+            return { name, duration, params: item };
           }
-
-          if (!params || typeof params !== 'object') {
-            throw new Error(`Invalid params at index ${index}: Missing or invalid params object`);
-          }
-
-          return { name, duration, params };
         });
 
         console.log('Parsed batch simulations:', batchSimulations);
@@ -121,7 +123,8 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
         'carLength', 'truckLength', 'motorcycleLength', 'truckPercentage',
         'motorcyclePercentage', 'carPercentage', 'dt', 'aMax', 'k', 'lengthCar',
         'initialGap', 'brakeTime', 'brakeCarIndex', 'minSpeed', 'stdSpeed',
-        'sigmaDistTripPlanned', 'politenessFactor', 'rightLaneBias',
+        'initialGap', 'brakeTime', 'brakeCarIndex', 'minSpeed', 'stdSpeed',
+        'sigmaDistTripPlanned', 'rightLaneBias',
         'accelerationThreshold', 'simulationDuration', 'uniformDriverBehavior',
         'stoppedCarsGap', 'driverReactionTime', 'brakingReactionTime'
       ];
@@ -232,7 +235,7 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
           trafficDensity: 2.5,
           meanSpeed: 65,
           speedLimit: 70,
-          freewayLength: 5,
+          freewayLength: 1,
           vehicleTypeDensity: {
             car: 70,
             truck: 20,
