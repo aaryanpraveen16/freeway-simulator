@@ -94,6 +94,31 @@ class SimulationService {
         }
     }
 
+    async renameFolder(oldName: string, newName: string): Promise<void> {
+        const response = await fetch(`${this.apiBaseUrl}/folders`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ oldName, newName }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to rename folder: ${response.statusText}`);
+        }
+    }
+
+    async deleteFolder(folderName: string): Promise<void> {
+        const encodedFolderName = encodeURIComponent(folderName);
+        const response = await fetch(`${this.apiBaseUrl}/folders/${encodedFolderName}`, {
+            method: 'DELETE',
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to delete folder: ${response.statusText}`);
+        }
+    }
+
     async getNextSimulationNumber(): Promise<number> {
         try {
             const simulations = await this.getAllSimulations();
