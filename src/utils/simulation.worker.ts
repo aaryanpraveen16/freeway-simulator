@@ -50,18 +50,20 @@ function runSimulationStep() {
         rawDeltaTime
     );
 
+    // 2. Identify Packs (needed for UI visualization and stats)
+    const currentPacks = identifyPacks(updatedCars, laneLength, params.tDist);
     cars = updatedCars;
 
-    // 2. Run Statistics (Heavy stuff)
+    // 3. Run Statistics (Heavy stuff)
     const statsData: any = {
         time: currentTime,
         cars: updatedCars,
+        packs: currentPacks,
         events: events,
     };
 
-    // Only record heavy pack data every 0.1s or so to avoid postMessage overhead
-    if (currentTime - lastPackRecordTime >= 0.1) {
-        // Calculate aggregate metrics to tell the UI when to record history
+    // Throttle chart data recording to 1.0s to prevent UI lag as history grows
+    if (currentTime - lastPackRecordTime >= 1.0) {
         statsData.metrics = {
             tick: true
         };

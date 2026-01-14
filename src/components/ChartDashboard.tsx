@@ -18,8 +18,6 @@ import { UnitSystem } from "@/utils/unitConversion";
 
 interface ChartDashboardProps {
   // Core data
-  cars: Car[];
-  elapsedTime: number;
   laneLength: number;
   params: SimulationParams;
   trafficRule: 'american' | 'european';
@@ -45,9 +43,7 @@ interface ChartDashboardProps {
   showPreviousRuns?: boolean;
 }
 
-const ChartDashboard: React.FC<ChartDashboardProps> = ({
-  cars,
-  elapsedTime,
+const ChartDashboard: React.FC<ChartDashboardProps> = React.memo(({
   laneLength,
   params,
   trafficRule,
@@ -103,8 +99,6 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
             <CardContent className="space-y-8">
               <div className="space-y-4">
                 <SpeedDensityChart
-                  cars={cars}
-                  elapsedTime={elapsedTime}
                   dataHistory={speedDensityHistory}
                   numLanes={params.numLanes}
                   trafficRule={trafficRule}
@@ -132,9 +126,7 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
 
               <div className="space-y-4">
                 <DensityThroughputChart
-                  cars={cars}
                   laneLength={laneLength}
-                  elapsedTime={elapsedTime}
                   dataHistory={densityThroughputHistory}
                   numLanes={params.numLanes}
                   trafficRule={trafficRule}
@@ -184,8 +176,6 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
               <div className="space-y-6">
                 <div className="space-y-4">
                   <PercentageOfCarsByLaneChart
-                    cars={cars}
-                    elapsedTime={elapsedTime}
                     dataHistory={percentageByLaneHistory}
                     numLanes={params.numLanes}
                     trafficRule={trafficRule}
@@ -288,6 +278,6 @@ const ChartDashboard: React.FC<ChartDashboardProps> = ({
       </Tabs>
     </div>
   );
-};
+});
 
 export default ChartDashboard;

@@ -18,58 +18,29 @@ interface DensityThroughputDataPoint {
 }
 
 interface DensityThroughputChartProps {
-  cars: Car[];
+  cars?: Car[];
   laneLength: number;
-  elapsedTime: number;
+  elapsedTime?: number;
   dataHistory: DensityThroughputDataPoint[];
   numLanes: number;
-  trafficRule: 'american' | 'european';
+  trafficRule?: 'american' | 'european';
   unitSystem?: UnitSystem;
   simulationParams: any;
 }
 
 const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
-  cars,
+  cars = [],
   laneLength,
-  elapsedTime,
+  elapsedTime = 0,
   dataHistory,
   numLanes,
-  trafficRule,
+  trafficRule = 'american',
   unitSystem = 'metric',
   simulationParams
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const conversions = getUnitConversions(unitSystem);
-
-  const currentPoint = useMemo(() => {
-    if (cars.length === 0) return null;
-
-    // Calculate per-lane throughput and density
-    let totalThroughput = 0;
-    let totalDensity = 0;
-
-    // Calculate for each lane
-    for (let lane = 0; lane < numLanes; lane++) {
-      const laneCars = cars.filter(car => car.lane === lane);
-      const carCount = laneCars.length;
-
-      if (carCount > 0) {
-        const avgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / carCount;
-        const density = carCount / laneLength; // cars/km
-        totalThroughput += avgSpeed * density; // cars/hour for this lane
-      }
-    }
-
-    // Calculate total density (cars/km across all lanes)
-    totalDensity = cars.length / laneLength;
-
-    return {
-      time: parseFloat(elapsedTime.toFixed(2)),
-      throughput: parseFloat(totalThroughput.toFixed(2)),
-      density: parseFloat(totalDensity.toFixed(4))
-    };
-  }, [cars, laneLength, elapsedTime, numLanes]);
 
   const chartData = useMemo(() => {
     const historicalData = dataHistory.map(point => ({
@@ -79,12 +50,14 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
       type: 'historical'
     }));
 
-    if (currentPoint) {
-      return [...historicalData, { ...currentPoint, type: 'current' }];
+    // Use the last point from history as the "current" state
+    if (historicalData.length > 0) {
+      const lastPoint = historicalData[historicalData.length - 1];
+      historicalData[historicalData.length - 1] = { ...lastPoint, type: 'current' };
     }
 
     return historicalData;
-  }, [dataHistory, currentPoint]);
+  }, [dataHistory]);
 
   // Calculate stabilized values for density and throughput
   const stabilizedValues = useMemo(() => {
@@ -205,7 +178,7 @@ const DensityThroughputChart: React.FC<DensityThroughputChartProps> = ({
                   style: { fontWeight: 500 }
                 }}
                 domain={['auto', 'auto']}
-                tickFormatter={(value) => value.toFixed(2)}
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(2) : value}
               />
               <YAxis
                 dataKey="throughput"

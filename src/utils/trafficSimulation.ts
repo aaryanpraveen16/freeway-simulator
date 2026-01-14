@@ -82,6 +82,18 @@ export interface SimulationParams {
   driverReactionTime?: number; // time delay before reacting to lead car acceleration
   /** Braking reaction time in seconds (default: 1.0) - time to notice and react to brake lights */
   brakingReactionTime?: number; // time delay before reacting to lead car braking
+  /** MOBIL: Maximum safe deceleration for the follower (m/s², default: -2.0) */
+  mobilSafeDecel?: number;
+  /** MOBIL: Maximum safe deceleration for the car itself (m/s², default: -3.0) */
+  mobilSelfSafeDecel?: number;
+  /** MOBIL: Politeness factor (0 to 1, default: 0.0) */
+  mobilPoliteness?: number;
+  /** MOBIL: Minimum speed gain required for lane change (km/h, default: 10) */
+  mobilSpeedGainThreshold?: number;
+  /** MOBIL: Incentive to change lane when leader is stopped (m/s², default: 3.0) */
+  mobilStoppedIncentive?: number;
+  /** European Rules: Safety gap factor for rear check (default: 1.0) */
+  europeanGapFactor?: number;
 }
 
 // Default simulation parameters
@@ -122,6 +134,12 @@ export const defaultParams: SimulationParams = {
   uniformDriverBehavior: true, // default to uniform driver behavior for deterministic lane changes
   driverReactionTime: 2.0, // 2 seconds reaction time by default
   brakingReactionTime: 1.0, // 1 second braking reaction time by default (faster than acceleration)
+  mobilSafeDecel: -2.0, // m/s² (maximum deceleration forced on follower)
+  mobilSelfSafeDecel: -3.0, // m/s² (maximum deceleration car is willing to experience)
+  mobilPoliteness: 0.0, // purely selfish by default
+  mobilSpeedGainThreshold: 1, // km/h (Lowered from 10 to 1 to allow acceleration-based overtakes)
+  mobilStoppedIncentive: 3.0, // m/s² incentive boost
+  europeanGapFactor: 1.0, // Default to 1.0 (standard safe distance)
 };
 
 /**
@@ -1563,24 +1581,31 @@ export function calculateLaneChangeIncentive(
 
   const targetLeaderSpeed = targetLane.leader?.speed ?? params.maxSpeed;
 
-  // NEW: For European rules, apply 2x safe distance buffer for car behind
+  // NEW: For European rules, check safe distance but without the extra 1.5x multiplier
+  // USER DECISION: The explicit distance check (even at 1.0x) makes behavior too strict compared to MOBIL.
+  // We are removing this strict distance check to align safety behavior with the American model,
+  // relying purely on the MOBIL braking criterion below.
   let safeGapCheck = true;
+  /* 
+  Legacy code removed:
   if (trafficRule === "european" && targetLane.follower) {
     const gapBehind = (car.position - targetLane.follower.position + laneLength) % laneLength;
     const followerSpeed = targetLane.follower.speed || 0;
     const followerSafeDist = calculateSafeDistance(followerSpeed, params.tDist || 3) / 1000;
-    const followerSafeGap = followerSafeDist + 0.005;
 
-    // Apply 1.5x safe distance buffer for car behind in European rules (using follower's speed)
-    safeGapCheck = gapBehind > followerSafeGap * 1.5;
+    // Original check was followerSafeDist * 1.5. Now aligning with American/Standard behavior
+    // We utilize the new europeanGapFactor parameter (default 1.0)
+    const factor = params.europeanGapFactor ?? 1.0;
+    safeGapCheck = gapBehind > followerSafeDist * factor;
 
     if (!safeGapCheck) {
       if (showNotifications && tick % 100 === 0) {
-        debugLog(showNotifications, `[EUROPEAN SAFETY] Car ${car.id} blocked from lane change - insufficient gap behind (${gapBehind.toFixed(3)}km < ${(followerSafeGap * 1.5).toFixed(3)}km, follower speed: ${followerSpeed.toFixed(1)} km/h)`);
+        debugLog(showNotifications, `[EUROPEAN SAFETY] Car ${car.id} blocked from lane change - insufficient gap behind (${gapBehind.toFixed(3)}km < ${(followerSafeDist * factor).toFixed(3)}km)`);
       }
       return -10;
     }
   }
+  */
 
   const targetLeaderLength = targetLane.leader?.physicalLength || params.lengthCar || 4.5;
 
@@ -1593,7 +1618,8 @@ export function calculateLaneChangeIncentive(
   );
 
   // SELF-SAFETY: Don't change into a lane where you'd have to slam on the brakes
-  if (targetAccel < -3.0) {
+  const selfSafeDecel = params.mobilSelfSafeDecel ?? -3.0;
+  if (targetAccel < selfSafeDecel) {
     if (showNotifications && tick % 100 === 0) {
       debugLog(showNotifications, `[SELF SAFETY] Car ${car.id} blocked - would need to brake too hard in target lane (${targetAccel.toFixed(2)} m/s2)`);
     }
@@ -1629,9 +1655,7 @@ export function calculateLaneChangeIncentive(
     );
 
     // SAFETY CRITERION: If the lane change would force the follower to brake too hard, return very low incentive.
-    // MOBIL standard safe deceleration is typically around -4.0 m/s2.
-    // Tighter safety: Use -2.0 m/s2 to prevent aggressive cut-ins.
-    const bSafe = -2.0;
+    const bSafe = params.mobilSafeDecel ?? -2.0;
     if (followerAccelAfter < bSafe) {
       if (showNotifications && tick % 100 === 0) {
         debugLog(showNotifications, `[MOBIL SAFETY] Car ${car.id} blocked - follower ${targetLane.follower.id} would need to brake too hard (${followerAccelAfter.toFixed(2)} m/s2)`);
@@ -1643,17 +1667,19 @@ export function calculateLaneChangeIncentive(
   }
 
   // Base MOBIL incentive calculation
-  // Politeness factor removed for deterministic behavior - purely based on self-gain
-  let incentive = targetAccel - currentAccel;
+  // Apply politeness factor if specified
+  const politeness = params.mobilPoliteness ?? 0.0;
+  let incentive = (targetAccel - currentAccel) + politeness * followerAccelChange;
 
   // Speed deficit already prevents unnecessary changes, so no hysteresis needed
 
-  // Minimum Speed Benefit - require at least 10 km/h speed advantage
+  // Minimum Speed Benefit
   const currentLaneSpeed = currentLeader?.speed ?? params.maxSpeed;
   const targetLaneSpeed = targetLane.leader?.speed ?? params.maxSpeed;
   const speedBenefit = targetLaneSpeed - currentLaneSpeed;
+  const speedGainThreshold = params.mobilSpeedGainThreshold ?? 10;
 
-  if (speedBenefit < 10 && currentLeader) {
+  if (speedBenefit < speedGainThreshold && currentLeader) {
     incentive -= 2.0; // Heavy penalty for insufficient speed benefit
   }
 
@@ -1664,7 +1690,8 @@ export function calculateLaneChangeIncentive(
 
   // ✅ KEY ADDITION: Encourage lane change if current leader is stopped
   if (currentLeader && currentLeader.speed === 0) {
-    incentive += 3; // Strong incentive to change lanes
+    const stoppedIncentive = params.mobilStoppedIncentive ?? 3.0;
+    incentive += stoppedIncentive;
   }
 
   // Optional: Slight incentive for lane preference (right or left depending on traffic rule)

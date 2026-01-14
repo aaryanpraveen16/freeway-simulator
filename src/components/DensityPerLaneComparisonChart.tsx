@@ -143,7 +143,7 @@ const DensityPerLaneComparisonChart: React.FC<DensityPerLaneComparisonChartProps
                                 dataKey="time"
                                 name="Time"
                                 label={{ value: "Time (seconds)", position: "insideBottom", offset: -40, style: { fontWeight: 500 } }}
-                                tickFormatter={(value) => value.toFixed(0)}
+                                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(0) : value}
                             />
                             <YAxis
                                 name="Density"

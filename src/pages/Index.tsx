@@ -138,6 +138,7 @@ const Index = () => {
   const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
 
   const batchQueueRef = useRef<BatchSimulation[]>([]);
+
   const isBatchProcessingRef = useRef<boolean>(false);
   const isStartingRef = useRef<boolean>(false);
   const batchFolderRef = useRef<string | undefined>(undefined);
@@ -168,7 +169,10 @@ const Index = () => {
     });
   }, [toast, showNotifications]);
 
-  const recordPackData = useCallback((newCars: Car[], time: number, currentLaneLength: number) => {
+  // Optimize history length to prevent FPS drop over time
+  const MAX_HISTORY_LENGTH = 300; // Keep last ~5 minutes (at 1.0s interval)
+
+  const recordPackData = useCallback((newCars: Car[], time: number, currentLaneLength: number, packs: Pack[]) => {
     const numLanes = params.numLanes || 3;
     const totalDensity = newCars.length / currentLaneLength;
     const totalAvgSpeed = newCars.length > 0
@@ -205,7 +209,7 @@ const Index = () => {
         laneDensities,
         laneSpeeds
       }];
-      return newHistory.length > 1000 ? newHistory.slice(-1000) : newHistory;
+      return newHistory.length > MAX_HISTORY_LENGTH ? newHistory.slice(-MAX_HISTORY_LENGTH) : newHistory;
     });
 
     setSpeedDensityHistory(prev => {
@@ -224,8 +228,8 @@ const Index = () => {
       return newHistory.length > 1000 ? newHistory.slice(-1000) : newHistory;
     });
 
-    const packs = identifyPacks(newCars, currentLaneLength, params.tDist);
-    setCurrentPacks(packs);
+    // We no longer calculate packs here, we use the ones passed from the worker
+    // setCurrentPacks(packs); // Already set in onmessage for smoother UI
     const smallPacks = packs.filter(p => p.cars.length < 5).length;
     const mediumPacks = packs.filter(p => p.cars.length >= 5 && p.cars.length <= 10).length;
     const largePacks = packs.filter(p => p.cars.length > 10).length;
@@ -265,14 +269,34 @@ const Index = () => {
       return [...prev, packsPerLane].slice(-1000);
     });
 
+    const speedVariance = newCars.length > 0
+      ? newCars.reduce((sum, car) => sum + Math.pow(car.speed - totalAvgSpeed, 2), 0) / newCars.length
+      : 0;
+
+    setPacksPerLaneHistory(prev => {
+      const point: any = { time: parseFloat(time.toFixed(1)) };
+      const lanePackCounts = new Array(numLanes).fill(0);
+
+      packs.forEach(pack => {
+        if (pack.cars.length > 0) {
+          lanePackCounts[pack.cars[0].lane]++;
+        }
+      });
+
+      lanePackCounts.forEach((count, i) => {
+        point[`lane${i}`] = count;
+      });
+
+      return [...prev, point].slice(-MAX_HISTORY_LENGTH);
+    });
+
     setPackFormationHistory(prev => {
-      const speedVariance = newCars.length > 0 ? newCars.reduce((sum, car) => sum + Math.pow(car.speed - totalAvgSpeed, 2), 0) / newCars.length : 0;
       return [...prev, {
-        density: parseFloat(totalDensity.toFixed(2)),
+        density: parseFloat(totalDensity.toFixed(4)),
         speedStdDev: parseFloat(Math.sqrt(speedVariance).toFixed(2)),
         packCount: packs.length,
         time: parseFloat(time.toFixed(1))
-      }].slice(-1000);
+      }].slice(-MAX_HISTORY_LENGTH);
     });
 
     const totalCars = newCars.length;
@@ -294,10 +318,10 @@ const Index = () => {
       } else laneTP[`lane${i}`] = 0;
     }
 
-    setDensityOfCarPacksHistory(prev => [...prev, dataPoint].slice(-1000));
-    setPercentageByLaneHistory(prev => [...prev, percentagePoint].slice(-1000));
-    setLaneUtilizationHistory(prev => [...prev, laneDist].slice(-1000));
-    setLaneThroughputHistory(prev => [...prev, laneTP].slice(-1000));
+    setDensityOfCarPacksHistory(prev => [...prev, dataPoint].slice(-MAX_HISTORY_LENGTH));
+    setPercentageByLaneHistory(prev => [...prev, percentagePoint].slice(-MAX_HISTORY_LENGTH));
+    setLaneUtilizationHistory(prev => [...prev, laneDist].slice(-MAX_HISTORY_LENGTH));
+    setLaneThroughputHistory(prev => [...prev, laneTP].slice(-MAX_HISTORY_LENGTH));
 
     lastPackRecordTimeRef.current = time;
   }, [params, trafficRule]);
@@ -389,7 +413,8 @@ const Index = () => {
       'numLanes', 'freewayLength', 'trafficDensity', 'simulationDuration',
       'meanSpeed', 'stdSpeed', 'aMax', 'bMax', 'tDist', 'sigmaDistTripPlanned',
       'meanDistTripPlanned', 'driverReactionTime', 'brakingReactionTime',
-      'laneChangeCooldown'
+      'laneChangeCooldown', 'mobilSafeDecel', 'mobilSelfSafeDecel',
+      'mobilPoliteness', 'mobilSpeedGainThreshold', 'mobilStoppedIncentive'
     ];
 
     searchParams.forEach((value, key) => {
@@ -425,11 +450,19 @@ const Index = () => {
       if (type === 'TICK') {
         setCars(data.cars);
         setElapsedTime(data.time);
+
+        // Use packs from worker for the current display
+        if (data.packs) {
+          setCurrentPacks(data.packs);
+        }
+
         if (data.events && data.events.length > 0 && handleSimulationEventsRef.current) {
           handleSimulationEventsRef.current(data.events);
         }
+
+        // Throttled history recording
         if (data.metrics && recordPackDataRef.current) {
-          recordPackDataRef.current(data.cars, data.time, laneLengthRef.current);
+          recordPackDataRef.current(data.cars, data.time, laneLengthRef.current, data.packs || []);
         }
       } else if (type === 'COMPLETED') {
         setIsRunning(false);
@@ -570,6 +603,14 @@ const Index = () => {
         if (lc.length === 0) { laneStats.push(0); continue; }
         laneStats.push(parseFloat(((lc.reduce((s, c) => s + c.speed, 0) / lc.length) * (lc.length / (params.freewayLength || 1))).toFixed(2)));
       }
+      const densityHistory = extractDataValues(densityThroughputHistory, 'density');
+      const speedHistory = extractDataValues(speedDensityHistory, 'speed');
+      const throughputHistory = extractDataValues(densityThroughputHistory, 'throughput');
+
+      const stabilizedDensity = calculateStabilizedValue(densityHistory).value;
+      const stabilizedAverageSpeed = calculateStabilizedValue(speedHistory).value;
+      const stabilizedThroughput = calculateStabilizedValue(throughputHistory).value;
+
       const savedDoc: SavedSimulation = {
         id: `simulation-${Date.now()}`,
         name,
@@ -597,9 +638,9 @@ const Index = () => {
           minSpeed: Math.min(...speeds, 0),
           laneChanges,
           perLaneThroughputs: laneStats,
-          stabilizedDensity: 0,
-          stabilizedAverageSpeed: 0,
-          stabilizedThroughput: 0
+          stabilizedDensity,
+          stabilizedAverageSpeed,
+          stabilizedThroughput
         }
       };
       const result = await simulationService.saveSimulation(savedDoc);
@@ -653,7 +694,7 @@ const Index = () => {
             <div className="flex-1"><CarStatsCard cars={cars} laneLength={laneLength} params={params} showPackInfo={showPackFormation} unitSystem={unitSystem} /></div>
           </div>
           <div><ControlPanel params={params} onUpdateParams={handleUpdateParams} onBatchImport={handleBatchImport} trafficRule={trafficRule} onTrafficRuleChange={setTrafficRule} carSize={carSize} onCarSizeChange={setCarSize} unitSystem={unitSystem} onUnitSystemChange={setUnitSystem} showFreewayUI={showFreewayUI} onShowFreewayUIChange={setShowFreewayUI} /></div>
-          <div><ChartDashboard cars={cars} elapsedTime={elapsedTime} laneLength={laneLength} params={params} trafficRule={trafficRule} unitSystem={unitSystem} speedDensityHistory={speedDensityHistory} densityOfCarPacksHistory={densityOfCarPacksHistory} percentageByLaneHistory={percentageByLaneHistory} densityThroughputHistory={densityThroughputHistory} laneThroughputHistory={laneThroughputHistory} laneUtilizationHistory={laneUtilizationHistory} packHistory={packHistory} packLengthHistory={packLengthHistory} packsPerLaneHistory={packsPerLaneHistory} showPackFormation={showPackFormation} previousRunsData={savedRuns.map(r => r.packHistory)} previousRunsPackLengthData={savedRuns.map(r => r.packLengthHistory)} onSaveCurrentRun={handleSaveCurrentRun} onTogglePreviousRuns={togglePreviousRuns} showPreviousRuns={showPreviousRuns} /></div>
+          <div><ChartDashboard laneLength={laneLength} params={params} trafficRule={trafficRule} unitSystem={unitSystem} speedDensityHistory={speedDensityHistory} densityOfCarPacksHistory={densityOfCarPacksHistory} percentageByLaneHistory={percentageByLaneHistory} densityThroughputHistory={densityThroughputHistory} laneThroughputHistory={laneThroughputHistory} laneUtilizationHistory={laneUtilizationHistory} packHistory={packHistory} packLengthHistory={packLengthHistory} packsPerLaneHistory={packsPerLaneHistory} showPackFormation={showPackFormation} previousRunsData={savedRuns.map(r => r.packHistory)} previousRunsPackLengthData={savedRuns.map(r => r.packLengthHistory)} onSaveCurrentRun={handleSaveCurrentRun} onTogglePreviousRuns={togglePreviousRuns} showPreviousRuns={showPreviousRuns} /></div>
         </div>
       </div>
       <Footer />

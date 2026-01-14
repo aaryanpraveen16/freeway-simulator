@@ -14,16 +14,16 @@ interface PercentageOfCarsByLaneDataPoint {
 }
 
 interface PercentageOfCarsByLaneChartProps {
-  cars: Car[];
-  elapsedTime: number;
+  cars?: Car[];
+  elapsedTime?: number;
   dataHistory: PercentageOfCarsByLaneDataPoint[];
   numLanes: number;
   trafficRule: 'american' | 'european';
 }
 
 const PercentageOfCarsByLaneChart: React.FC<PercentageOfCarsByLaneChartProps> = ({
-  cars,
-  elapsedTime,
+  cars = [],
+  elapsedTime = 0,
   dataHistory,
   numLanes,
   trafficRule
@@ -31,57 +31,34 @@ const PercentageOfCarsByLaneChart: React.FC<PercentageOfCarsByLaneChartProps> = 
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const currentPoint = useMemo(() => {
-    if (cars.length === 0) return null;
-    
-    const point: PercentageOfCarsByLaneDataPoint = {
-      time: parseFloat(elapsedTime.toFixed(1))
-    };
-    
-    const totalCars = cars.length;
-    
-    // Calculate percentage of cars in each lane
-    for (let i = 0; i < numLanes; i++) {
-      const carsInLane = cars.filter(car => car.lane === i).length;
-      const percentage = totalCars > 0 ? (carsInLane / totalCars) * 100 : 0;
-      point[`lane${i}`] = parseFloat(percentage.toFixed(1));
-    }
-    
-    return point;
-  }, [cars, elapsedTime, numLanes]);
-
   const chartData = useMemo(() => {
-    const data = [...dataHistory];
-    if (currentPoint) {
-      data.push(currentPoint);
-    }
-    return data.slice(-50); // Keep last 50 points
-  }, [dataHistory, currentPoint]);
+    return [...dataHistory].slice(-50); // Keep last 50 points
+  }, [dataHistory]);
 
   // Calculate stabilized values for each lane
   const stabilizedValues = useMemo(() => {
     const results: { [key: string]: any } = {};
-    
+
     for (let i = 0; i < numLanes; i++) {
       const laneData = extractDataValues(chartData, `lane${i}`);
       results[`lane${i}`] = calculateStabilizedValue(laneData);
     }
-    
+
     return results;
   }, [chartData, numLanes]);
 
   const handleExportImage = () => {
     if (!chartRef.current) return;
-    
+
     try {
       const svgElement = chartRef.current.querySelector("svg");
       if (!svgElement) {
         throw new Error("SVG element not found");
       }
-      
+
       const clonedSvg = svgElement.cloneNode(true) as SVGElement;
       clonedSvg.setAttribute("style", "background-color: white;");
-      
+
       const allPaths = clonedSvg.querySelectorAll("path");
       allPaths.forEach(path => {
         const currentWidth = path.getAttribute("stroke-width") || "1";
@@ -89,17 +66,17 @@ const PercentageOfCarsByLaneChart: React.FC<PercentageOfCarsByLaneChartProps> = 
           path.setAttribute("stroke-width", "2");
         }
       });
-      
+
       const svgData = new XMLSerializer().serializeToString(clonedSvg);
       const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-      
+
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(svgBlob);
       downloadLink.download = "percentage-by-lane-chart.svg";
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      
+
       toast({
         title: "Chart exported",
         description: "Percentage by lane chart has been exported successfully",
@@ -123,10 +100,10 @@ const PercentageOfCarsByLaneChart: React.FC<PercentageOfCarsByLaneChartProps> = 
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg">Percentage of Cars by Lane</CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1" 
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
             onClick={handleExportImage}
           >
             <Download size={16} />
@@ -153,7 +130,7 @@ const PercentageOfCarsByLaneChart: React.FC<PercentageOfCarsByLaneChartProps> = 
           >
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
+              <XAxis
                 dataKey="time"
                 label={{ value: "Time (seconds)", position: "insideBottom", offset: -5 }}
               />
@@ -163,7 +140,7 @@ const PercentageOfCarsByLaneChart: React.FC<PercentageOfCarsByLaneChartProps> = 
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Legend />
-              
+
               {Array.from({ length: numLanes }, (_, i) => (
                 <Line
                   key={i}
@@ -177,7 +154,7 @@ const PercentageOfCarsByLaneChart: React.FC<PercentageOfCarsByLaneChartProps> = 
             </LineChart>
           </ChartContainer>
         </div>
-        
+
         {/* Stabilized Values Display */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
           <h4 className="text-sm font-semibold mb-2">Stabilized Distribution:</h4>

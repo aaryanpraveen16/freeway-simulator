@@ -666,6 +666,118 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
             <Separator />
 
+            {/* MOBIL Lane Change Settings */}
+            <CollapsibleSection title="Lane Change (MOBIL) Settings" defaultCollapsed={true}>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Label className="text-xs">Politeness Factor (p)</Label>
+                      <InfoTooltip content="How much a driver considers the braking impact on others. 0 = purely selfish, 1 = altruistic." />
+                    </div>
+                    <span className="text-xs font-mono">{(params.mobilPoliteness ?? 0).toFixed(1)}</span>
+                  </div>
+                  <Slider
+                    value={[params.mobilPoliteness ?? 0]}
+                    onValueChange={([val]) => onUpdateParams({ mobilPoliteness: val })}
+                    min={0}
+                    max={1}
+                    step={0.1}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Label className="text-xs">Follower Safe Decel (b_safe)</Label>
+                      <InfoTooltip content="Maximum deceleration (m/s²) the driver is willing to force on the follower in the new lane. Typical: -2.0 to -4.0." />
+                    </div>
+                    <span className="text-xs font-mono">{params.mobilSafeDecel ?? -2.0} m/s²</span>
+                  </div>
+                  <Slider
+                    value={[params.mobilSafeDecel ?? -2.0]}
+                    onValueChange={([val]) => onUpdateParams({ mobilSafeDecel: val })}
+                    min={-6}
+                    max={-0.5}
+                    step={0.1}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Label className="text-xs">Self Safe Decel</Label>
+                      <InfoTooltip content="Maximum deceleration (m/s²) the driver is willing to experience themselves to change lanes." />
+                    </div>
+                    <span className="text-xs font-mono">{params.mobilSelfSafeDecel ?? -3.0} m/s²</span>
+                  </div>
+                  <Slider
+                    value={[params.mobilSelfSafeDecel ?? -3.0]}
+                    onValueChange={([val]) => onUpdateParams({ mobilSelfSafeDecel: val })}
+                    min={-8}
+                    max={-1}
+                    step={0.1}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Label className="text-xs">Incentive Threshold (Δa)</Label>
+                      <InfoTooltip content="Minimum acceleration gain (m/s²) required to trigger a lane change. Prevents 'chatter' between lanes." />
+                    </div>
+                    <span className="text-xs font-mono">{(params.accelerationThreshold ?? 0.2).toFixed(2)} m/s²</span>
+                  </div>
+                  <Slider
+                    value={[params.accelerationThreshold ?? 0.2]}
+                    onValueChange={([val]) => onUpdateParams({ accelerationThreshold: val })}
+                    min={0.05}
+                    max={1.0}
+                    step={0.05}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Label className="text-xs">Speed Gain Threshold</Label>
+                      <InfoTooltip content="Required speed advantage (km/h) of the target lane leader over the current leader to justify a change." />
+                    </div>
+                    <span className="text-xs font-mono">{Math.round(conversions.speed.toDisplay(params.mobilSpeedGainThreshold ?? 10))} {conversions.speed.unit}</span>
+                  </div>
+                  <Slider
+                    value={[Math.round(conversions.speed.toDisplay(params.mobilSpeedGainThreshold ?? 10))]}
+                    onValueChange={([val]) => {
+                      const internalValue = conversions.speed.fromDisplay(val);
+                      onUpdateParams({ mobilSpeedGainThreshold: internalValue });
+                    }}
+                    min={0}
+                    max={Math.round(conversions.speed.toDisplay(40))}
+                    step={1}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Label className="text-xs">Stopped Leader Incentive</Label>
+                      <InfoTooltip content="Extra incentive (m/s²) to change lanes when the current leader is completely stopped." />
+                    </div>
+                    <span className="text-xs font-mono">{(params.mobilStoppedIncentive ?? 3.0).toFixed(1)} m/s²</span>
+                  </div>
+                  <Slider
+                    value={[params.mobilStoppedIncentive ?? 3.0]}
+                    onValueChange={([val]) => onUpdateParams({ mobilStoppedIncentive: val })}
+                    min={0}
+                    max={10}
+                    step={0.5}
+                  />
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            <Separator />
+
             {/* Car Display Size */}
             {onCarSizeChange && (
               <CollapsibleSection title="Display Settings" defaultCollapsed={true}>

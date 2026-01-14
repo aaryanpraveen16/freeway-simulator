@@ -18,8 +18,8 @@ interface SpeedDensityDataPoint {
 }
 
 interface SpeedDensityChartProps {
-  cars: Car[];
-  elapsedTime: number;
+  cars?: Car[];
+  elapsedTime?: number;
   dataHistory: SpeedDensityDataPoint[];
   numLanes: number;
   trafficRule: 'american' | 'european';
@@ -29,8 +29,8 @@ interface SpeedDensityChartProps {
 }
 
 const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
-  cars,
-  elapsedTime,
+  cars = [],
+  elapsedTime = 0,
   dataHistory,
   numLanes,
   trafficRule,
@@ -42,18 +42,6 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
   const chartRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const currentPoint = useMemo(() => {
-    if (cars.length === 0) return null;
-
-    const avgSpeed = cars.reduce((sum, car) => sum + car.speed, 0) / cars.length;
-
-    return {
-      time: parseFloat(elapsedTime.toFixed(2)),
-      speed: parseFloat(conversions.speed.toDisplay(avgSpeed).toFixed(2)),
-      density: parseFloat(conversions.density.toDisplay(cars.length / laneLength).toFixed(2))
-    };
-  }, [cars, elapsedTime, laneLength, conversions]);
-
   const chartData = useMemo(() => {
     const historicalData = dataHistory.map(point => ({
       time: parseFloat(point.time.toFixed(2)),
@@ -62,12 +50,14 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
       type: 'historical'
     }));
 
-    if (currentPoint) {
-      return [...historicalData, { ...currentPoint, type: 'current' }];
+    // Use the last point from history as the "current" state
+    if (historicalData.length > 0) {
+      const lastPoint = historicalData[historicalData.length - 1];
+      historicalData[historicalData.length - 1] = { ...lastPoint, type: 'current' };
     }
 
     return historicalData;
-  }, [dataHistory, currentPoint, conversions]);
+  }, [dataHistory, conversions]);
 
   // Calculate stabilized values
   const stabilizedValues = useMemo(() => {
@@ -177,7 +167,7 @@ const SpeedDensityChart: React.FC<SpeedDensityChartProps> = ({
                   offset: -40
                 }}
                 domain={['auto', 'auto']}
-                tickFormatter={(value) => value.toFixed(2)}
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(2) : value}
               />
               <YAxis
                 dataKey="speed"

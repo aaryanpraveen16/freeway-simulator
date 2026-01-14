@@ -146,7 +146,7 @@ const PackDensityByTypeChart: React.FC<PackDensityByTypeChartProps> = ({
                                 dataKey="density"
                                 name="Density"
                                 label={{ value: `Traffic Density (${conversions.density.unit})`, position: "insideBottom", offset: -40, style: { fontWeight: 500 } }}
-                                tickFormatter={(value) => value.toFixed(2)}
+                                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(2) : value}
                             />
                             <YAxis
                                 name="Packs per Distance"

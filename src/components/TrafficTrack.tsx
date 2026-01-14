@@ -4,6 +4,8 @@ import CanvasCarRenderer from "./CanvasCarRenderer";
 import StraightLineTrack from "./StraightLineTrack";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnitSystem } from "@/utils/unitConversion";
+import Stats from "stats.js";
+import { useEffect, useRef } from "react";
 
 interface TrafficTrackProps {
   cars: Car[];
@@ -40,9 +42,38 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
 
   // Set a very high z-index for the tooltips to ensure they appear above everything
   const tooltipZIndex = 2147483647; // Maximum 32-bit integer
+  const monitorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!monitorRef.current) return;
+
+    const stats = new Stats();
+    stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+    stats.dom.style.position = 'absolute';
+    stats.dom.style.left = '10px';
+    stats.dom.style.top = '10px';
+    stats.dom.style.zIndex = '100';
+    monitorRef.current.appendChild(stats.dom);
+
+    const animate = () => {
+      stats.begin();
+      // monitored code goes here
+      stats.end();
+      requestAnimationFrame(animate);
+    };
+
+    const animationId = requestAnimationFrame(animate);
+
+    return () => {
+      if (monitorRef.current && monitorRef.current.contains(stats.dom)) {
+        monitorRef.current.removeChild(stats.dom);
+      }
+      cancelAnimationFrame(animationId);
+    };
+  }, []);
 
   return (
-    <div className="space-y-4 relative">
+    <div className="space-y-4 relative" ref={monitorRef}>
       <div className="relative" style={{ zIndex: 1 }}>
         <Tabs
           value={activeView}
