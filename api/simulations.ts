@@ -46,8 +46,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
-            const simulations = await collection.find({}).sort({ timestamp: -1 }).toArray();
-            res.status(200).json(simulations);
+            // Parse pagination parameters
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 20;
+            const skip = (page - 1) * limit;
+
+            // Get total count for pagination metadata
+            const total = await collection.countDocuments();
+
+            // Fetch paginated simulations with index-optimized sort
+            const simulations = await collection
+                .find({})
+                .sort({ timestamp: -1 })
+                .skip(skip)
+                .limit(limit)
+                .toArray();
+
+            // Return with pagination metadata
+            res.status(200).json({
+                simulations,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit),
+                    hasMore: skip + simulations.length < total
+                }
+            });
         } catch (error) {
             console.error('GET error:', error);
             res.status(500).json({ error: 'Failed to fetch simulations' });

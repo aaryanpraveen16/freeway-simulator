@@ -488,9 +488,15 @@ const IndividualSimulationList: React.FC<{
 const SavedSimulations: React.FC = () => {
   const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selectedSimulation, setSelectedSimulation] = useState<SavedSimulation | null>(null);
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set());
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalSimulations, setTotalSimulations] = useState(0);
 
   // Folder management state
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
@@ -503,6 +509,12 @@ const SavedSimulations: React.FC = () => {
   useEffect(() => {
     loadSimulations();
   }, []);
+
+  useEffect(() => {
+    if (currentPage > 1) {
+      loadSimulations();
+    }
+  }, [currentPage]);
 
   const handleExportSimulation = (simulation: SavedSimulation) => {
     try {
@@ -537,7 +549,7 @@ const SavedSimulations: React.FC = () => {
 
       // Save the imported simulation
       await simulationService.saveSimulation(simulation);
-      await loadSimulations();
+      await loadSimulations(true); // Reset to page 1
 
       toast({
         title: "Success",
@@ -575,11 +587,29 @@ const SavedSimulations: React.FC = () => {
     }
   };
 
-  const loadSimulations = async () => {
+  const loadSimulations = async (reset: boolean = false) => {
     try {
-      const simulations = await simulationService.getAllSimulations();
+      const pageToLoad = reset ? 1 : currentPage;
+      if (reset) {
+        setLoading(true);
+        setSavedSimulations([]);
+        setCurrentPage(1);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const { simulations, pagination } = await simulationService.getAllSimulations(pageToLoad, 20);
       console.log('Loaded simulations:', simulations);
-      setSavedSimulations(simulations.sort((a, b) => b.timestamp - a.timestamp));
+
+      if (reset) {
+        setSavedSimulations(simulations.sort((a, b) => b.timestamp - a.timestamp));
+      } else {
+        setSavedSimulations(prev => [...prev, ...simulations].sort((a, b) => b.timestamp - a.timestamp));
+      }
+
+      setHasMore(pagination.hasMore);
+      setTotalSimulations(pagination.total);
+      setCurrentPage(pageToLoad);
     } catch (error) {
       console.error('Error loading simulations:', error);
       toast({
@@ -589,13 +619,21 @@ const SavedSimulations: React.FC = () => {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      setCurrentPage(prev => prev + 1);
+      loadSimulations();
     }
   };
 
   const deleteSimulation = async (id: string) => {
     try {
       await simulationService.deleteSimulation(id);
-      setSavedSimulations(prev => prev.filter(sim => sim.id !== id));
+      await loadSimulations(true); // Reset to page 1
       toast({
         title: "Success",
         description: "Simulation deleted successfully",
@@ -687,7 +725,7 @@ const SavedSimulations: React.FC = () => {
   const handleRenameFolder = async (oldName: string, newName: string) => {
     try {
       await simulationService.renameFolder(oldName, newName);
-      await loadSimulations();
+      await loadSimulations(true); // Reset to page 1
       toast({
         title: "Success",
         description: `Folder renamed from "${oldName}" to "${newName}"`,
@@ -706,7 +744,7 @@ const SavedSimulations: React.FC = () => {
   const handleDeleteFolder = async (folderName: string) => {
     try {
       await simulationService.deleteFolder(folderName);
-      await loadSimulations();
+      await loadSimulations(true); // Reset to page 1
       toast({
         title: "Success",
         description: `Folder "${folderName}" deleted. Simulations moved to uncategorized.`,
@@ -877,6 +915,28 @@ const SavedSimulations: React.FC = () => {
               onRenameFolder={handleRenameFolder}
               onDeleteFolder={handleDeleteFolder}
             />
+
+            {/* Load More Button */}
+            {hasMore && !loading && (
+              <div className="mt-8 flex justify-center">
+                <Button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  variant="outline"
+                  size="lg"
+                  className="min-w-[200px]"
+                >
+                  {loadingMore ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                      Loading...
+                    </>
+                  ) : (
+                    `Load More (${savedSimulations.length} of ${totalSimulations})`
+                  )}
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="comparison">

@@ -51,8 +51,17 @@ class SimulationService {
         }
     }
 
-    async getAllSimulations(): Promise<SavedSimulation[]> {
-        const response = await fetch(this.apiBaseUrl);
+    async getAllSimulations(page: number = 1, limit: number = 20): Promise<{
+        simulations: SavedSimulation[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+            hasMore: boolean;
+        };
+    }> {
+        const response = await fetch(`${this.apiBaseUrl}?page=${page}&limit=${limit}`);
         if (!response.ok) {
             throw new Error(`Failed to fetch simulations: ${response.statusText}`);
         }
@@ -121,7 +130,7 @@ class SimulationService {
 
     async getNextSimulationNumber(): Promise<number> {
         try {
-            const simulations = await this.getAllSimulations();
+            const { simulations } = await this.getAllSimulations(1, 1000); // Get enough to find max
             if (simulations.length === 0) return 1;
 
             const maxNumber = Math.max(...simulations.map(s => s.simulationNumber));
