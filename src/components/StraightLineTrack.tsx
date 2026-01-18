@@ -1,13 +1,14 @@
 
 import React from "react";
-import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
-import CarComponent from "./CarComponent";
+import { Car, calculateDistanceToCarAhead, Pack } from "@/utils/trafficSimulation";
+import CanvasCarRenderer from "./CanvasCarRenderer";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface StraightLineTrackProps {
   cars: Car[];
+  packs?: Pack[];
   laneLength: number;
   numLanes: number;
   stoppedCars?: Set<number>;
@@ -15,10 +16,12 @@ interface StraightLineTrackProps {
   onResumeCar?: (carId: number) => void;
   carSize?: number;
   unitSystem?: UnitSystem;
+  currentTime?: number;
 }
 
 const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   cars,
+  packs = [],
   laneLength,
   numLanes,
   stoppedCars = new Set(),
@@ -26,14 +29,27 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   onResumeCar,
   carSize = 24,
   unitSystem = 'metric',
+  currentTime = 0,
 }) => {
   const conversions = getUnitConversions(unitSystem);
   const laneHeight = 80; // Height of each lane in pixels
   const trackPadding = 16; // Padding around the track
 
-  // Calculate track dimensions
-  const maxTrackWidth = Math.min(1200, window.innerWidth * 0.9);
-  const trackContentWidth = maxTrackWidth; // Full width now that controls are below
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [trackContentWidth, setTrackContentWidth] = React.useState(800);
+
+  React.useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setTrackContentWidth(containerRef.current.offsetWidth);
+      }
+    };
+
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
+
   const totalTrackHeight = laneHeight * numLanes;
   const laneCenterOffset = laneHeight * 0.5;
   const carHeight = 20;
@@ -98,8 +114,8 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   };
 
   return (
-    <div className="w-full max-w-full p-4">
-      <div className="mx-auto flex flex-col gap-6 max-w-7xl">
+    <div className="w-full max-w-full pb-4" ref={containerRef}>
+      <div className="mx-auto flex flex-col gap-6 w-full">
 
         {/* Track visualization */}
         <div className="w-full">
@@ -159,30 +175,24 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
 
               {/* Cars */}
               <div className="absolute inset-0 overflow-visible">
-                {cars.length > 200 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center text-sm text-muted-foreground p-2 bg-white/80 rounded">
-                      Too many cars to display ({cars.length} cars)
-                    </div>
-                  </div>
-                ) : (
-                  cars.map((car, index) => (
-                    <CarComponent
-                      key={car.id}
-                      car={car}
-                      laneLength={laneLength}
-                      trackLength={trackContentWidth}
-                      trackType="straight"
-                      distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
-                      laneOffset={car.lane * laneHeight + laneCenterOffset + trackPadding}
-                      isStopped={stoppedCars.has(car.id)}
-                      onStopCar={onStopCar}
-                      onResumeCar={onResumeCar}
-                      carSize={carSize}
-                      unitSystem={unitSystem}
-                    />
-                  ))
-                )}
+                <CanvasCarRenderer
+                  cars={cars}
+                  packs={packs}
+                  laneLength={laneLength}
+                  width={trackContentWidth}
+                  height={numLanes * laneHeight + trackPadding * 2}
+                  trackType="straight"
+                  trackLength={trackContentWidth}
+                  laneHeight={laneHeight}
+                  laneCenterOffset={laneCenterOffset}
+                  trackPadding={trackPadding}
+                  carSize={carSize}
+                  unitSystem={unitSystem}
+                  stoppedCars={stoppedCars}
+                  onStopCar={onStopCar}
+                  onResumeCar={onResumeCar}
+                  currentTime={currentTime}
+                />
               </div>
 
               {/* Grid lines for better spatial reference */}

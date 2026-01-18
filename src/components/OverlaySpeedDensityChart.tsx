@@ -86,7 +86,7 @@ const OverlaySpeedDensityChart: React.FC<OverlaySpeedDensityChartProps> = ({
       else if (simulation.chartData?.speedByLaneHistory) {
         points = simulation.chartData.speedByLaneHistory.map((point: any) => ({
           density: point.density || 0,
-          speed: point.averageSpeed || 0,
+          speed: point.speed || point.averageSpeed || 0,
           time: point.time || 0
         }));
       }

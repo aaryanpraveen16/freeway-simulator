@@ -12,6 +12,8 @@ export interface SavedSimulation {
         densityOfCarPacksHistory: any[];
         percentageByLaneHistory: any[];
         densityThroughputHistory: any[];
+        laneThroughputHistory?: any[];
+        laneUtilizationHistory?: any[];
         packHistory: any[];
         packLengthHistory: any[];
         packsPerLaneHistory?: any[];
@@ -49,8 +51,17 @@ class SimulationService {
         }
     }
 
-    async getAllSimulations(): Promise<SavedSimulation[]> {
-        const response = await fetch(this.apiBaseUrl);
+    async getAllSimulations(page: number = 1, limit: number = 20): Promise<{
+        simulations: SavedSimulation[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+            hasMore: boolean;
+        };
+    }> {
+        const response = await fetch(`${this.apiBaseUrl}?page=${page}&limit=${limit}`);
         if (!response.ok) {
             throw new Error(`Failed to fetch simulations: ${response.statusText}`);
         }
@@ -92,9 +103,34 @@ class SimulationService {
         }
     }
 
+    async renameFolder(oldName: string, newName: string): Promise<void> {
+        const response = await fetch(`${this.apiBaseUrl}/folders`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ oldName, newName }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to rename folder: ${response.statusText}`);
+        }
+    }
+
+    async deleteFolder(folderName: string): Promise<void> {
+        const encodedFolderName = encodeURIComponent(folderName);
+        const response = await fetch(`${this.apiBaseUrl}/folders/${encodedFolderName}`, {
+            method: 'DELETE',
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to delete folder: ${response.statusText}`);
+        }
+    }
+
     async getNextSimulationNumber(): Promise<number> {
         try {
-            const simulations = await this.getAllSimulations();
+            const { simulations } = await this.getAllSimulations(1, 1000); // Get enough to find max
             if (simulations.length === 0) return 1;
 
             const maxNumber = Math.max(...simulations.map(s => s.simulationNumber));

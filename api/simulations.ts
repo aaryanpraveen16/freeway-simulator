@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Add CORS headers
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
     // Handle OPTIONS preflight request
@@ -46,8 +46,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
-            const simulations = await collection.find({}).sort({ timestamp: -1 }).toArray();
-            res.status(200).json(simulations);
+            // Parse pagination parameters
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 20;
+            const skip = (page - 1) * limit;
+
+            // Get total count for pagination metadata
+            const total = await collection.countDocuments();
+
+            // Fetch paginated simulations with index-optimized sort
+            const simulations = await collection
+                .find({})
+                .sort({ timestamp: -1 })
+                .skip(skip)
+                .limit(limit)
+                .toArray();
+
+            // Return with pagination metadata
+            res.status(200).json({
+                simulations,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit),
+                    hasMore: skip + simulations.length < total
+                }
+            });
         } catch (error) {
             console.error('GET error:', error);
             res.status(500).json({ error: 'Failed to fetch simulations' });
@@ -68,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             res.status(500).json({ error: 'Failed to save simulation' });
         }
     } else {
-        res.setHeader('Allow', ['GET', 'POST', 'OPTIONS']);
+        res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 }

@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import { Car, calculateDistanceToCarAhead } from "@/utils/trafficSimulation";
-import CarComponent from "./CarComponent";
+import { Car, calculateDistanceToCarAhead, Pack } from "@/utils/trafficSimulation";
+import CanvasCarRenderer from "./CanvasCarRenderer";
 import StraightLineTrack from "./StraightLineTrack";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnitSystem } from "@/utils/unitConversion";
+import Stats from "stats.js";
+import { useEffect, useRef } from "react";
 
 interface TrafficTrackProps {
   cars: Car[];
+  packs?: Pack[];
   laneLength: number;
   numLanes: number;
   stoppedCars?: Set<number>;
@@ -14,10 +17,12 @@ interface TrafficTrackProps {
   onResumeCar?: (carId: number) => void;
   carSize?: number;
   unitSystem?: UnitSystem;
+  currentTime?: number;
 }
 
 const TrafficTrack: React.FC<TrafficTrackProps> = ({
   cars,
+  packs = [],
   laneLength,
   numLanes,
   stoppedCars = new Set(),
@@ -25,23 +30,53 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
   onResumeCar,
   carSize = 24,
   unitSystem = 'metric',
+  currentTime = 0,
 }) => {
   const [activeView, setActiveView] = useState<"circular" | "straight">("straight");
   const trackRadius = 180; // radius in pixels
   const trackWidth = 30; // width of each lane in pixels
   const trackLength = 800; // length of the track in pixels
-  
+
   // For circular view, we only show one lane
   const totalTrackSize = trackRadius * 2 + trackWidth;
-  
+
   // Set a very high z-index for the tooltips to ensure they appear above everything
   const tooltipZIndex = 2147483647; // Maximum 32-bit integer
-  
+  const monitorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!monitorRef.current) return;
+
+    const stats = new Stats();
+    stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+    stats.dom.style.position = 'absolute';
+    stats.dom.style.left = '10px';
+    stats.dom.style.top = '10px';
+    stats.dom.style.zIndex = '100';
+    monitorRef.current.appendChild(stats.dom);
+
+    const animate = () => {
+      stats.begin();
+      // monitored code goes here
+      stats.end();
+      requestAnimationFrame(animate);
+    };
+
+    const animationId = requestAnimationFrame(animate);
+
+    return () => {
+      if (monitorRef.current && monitorRef.current.contains(stats.dom)) {
+        monitorRef.current.removeChild(stats.dom);
+      }
+      cancelAnimationFrame(animationId);
+    };
+  }, []);
+
   return (
-    <div className="space-y-4 relative">
+    <div className="space-y-4 relative" ref={monitorRef}>
       <div className="relative" style={{ zIndex: 1 }}>
-        <Tabs 
-          value={activeView} 
+        <Tabs
+          value={activeView}
           onValueChange={(value) => setActiveView(value as "circular" | "straight")}
           style={{ position: 'relative', zIndex: 1 }}
         >
@@ -49,22 +84,22 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
             <TabsTrigger value="circular">Circular Track</TabsTrigger>
             <TabsTrigger value="straight">Straight Track</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="circular">
             <div className="relative mx-auto mt-[50px]" style={{ width: totalTrackSize, height: totalTrackSize }}>
               {/* Single lane for circular view */}
-              <div 
-                className="absolute" 
-                style={{ 
-                  width: trackRadius * 2, 
-                  height: trackRadius * 2, 
-                  left: "50%", 
-                  top: "50%", 
-                  transform: "translate(-50%, -50%)" 
+              <div
+                className="absolute"
+                style={{
+                  width: trackRadius * 2,
+                  height: trackRadius * 2,
+                  left: "50%",
+                  top: "50%",
+                  transform: "translate(-50%, -50%)"
                 }}
               >
                 {/* Lane background */}
-                <div 
+                <div
                   className="absolute border-8 border-gray-300 bg-gray-100 rounded-full"
                   style={{
                     width: trackRadius * 2,
@@ -73,9 +108,9 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
                     top: "0",
                   }}
                 />
-                
+
                 {/* Lane markings */}
-                <div 
+                <div
                   className="absolute border-dashed border-2 border-gray-400 rounded-full"
                   style={{
                     width: trackRadius * 2,
@@ -85,34 +120,26 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
                   }}
                 />
               </div>
-              
+
               {/* Cars container with high z-index to ensure tooltips appear above all */}
               <div className="relative" style={{ zIndex: 2 }}>
-                {cars.length > 200 ? (
-                  <div className="text-center text-sm text-muted-foreground p-2">
-                    Too many cars to display ({cars.length} cars)
-                  </div>
-                ) : (
-                  <div className="relative" style={{ zIndex: 2 }}>
-                    {cars.map((car, index) => (
-                      <CarComponent 
-                        key={car.id} 
-                        car={car} 
-                        laneLength={laneLength} 
-                        trackRadius={trackRadius}
-                        trackType="circular"
-                        distanceToCarAhead={calculateDistanceToCarAhead(index, cars, laneLength)}
-                        isStopped={stoppedCars.has(car.id)}
-                        onStopCar={onStopCar}
-                        onResumeCar={onResumeCar}
-                        carSize={carSize}
-                        unitSystem={unitSystem}
-                      />
-                    ))}
-                  </div>
-                )}
+                <CanvasCarRenderer
+                  cars={cars}
+                  packs={packs}
+                  laneLength={laneLength}
+                  width={totalTrackSize}
+                  height={totalTrackSize}
+                  trackType="circular"
+                  trackRadius={trackRadius}
+                  carSize={carSize}
+                  unitSystem={unitSystem}
+                  stoppedCars={stoppedCars}
+                  onStopCar={onStopCar}
+                  onResumeCar={onResumeCar}
+                  currentTime={currentTime}
+                />
               </div>
-              
+
               {/* Center info */}
               <div
                 className="absolute bg-white rounded-full shadow-sm flex items-center justify-center"
@@ -130,17 +157,19 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
               </div>
             </div>
           </TabsContent>
-          
+
           <TabsContent value="straight" className="mt-[50px]">
-            <StraightLineTrack 
-              cars={cars} 
-              laneLength={laneLength} 
+            <StraightLineTrack
+              cars={cars}
+              packs={packs}
+              laneLength={laneLength}
               numLanes={numLanes}
               stoppedCars={stoppedCars}
               onStopCar={onStopCar}
               onResumeCar={onResumeCar}
               carSize={carSize}
               unitSystem={unitSystem}
+              currentTime={currentTime}
             />
           </TabsContent>
         </Tabs>

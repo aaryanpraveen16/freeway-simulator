@@ -165,7 +165,7 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
                   offset: -40,
                   style: { fontWeight: 500 }
                 }}
-                tickFormatter={(value) => value.toFixed(0)}
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(0) : value}
               />
               <YAxis
                 name="Throughput"
@@ -176,7 +176,7 @@ const LaneThroughputChart: React.FC<LaneThroughputChartProps> = ({
                   style: { fontWeight: 500 }
                 }}
                 domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
-                tickFormatter={(value) => value.toFixed(0)}
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(0) : value}
               />
               <Tooltip
                 formatter={(value, name) => {

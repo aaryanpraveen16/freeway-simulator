@@ -44,17 +44,18 @@ const PackDensityByTypeChart: React.FC<PackDensityByTypeChartProps> = ({
         const points: any[] = [];
 
         packHistory.forEach(record => {
-            const density = densityMap.get(record.time);
-            if (density !== undefined && record.packCount !== undefined) {
+            const densityValue = densityMap.get(record.time);
+            if (densityValue !== undefined && record.packCount !== undefined) {
                 points.push({
                     time: record.time,
+                    density: densityValue,
                     packsPerDist: parseFloat((record.packCount / lengthVal).toFixed(2))
                 });
             }
         });
 
         return points;
-    }, [packHistory, densityMap, freewayLength, unitSystem, conversions]);
+    }, [packHistory, densityMap, freewayLength, unitSystem]);
 
     // Calculate stabilized values for each pack type
     const stabilizedValues = useMemo(() => {
@@ -120,7 +121,7 @@ const PackDensityByTypeChart: React.FC<PackDensityByTypeChartProps> = ({
                     <div>
                         <CardTitle className="text-lg">Total Car Packs per Distance vs Total Traffic Density</CardTitle>
                         <p className="text-sm text-muted-foreground">
-                            Analyze total traffic clustering (packs per distance) over time
+                            Analyze traffic clustering density as a function of overall freeway density
                         </p>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleExportImage} className="flex items-center gap-1">
@@ -142,10 +143,10 @@ const PackDensityByTypeChart: React.FC<PackDensityByTypeChartProps> = ({
                         >
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis
-                                dataKey="time"
-                                name="Time"
-                                label={{ value: "Time (seconds)", position: "insideBottom", offset: -40, style: { fontWeight: 500 } }}
-                                tickFormatter={(value) => value.toFixed(0)}
+                                dataKey="density"
+                                name="Density"
+                                label={{ value: `Traffic Density (${conversions.density.unit})`, position: "insideBottom", offset: -40, style: { fontWeight: 500 } }}
+                                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(2) : value}
                             />
                             <YAxis
                                 name="Packs per Distance"
@@ -153,11 +154,21 @@ const PackDensityByTypeChart: React.FC<PackDensityByTypeChartProps> = ({
                                 domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
                             />
                             <Tooltip
-                                formatter={(value: number) => [
-                                    `${value.toFixed(2)} / ${conversions.distance.unit}`,
-                                    "Packs per Distance"
-                                ]}
-                                labelFormatter={(label) => `Time: ${Number(label).toFixed(2)} seconds`}
+                                formatter={(value: number, name: string) => {
+                                    if (name === 'packsPerDist') {
+                                        return [`${value.toFixed(2)} packs / ${conversions.distance.unit}`, "Pack Density"];
+                                    }
+                                    if (name === 'density') {
+                                        return [`${value.toFixed(2)} ${conversions.density.unit}`, "Traffic Density"];
+                                    }
+                                    return [value, name];
+                                }}
+                                labelFormatter={(label, payload) => {
+                                    if (payload && payload[0]) {
+                                        return `Time: ${payload[0].payload.time.toFixed(1)}s`;
+                                    }
+                                    return `Density: ${Number(label).toFixed(2)}`;
+                                }}
                                 contentStyle={{
                                     backgroundColor: 'white',
                                     border: '1px solid #e2e8f0',

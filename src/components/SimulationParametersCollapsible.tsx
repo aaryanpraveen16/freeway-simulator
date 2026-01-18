@@ -128,6 +128,12 @@ const SimulationParametersCollapsible: React.FC<SimulationParametersCollapsibleP
                     <p className="font-medium">{sim.params.driverReactionTime.toFixed(2)}s</p>
                   </div>
                 )}
+                {sim.params.laneChangeCooldown !== undefined && (
+                  <div>
+                    <span className="text-muted-foreground">Lane Cooldown:</span>
+                    <p className="font-medium">{sim.params.laneChangeCooldown.toFixed(1)}s</p>
+                  </div>
+                )}
                 {(sim.params as any).minFollowingDistance !== undefined && (
                   <div>
                     <span className="text-muted-foreground">Min Following Distance:</span>

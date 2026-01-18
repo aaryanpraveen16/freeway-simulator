@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { BarChart3, Calendar, CheckSquare, Clock, Copy, Edit2, Eye, FileDown, FileUp, Gauge, Info, Plus, Repeat, Square, Trash2, Users, Folder, FolderPlus, FolderInput, ChevronDown, ChevronRight } from "lucide-react";
+import { BarChart3, Calendar, CheckSquare, Clock, Copy, Edit2, Eye, FileDown, FileUp, Gauge, Info, Plus, Repeat, Square, Trash2, Users, Folder, FolderPlus, FolderInput, ChevronDown, ChevronRight, FolderEdit } from "lucide-react";
 import { exportSimulation, importSimulation, triggerFileInput } from "@/utils/simulationExport";
 import { simulationService, SavedSimulation } from "@/services/simulationService";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,8 @@ import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import ChartDashboard from "@/components/ChartDashboard";
 import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import MoveToFolderDialog from "@/components/MoveToFolderDialog";
+import RenameFolderDialog from "@/components/RenameFolderDialog";
+import DeleteFolderDialog from "@/components/DeleteFolderDialog";
 import OverlayThroughputDensityChart from "@/components/OverlayThroughputDensityChart";
 import OverlayLaneThroughputDensityChart from "@/components/OverlayLaneThroughputDensityChart";
 import OverlaySpeedDensityChart from "@/components/OverlaySpeedDensityChart";
@@ -36,6 +38,9 @@ const ComparisonSelectionList: React.FC<{
   updateSimulationDetails: (id: string, name: string, folder?: string) => void;
   deleteSimulation: (id: string) => void;
   openMoveDialogForSingle: (sim: SavedSimulation) => void;
+  existingFolders: string[];
+  onRenameFolder: (oldName: string, newName: string) => Promise<void>;
+  onDeleteFolder: (folderName: string) => Promise<void>;
 }> = ({
   savedSimulations,
   selectedForComparison,
@@ -43,9 +48,14 @@ const ComparisonSelectionList: React.FC<{
   calculateNumCars,
   updateSimulationDetails,
   deleteSimulation,
-  openMoveDialogForSingle
+  openMoveDialogForSingle,
+  existingFolders,
+  onRenameFolder,
+  onDeleteFolder
 }) => {
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+    const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+    const [deletingFolder, setDeletingFolder] = useState<string | null>(null);
 
     // Group simulations
     const groupedSimulations: { [key: string]: SavedSimulation[] } = {};
@@ -168,6 +178,33 @@ const ComparisonSelectionList: React.FC<{
                     <Badge variant="outline" className="ml-1 text-xs">{sims.length}</Badge>
                   </div>
                 </div>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenamingFolder(folder);
+                    }}
+                    title="Rename folder"
+                  >
+                    <FolderEdit size={14} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingFolder(folder);
+                    }}
+                    title="Delete folder"
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
               </div>
 
               {isExpanded && (
@@ -196,6 +233,34 @@ const ComparisonSelectionList: React.FC<{
             No simulations available to select.
           </div>
         )}
+
+        {/* Folder Management Dialogs */}
+        {renamingFolder && (
+          <RenameFolderDialog
+            isOpen={true}
+            onClose={() => setRenamingFolder(null)}
+            currentFolderName={renamingFolder}
+            existingFolders={existingFolders}
+            simulationCount={groupedSimulations[renamingFolder]?.length || 0}
+            onRename={async (newName) => {
+              await onRenameFolder(renamingFolder, newName);
+              setRenamingFolder(null);
+            }}
+          />
+        )}
+
+        {deletingFolder && (
+          <DeleteFolderDialog
+            isOpen={true}
+            onClose={() => setDeletingFolder(null)}
+            folderName={deletingFolder}
+            simulationCount={groupedSimulations[deletingFolder]?.length || 0}
+            onDelete={async () => {
+              await onDeleteFolder(deletingFolder);
+              setDeletingFolder(null);
+            }}
+          />
+        )}
       </div>
     );
   };
@@ -215,6 +280,9 @@ const IndividualSimulationList: React.FC<{
   openMoveDialogForSingle: (sim: SavedSimulation) => void;
   selectedIds: Set<string>;
   onSelectionChange: (id: string, checked: boolean) => void;
+  existingFolders: string[];
+  onRenameFolder: (oldName: string, newName: string) => Promise<void>;
+  onDeleteFolder: (folderName: string) => Promise<void>;
 }> = ({
   savedSimulations,
   unitConversions,
@@ -229,7 +297,10 @@ const IndividualSimulationList: React.FC<{
   unitSystem,
   openMoveDialogForSingle,
   selectedIds,
-  onSelectionChange
+  onSelectionChange,
+  existingFolders,
+  onRenameFolder,
+  onDeleteFolder
 }) => {
     // Default to all folders expanded? Or perhaps keep track of expanded set.
     // Let's default to expanded for better initial visibility, or track collapsed ones.
@@ -239,6 +310,8 @@ const IndividualSimulationList: React.FC<{
     // "AT first only the folders and uncategorized simulations..." -> Start CLOSED.
 
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+    const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+    const [deletingFolder, setDeletingFolder] = useState<string | null>(null);
 
     const groupedSimulations: { [key: string]: SavedSimulation[] } = {};
     const uncategorized: SavedSimulation[] = [];
@@ -286,6 +359,33 @@ const IndividualSimulationList: React.FC<{
                 <Folder className="h-5 w-5 text-blue-500" />
                 <h2 className="text-xl font-semibold text-gray-800 select-none">{folder}</h2>
                 <Badge variant="secondary" className="ml-2">{sims.length}</Badge>
+
+                <div className="ml-auto flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenamingFolder(folder);
+                    }}
+                    title="Rename folder"
+                  >
+                    <FolderEdit size={16} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingFolder(folder);
+                    }}
+                    title="Delete folder"
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
               </div>
 
               {isExpanded && (
@@ -353,6 +453,34 @@ const IndividualSimulationList: React.FC<{
             <p className="text-gray-500 mb-4">You haven't saved any simulations yet.</p>
           </div>
         )}
+
+        {/* Folder Management Dialogs */}
+        {renamingFolder && (
+          <RenameFolderDialog
+            isOpen={true}
+            onClose={() => setRenamingFolder(null)}
+            currentFolderName={renamingFolder}
+            existingFolders={existingFolders}
+            simulationCount={groupedSimulations[renamingFolder]?.length || 0}
+            onRename={async (newName) => {
+              await onRenameFolder(renamingFolder, newName);
+              setRenamingFolder(null);
+            }}
+          />
+        )}
+
+        {deletingFolder && (
+          <DeleteFolderDialog
+            isOpen={true}
+            onClose={() => setDeletingFolder(null)}
+            folderName={deletingFolder}
+            simulationCount={groupedSimulations[deletingFolder]?.length || 0}
+            onDelete={async () => {
+              await onDeleteFolder(deletingFolder);
+              setDeletingFolder(null);
+            }}
+          />
+        )}
       </div>
     );
   };
@@ -360,9 +488,15 @@ const IndividualSimulationList: React.FC<{
 const SavedSimulations: React.FC = () => {
   const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selectedSimulation, setSelectedSimulation] = useState<SavedSimulation | null>(null);
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set());
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalSimulations, setTotalSimulations] = useState(0);
 
   // Folder management state
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
@@ -375,6 +509,12 @@ const SavedSimulations: React.FC = () => {
   useEffect(() => {
     loadSimulations();
   }, []);
+
+  useEffect(() => {
+    if (currentPage > 1) {
+      loadSimulations();
+    }
+  }, [currentPage]);
 
   const handleExportSimulation = (simulation: SavedSimulation) => {
     try {
@@ -409,7 +549,7 @@ const SavedSimulations: React.FC = () => {
 
       // Save the imported simulation
       await simulationService.saveSimulation(simulation);
-      await loadSimulations();
+      await loadSimulations(true); // Reset to page 1
 
       toast({
         title: "Success",
@@ -447,11 +587,29 @@ const SavedSimulations: React.FC = () => {
     }
   };
 
-  const loadSimulations = async () => {
+  const loadSimulations = async (reset: boolean = false) => {
     try {
-      const simulations = await simulationService.getAllSimulations();
+      const pageToLoad = reset ? 1 : currentPage;
+      if (reset) {
+        setLoading(true);
+        setSavedSimulations([]);
+        setCurrentPage(1);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const { simulations, pagination } = await simulationService.getAllSimulations(pageToLoad, 20);
       console.log('Loaded simulations:', simulations);
-      setSavedSimulations(simulations.sort((a, b) => b.timestamp - a.timestamp));
+
+      if (reset) {
+        setSavedSimulations(simulations.sort((a, b) => b.timestamp - a.timestamp));
+      } else {
+        setSavedSimulations(prev => [...prev, ...simulations].sort((a, b) => b.timestamp - a.timestamp));
+      }
+
+      setHasMore(pagination.hasMore);
+      setTotalSimulations(pagination.total);
+      setCurrentPage(pageToLoad);
     } catch (error) {
       console.error('Error loading simulations:', error);
       toast({
@@ -461,13 +619,21 @@ const SavedSimulations: React.FC = () => {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      setCurrentPage(prev => prev + 1);
+      loadSimulations();
     }
   };
 
   const deleteSimulation = async (id: string) => {
     try {
       await simulationService.deleteSimulation(id);
-      setSavedSimulations(prev => prev.filter(sim => sim.id !== id));
+      await loadSimulations(true); // Reset to page 1
       toast({
         title: "Success",
         description: "Simulation deleted successfully",
@@ -554,6 +720,44 @@ const SavedSimulations: React.FC = () => {
   const openMoveDialogForSingle = (simulation: SavedSimulation) => {
     setSimulationsToMove(new Set([simulation.id]));
     setIsMoveDialogOpen(true);
+  };
+
+  const handleRenameFolder = async (oldName: string, newName: string) => {
+    try {
+      await simulationService.renameFolder(oldName, newName);
+      await loadSimulations(true); // Reset to page 1
+      toast({
+        title: "Success",
+        description: `Folder renamed from "${oldName}" to "${newName}"`,
+      });
+    } catch (error) {
+      console.error('Error renaming folder:', error);
+      toast({
+        title: "Error",
+        description: "Failed to rename folder",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const handleDeleteFolder = async (folderName: string) => {
+    try {
+      await simulationService.deleteFolder(folderName);
+      await loadSimulations(true); // Reset to page 1
+      toast({
+        title: "Success",
+        description: `Folder "${folderName}" deleted. Simulations moved to uncategorized.`,
+      });
+    } catch (error) {
+      console.error('Error deleting folder:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete folder",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
 
   // Get unique existing folders
@@ -707,7 +911,32 @@ const SavedSimulations: React.FC = () => {
               openMoveDialogForSingle={openMoveDialogForSingle}
               selectedIds={selectedForComparison}
               onSelectionChange={handleComparisonSelection}
+              existingFolders={existingFolders}
+              onRenameFolder={handleRenameFolder}
+              onDeleteFolder={handleDeleteFolder}
             />
+
+            {/* Load More Button */}
+            {hasMore && !loading && (
+              <div className="mt-8 flex justify-center">
+                <Button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  variant="outline"
+                  size="lg"
+                  className="min-w-[200px]"
+                >
+                  {loadingMore ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                      Loading...
+                    </>
+                  ) : (
+                    `Load More (${savedSimulations.length} of ${totalSimulations})`
+                  )}
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="comparison">
@@ -771,6 +1000,9 @@ const SavedSimulations: React.FC = () => {
                     updateSimulationDetails={updateSimulationDetails}
                     deleteSimulation={deleteSimulation}
                     openMoveDialogForSingle={openMoveDialogForSingle}
+                    existingFolders={existingFolders}
+                    onRenameFolder={handleRenameFolder}
+                    onDeleteFolder={handleDeleteFolder}
                   />
                 </CardContent>
               </Card>
