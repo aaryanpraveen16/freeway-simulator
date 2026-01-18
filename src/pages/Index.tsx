@@ -924,8 +924,8 @@ const Index = () => {
     animationFrameRef.current = requestAnimationFrame(animationLoop);
   }, []); // Empty dependency array - loop function never changes!
 
-  const executeSave = useCallback(async (name: string, folder?: string) => {
-    if (elapsedTime === 0 || cars.length === 0) {
+  const executeSave = useCallback(async (name: string, folder?: string, isBatch: boolean = false) => {
+    if ((elapsedTime === 0 || cars.length === 0) && isBatch === false) {
       if (showNotifications) {
         toast({
           title: "Nothing to Save",
@@ -936,6 +936,7 @@ const Index = () => {
       return;
     }
     try {
+            console.log('yes to Save simulation: Deepansh');
       const simulationNumber = await simulationService.getNextSimulationNumber();
       const speeds = cars.map(car => car.speed);
       const avgSpeed = speeds.length > 0 ? speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length : 0;
@@ -947,7 +948,7 @@ const Index = () => {
       const numLanes = params.numLanes || 3;
       const laneLength = params.freewayLength || 1; // km
       
-
+            console.log('Reached here simulation: Deepansh');
       if (!isBatch) {
         for (let lane = 0; lane < numLanes; lane++) {
         const laneCars = cars.filter(car => car.lane === lane);
@@ -1014,16 +1015,16 @@ const Index = () => {
           description: `"${name}" has been saved successfully${folder ? ` in folder "${folder}"` : ''}.`,
           duration: 3000,
         });
-      }
+      }}
       else {
-
+              console.log('Trying to Save Batch simulation: Deepansh');
         const perLaneThroughputsBatch = [];
         const stabilizedDensity = densityOfCarPacksHistoryRef.current.length > 0
           ? calculateStabilizedValue(extractDataValues(densityOfCarPacksHistoryRef.current, 'overallDensity')).value
           : 0;
 
         const stabilizedSpeed = speedDensityHistoryRef.current.length > 0
-          ? calculateStabilizedValue(extractDataValues(speedDensityHistoryRef.current, 'speed')).value
+          ? calculateStabilizedValue(extractDataValues(speedDensityHistory, 'speed')).value
           : 0;
 
         const stabilizedThroughput = densityThroughputHistoryRef.current.length > 0
@@ -1038,20 +1039,18 @@ const Index = () => {
             perLaneThroughputsBatch.push(0);
             continue;
           }
-
-          debugger;
           const avgSpeed = laneCars.reduce((sum, car) => sum + car.speed, 0) / carCount;
           const density = carCount / laneLength; // cars/km
           const throughput = avgSpeed * density; // cars/hour for this lane
           perLaneThroughputsBatch.push(parseFloat(throughput.toFixed(2)));
         }
-        console.log('perLaneThroughputsBatch:', perLaneThroughputsBatch);
+        //console.log('perLaneThroughputsBatch:', perLaneThroughputsBatch);
         const speeds = carsRef.current.map(car => car.speed);
         const avgSpeed = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
         const maxSpeed = Math.max(...speeds);
         const minSpeed = Math.min(...speeds);
         //console.clear();
-        console.log("?????\n", paramsRef.current)
+        //console.log("?????\n", paramsRef.current)
         const savedSimulation: SavedSimulation = {
           id: `simulation-${Date.now()}`,
           name: name,
@@ -1081,18 +1080,16 @@ const Index = () => {
             stabilizedThroughput: parseFloat(stabilizedThroughput.toFixed(1)),
           },
         };
-        await indexedDBService.saveSimulation(savedSimulation);
+        await simulationService.saveSimulation(savedSimulation);
+
       }
-
-      console.log('Trying to Saving simulation: Deepansh');
-
-
       toast({
         title: "Simulation Saved",
         description: `"${name}" has been saved successfully.`,
         duration: 3000,
       });
-    } catch (error) {
+    }
+  catch (error) {
       console.error('Error saving simulation:', error);
       if (showNotifications) {
         toast({
@@ -1101,8 +1098,7 @@ const Index = () => {
           variant: "destructive",
         });
       }
-    }
-  }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, laneChanges, toast, showNotifications]);
+    }}, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, laneChanges, toast, showNotifications]);
 
   const onSaveClick = useCallback(() => {
     setSaveDialogDefaultName(`Simulation ${new Date().toLocaleTimeString()}`);
@@ -1213,7 +1209,7 @@ const Index = () => {
 
         // Auto-save this simulation
         const name = simulation.name || `Batch Sim ${currentIndex + 1}`;
-        executeSave(name, "Batch Experiments");
+        executeSave(name, "Batch Experiments", true);
 
         if (showNotifications) {
           toast({
