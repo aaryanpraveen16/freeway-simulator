@@ -18,9 +18,10 @@ interface NavbarProps {
   onUnitSystemChange?: (system: UnitSystem) => void;
   showNotifications?: boolean;
   onNotificationsToggle?: (enabled: boolean) => void;
+  userId?: string | null;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'metric', onUnitSystemChange, showNotifications = true, onNotificationsToggle }) => {
+const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'metric', onUnitSystemChange, showNotifications = true, onNotificationsToggle, userId }) => {
   const [showCredits, setShowCredits] = useState(false);
   const location = useLocation();
 
@@ -45,8 +46,8 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
               onClick={() => onSaveSimulation("default", undefined)}
               disabled={!canSave}
             >
-              <Save size={16} />
-              Save Run
+              {userId ? <Save size={16} /> : <div className="relative"><Save size={16} className="opacity-50" /><div className="absolute -top-1 -right-1 bg-destructive rounded-full w-2 h-2" /></div>}
+              {userId ? "Save Simulation" : "Sign In to Save"}
             </Button>
           )}
 

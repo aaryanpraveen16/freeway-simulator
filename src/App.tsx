@@ -8,7 +8,7 @@ import Index from "./pages/Index";
 import SavedSimulations from "./pages/SavedSimulations";
 import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
-
+import { Analytics } from "@vercel/analytics/react"
 const queryClient = new QueryClient();
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -18,7 +18,9 @@ if (!PUBLISHABLE_KEY) {
 }
 
 const App = () => (
+
   <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+    <Analytics />
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />

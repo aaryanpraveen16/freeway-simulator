@@ -114,7 +114,7 @@ export const defaultParams: SimulationParams = {
   aMax: 1.5, // m/s² (maximum comfortable deceleration, reduced from 3 to 1.5 for smoother braking)
   k: 0.3, // unitless
   lengthCar: 4.5, // meters (typical car length)
-  tDist: 3, // seconds (time headway)
+  tDist: 1.5, // seconds (time headway)
   initialGap: 15, // meters (safe following distance at low speed)
   brakeTime: 5, // seconds
   brakeCarIndex: 0, // default to first car
@@ -134,8 +134,8 @@ export const defaultParams: SimulationParams = {
   uniformDriverBehavior: true, // default to uniform driver behavior for deterministic lane changes
   driverReactionTime: 2.0, // 2 seconds reaction time by default
   brakingReactionTime: 1.0, // 1 second braking reaction time by default (faster than acceleration)
-  mobilSafeDecel: -2.0, // m/s² (maximum deceleration forced on follower)
-  mobilSelfSafeDecel: -3.0, // m/s² (maximum deceleration car is willing to experience)
+  mobilSafeDecel: -4.0, // m/s² (maximum deceleration forced on follower)
+  mobilSelfSafeDecel: -4.0, // m/s² (maximum deceleration car is willing to experience)
   mobilPoliteness: 0.0, // purely selfish by default
   mobilSpeedGainThreshold: 1, // km/h (Lowered from 10 to 1 to allow acceleration-based overtakes)
   mobilStoppedIncentive: 3.0, // m/s² incentive boost
