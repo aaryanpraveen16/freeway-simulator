@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { simulationService } from "@/services/simulationService";
+import { useAuth } from "@clerk/clerk-react";
 
 interface SaveSimulationDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ export const SaveSimulationDialog: React.FC<SaveSimulationDialogProps> = ({
   const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [newFolderName, setNewFolderName] = useState<string>("");
   const [existingFolders, setExistingFolders] = useState<string[]>([]);
+  const { getToken } = useAuth();
 
   useEffect(() => {
     if (open) {
@@ -39,11 +41,46 @@ export const SaveSimulationDialog: React.FC<SaveSimulationDialogProps> = ({
 
   const loadFolders = async () => {
     try {
-      const simulations = await simulationService.getAllSimulations();
-      const folders = Array.from(new Set(simulations.map(s => s.folder).filter(f => f))) as string[];
-      setExistingFolders(folders.sort());
+      console.log("SaveSimulationDialog: Loading existing folders...");
+      const token = await getToken();
+      const response = await simulationService.getAllSimulations(1, 1000, token || undefined);
+
+      if (!response || !response.simulations) {
+        console.warn("SaveSimulationDialog: No simulations data in response:", response);
+        setExistingFolders([]);
+        return;
+      }
+
+      const { simulations } = response;
+      if (!Array.isArray(simulations)) {
+        console.error("SaveSimulationDialog: simulations is not an array:", simulations);
+        setExistingFolders([]);
+        return;
+      }
+
+      console.log(`SaveSimulationDialog: Found ${simulations.length} total simulations.`);
+
+      // Group simulations by folder and find the latest timestamp for each
+      const folderStats = simulations.reduce((acc, sim) => {
+        if (!sim.folder || !sim.folder.trim()) return acc;
+        const currentMax = acc[sim.folder] || 0;
+        acc[sim.folder] = Math.max(currentMax, sim.timestamp || 0);
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Sort folders by their latest timestamp (newest first)
+      const sortedFolders = Object.entries(folderStats)
+        .sort(([, a], [, b]) => b - a)
+        .map(([name]) => name);
+
+      console.log(`SaveSimulationDialog: Identified ${sortedFolders.length} unique folders:`, sortedFolders);
+
+      // Take top 5
+      const top5 = sortedFolders.slice(0, 5);
+      setExistingFolders(top5);
     } catch (error) {
-      console.error("Failed to load folders:", error);
+      console.error("SaveSimulationDialog: Failed to load folders:", error);
+      setExistingFolders([]);
     }
   };
 

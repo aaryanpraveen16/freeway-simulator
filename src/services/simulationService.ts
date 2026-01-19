@@ -32,26 +32,36 @@ export interface SavedSimulation {
         stabilizedThroughput?: number;
     };
     folder?: string;
+    createdBy?: string;
+    creatorName?: string;
 }
 
 class SimulationService {
     private apiBaseUrl = '/api/simulations';
 
-    async saveSimulation(simulation: SavedSimulation): Promise<void> {
+    private getHeaders(token?: string) {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
+    }
+
+    async saveSimulation(simulation: SavedSimulation, token?: string): Promise<void> {
         const response = await fetch(this.apiBaseUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(token),
             body: JSON.stringify(simulation),
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to save simulation: ${response.statusText}`);
+            throw new Error(`Failed to save simulation: ${response.status} ${response.statusText}`);
         }
     }
 
-    async getAllSimulations(page: number = 1, limit: number = 20): Promise<{
+    async getAllSimulations(page: number = 1, limit: number = 20, token?: string): Promise<{
         simulations: SavedSimulation[];
         pagination: {
             page: number;
@@ -61,76 +71,78 @@ class SimulationService {
             hasMore: boolean;
         };
     }> {
-        const response = await fetch(`${this.apiBaseUrl}?page=${page}&limit=${limit}`);
+        const response = await fetch(`${this.apiBaseUrl}?page=${page}&limit=${limit}`, {
+            headers: this.getHeaders(token)
+        });
         if (!response.ok) {
-            throw new Error(`Failed to fetch simulations: ${response.statusText}`);
+            throw new Error(`Failed to fetch simulations: ${response.status} ${response.statusText}`);
         }
         return response.json();
     }
 
-    async deleteSimulation(id: string): Promise<void> {
+    async deleteSimulation(id: string, token?: string): Promise<void> {
         const response = await fetch(`${this.apiBaseUrl}/${id}`, {
             method: 'DELETE',
+            headers: this.getHeaders(token)
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to delete simulation: ${response.statusText}`);
+            throw new Error(`Failed to delete simulation: ${response.status} ${response.statusText}`);
         }
     }
 
-    async getSimulation(id: string): Promise<SavedSimulation | undefined> {
-        const response = await fetch(`${this.apiBaseUrl}/${id}`);
+    async getSimulation(id: string, token?: string): Promise<SavedSimulation | undefined> {
+        const response = await fetch(`${this.apiBaseUrl}/${id}`, {
+            headers: this.getHeaders(token)
+        });
         if (response.status === 404) {
             return undefined;
         }
         if (!response.ok) {
-            throw new Error(`Failed to fetch simulation: ${response.statusText}`);
+            throw new Error(`Failed to fetch simulation: ${response.status} ${response.statusText}`);
         }
         return response.json();
     }
 
-    async updateSimulation(simulation: SavedSimulation): Promise<void> {
+    async updateSimulation(simulation: SavedSimulation, token?: string): Promise<void> {
         const response = await fetch(`${this.apiBaseUrl}/${simulation.id}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(token),
             body: JSON.stringify(simulation),
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to update simulation: ${response.statusText}`);
+            throw new Error(`Failed to update simulation: ${response.status} ${response.statusText}`);
         }
     }
 
-    async renameFolder(oldName: string, newName: string): Promise<void> {
+    async renameFolder(oldName: string, newName: string, token?: string): Promise<void> {
         const response = await fetch(`${this.apiBaseUrl}/folders`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(token),
             body: JSON.stringify({ oldName, newName }),
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to rename folder: ${response.statusText}`);
+            throw new Error(`Failed to rename folder: ${response.status} ${response.statusText}`);
         }
     }
 
-    async deleteFolder(folderName: string): Promise<void> {
+    async deleteFolder(folderName: string, token?: string): Promise<void> {
         const encodedFolderName = encodeURIComponent(folderName);
         const response = await fetch(`${this.apiBaseUrl}/folders/${encodedFolderName}`, {
             method: 'DELETE',
+            headers: this.getHeaders(token)
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to delete folder: ${response.statusText}`);
+            throw new Error(`Failed to delete folder: ${response.status} ${response.statusText}`);
         }
     }
 
-    async getNextSimulationNumber(): Promise<number> {
+    async getNextSimulationNumber(token?: string): Promise<number> {
         try {
-            const { simulations } = await this.getAllSimulations(1, 1000); // Get enough to find max
+            const { simulations } = await this.getAllSimulations(1, 1000, token); // Get enough to find max
             if (simulations.length === 0) return 1;
 
             const maxNumber = Math.max(...simulations.map(s => s.simulationNumber));

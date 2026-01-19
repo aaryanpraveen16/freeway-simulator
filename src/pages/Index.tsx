@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { UnitSystem } from "@/utils/unitConversion";
 import { SaveSimulationDialog } from "@/components/SaveSimulationDialog";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
+import { useAuth, useUser } from "@clerk/clerk-react";
 
 interface SimulationEvent {
   type: 'exit' | 'enter' | 'laneChange';
@@ -148,6 +149,8 @@ const Index = () => {
   const workerRef = useRef<Worker | null>(null);
   const lastPackRecordTimeRef = useRef<number>(0);
   const { toast } = useToast();
+  const { getToken, userId } = useAuth();
+  const { user } = useUser();
 
   const paramsRef = useRef<SimulationParams>(params);
   const trafficRuleRef = useRef<'american' | 'european'>(trafficRule);
@@ -596,8 +599,8 @@ const Index = () => {
   const executeSave = useCallback(async (name: string, folder?: string) => {
     if (elapsedTime === 0 || cars.length === 0) return;
     try {
-            console.log('yes to Save simulation: Deepansh');
-      const simulationNumber = await simulationService.getNextSimulationNumber();
+      const token = await getToken();
+      const simulationNumber = await simulationService.getNextSimulationNumber(token || undefined);
       const speeds = cars.map(car => car.speed);
       const avgSpeed = speeds.length > 0 ? speeds.reduce((sum, s) => sum + s, 0) / speeds.length : 0;
       const laneStats = [];
@@ -644,16 +647,28 @@ const Index = () => {
           stabilizedDensity,
           stabilizedAverageSpeed,
           stabilizedThroughput
-        }
+        },
+        createdBy: userId || undefined,
+        creatorName: user?.fullName || undefined
       };
-      const result = await simulationService.saveSimulation(savedDoc);
+      const result = await simulationService.saveSimulation(savedDoc, token || undefined);
       if (showNotifications) toast({ title: "Simulation Saved", description: `"${name}" saved successfully.` });
       return result;
     } catch (e) {
-      console.error(e);
-      toast({ title: "Save Failed", description: "Could not save simulation results.", variant: "destructive" });
+      console.error('Save error:', e);
+      const errorMessage = e instanceof Error ? e.message : '';
+      if (errorMessage.includes('401')) {
+        toast({
+          title: "SignIn Required",
+          description: "Please sign in using the button in the top right to save simulations.",
+          variant: "destructive",
+        });
+      } else {
+        if (showNotifications) toast({ title: "Save Failed", description: "Failed to save simulation to server.", variant: "destructive" });
+      }
+      return null;
     }
-  }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, packHistory, packLengthHistory, laneChanges, toast, showNotifications]);
+  }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, laneThroughputHistory, laneUtilizationHistory, packHistory, packLengthHistory, packsPerLaneHistory, laneChanges, toast, showNotifications, getToken, userId, user?.fullName]);
   useEffect(() => { executeSaveRef.current = executeSave; }, [executeSave]);
 
   const onSaveClick = () => { setSaveDialogDefaultName(`Simulation ${new Date().toLocaleTimeString()}`); setShowSaveDialog(true); };
