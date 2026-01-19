@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb';
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { verifySession } from '../lib/clerk.js';
 
 // MongoDB connection setup
 if (!process.env.MONGODB_URI) {
@@ -32,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
     // Handle OPTIONS preflight request
     if (req.method === 'OPTIONS') {
@@ -40,11 +41,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
     }
 
+    // Verify session
+    const session = await verifySession(req);
+    if (!session) {
+        res.status(401).json({ error: 'Unauthorized: Please log in' });
+        return;
+    }
+
     const mongoClient = await clientPromise;
     const db = mongoClient.db('traffic-simulator');
     const collection = db.collection('simulations');
 
-    // Extract folder name from URL path
+    // Extract folder name from URL path (for DELETE)
     const pathParts = (req.url || '').split('/');
     const folderName = pathParts[pathParts.length - 1];
 
@@ -58,13 +66,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return;
             }
 
-            // Update all simulations with the old folder name to the new folder name
+            // Only update simulations owned by the user (or all if admin)
+            const query: any = { folder: oldName };
+            if (!session.isAdmin) {
+                query.createdBy = session.userId;
+            }
+
             const result = await collection.updateMany(
-                { folder: oldName },
+                query,
                 { $set: { folder: newName } }
             );
-
-            console.log(`Renamed folder "${oldName}" to "${newName}". Updated ${result.modifiedCount} simulations.`);
 
             res.status(200).json({
                 message: 'Folder renamed successfully',
@@ -82,16 +93,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return;
             }
 
-            // Decode the folder name from URL
             const decodedFolderName = decodeURIComponent(folderName);
 
-            // Update all simulations in this folder to have no folder (uncategorized)
+            // Only update simulations owned by the user (or all if admin)
+            const query: any = { folder: decodedFolderName };
+            if (!session.isAdmin) {
+                query.createdBy = session.userId;
+            }
+
             const result = await collection.updateMany(
-                { folder: decodedFolderName },
+                query,
                 { $unset: { folder: "" } }
             );
-
-            console.log(`Deleted folder "${decodedFolderName}". Moved ${result.modifiedCount} simulations to uncategorized.`);
 
             res.status(200).json({
                 message: 'Folder deleted successfully',

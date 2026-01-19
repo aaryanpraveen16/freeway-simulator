@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth, useUser, SignInButton } from "@clerk/clerk-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -283,6 +284,7 @@ const IndividualSimulationList: React.FC<{
   existingFolders: string[];
   onRenameFolder: (oldName: string, newName: string) => Promise<void>;
   onDeleteFolder: (folderName: string) => Promise<void>;
+  viewMode: 'folders' | 'individual';
 }> = ({
   savedSimulations,
   unitConversions,
@@ -300,7 +302,8 @@ const IndividualSimulationList: React.FC<{
   onSelectionChange,
   existingFolders,
   onRenameFolder,
-  onDeleteFolder
+  onDeleteFolder,
+  viewMode
 }) => {
     // Default to all folders expanded? Or perhaps keep track of expanded set.
     // Let's default to expanded for better initial visibility, or track collapsed ones.
@@ -343,54 +346,114 @@ const IndividualSimulationList: React.FC<{
 
     return (
       <div className="space-y-4">
-        {folders.map(folder => {
-          const sims = groupedSimulations[folder];
-          const isExpanded = expandedFolders.has(folder);
+        {viewMode === 'individual' ? (
+          // Individual view - show all simulations in a flat grid
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {savedSimulations.map(simulation => (
+              <SimulationCard
+                key={simulation.id}
+                simulation={simulation}
+                unitConversions={unitConversions}
+                calculateNumCars={calculateNumCars}
+                formatDate={formatDate}
+                formatDuration={formatDuration}
+                updateSimulationDetails={updateSimulationDetails}
+                handleExportSimulation={handleExportSimulation}
+                setSelectedSimulation={setSelectedSimulation}
+                copySimulationParams={copySimulationParams}
+                deleteSimulation={deleteSimulation}
+                unitSystem={unitSystem}
+                onMoveToFolder={openMoveDialogForSingle}
+                isSelected={selectedIds.has(simulation.id)}
+                onSelectionChange={onSelectionChange}
+              />
+            ))}
+          </div>
+        ) : (
+          // Folder view - show simulations organized by folders
+          <>
+            {folders.map(folder => {
+              const sims = groupedSimulations[folder];
+              const isExpanded = expandedFolders.has(folder);
 
-          return (
-            <div key={folder} className="border rounded-lg bg-card overflow-hidden">
-              <div
-                className="flex items-center gap-2 p-4 bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => toggleFolder(folder)}
-              >
-                <button className="p-1 hover:bg-muted rounded text-gray-500">
-                  {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                </button>
-                <Folder className="h-5 w-5 text-blue-500" />
-                <h2 className="text-xl font-semibold text-gray-800 select-none">{folder}</h2>
-                <Badge variant="secondary" className="ml-2">{sims.length}</Badge>
+              return (
+                <div key={folder} className="border rounded-lg bg-card overflow-hidden">
+                  <div
+                    className="flex items-center gap-2 p-4 bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => toggleFolder(folder)}
+                  >
+                    <button className="p-1 hover:bg-muted rounded text-gray-500">
+                      {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                    </button>
+                    <Folder className="h-5 w-5 text-blue-500" />
+                    <h2 className="text-xl font-semibold text-gray-800 select-none">{folder}</h2>
+                    <Badge variant="secondary" className="ml-2">{sims.length}</Badge>
 
-                <div className="ml-auto flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setRenamingFolder(folder);
-                    }}
-                    title="Rename folder"
-                  >
-                    <FolderEdit size={16} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeletingFolder(folder);
-                    }}
-                    title="Delete folder"
-                  >
-                    <Trash2 size={16} />
-                  </Button>
+                    <div className="ml-auto flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenamingFolder(folder);
+                        }}
+                        title="Rename folder"
+                      >
+                        <FolderEdit size={16} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeletingFolder(folder);
+                        }}
+                        title="Delete folder"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 border-t">
+                      {sims.map(simulation => (
+                        <SimulationCard
+                          key={simulation.id}
+                          simulation={simulation}
+                          unitConversions={unitConversions}
+                          calculateNumCars={calculateNumCars}
+                          formatDate={formatDate}
+                          formatDuration={formatDuration}
+                          updateSimulationDetails={updateSimulationDetails}
+                          handleExportSimulation={handleExportSimulation}
+                          setSelectedSimulation={setSelectedSimulation}
+                          copySimulationParams={copySimulationParams}
+                          deleteSimulation={deleteSimulation}
+                          unitSystem={unitSystem}
+                          onMoveToFolder={openMoveDialogForSingle}
+                          isSelected={selectedIds.has(simulation.id)}
+                          onSelectionChange={onSelectionChange}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
+              );
+            })}
 
-              {isExpanded && (
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 border-t">
-                  {sims.map(simulation => (
+            {uncategorized.length > 0 && (
+              <div className="space-y-4">
+                {folders.length > 0 && (
+                  <div className="flex items-center gap-2 pb-2 px-1 border-b mt-6">
+                    <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Uncategorized Simulations</span>
+                    <Badge variant="secondary" className="ml-2 text-muted-foreground">{uncategorized.length}</Badge>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {uncategorized.map(simulation => (
                     <SimulationCard
                       key={simulation.id}
                       simulation={simulation}
@@ -410,41 +473,9 @@ const IndividualSimulationList: React.FC<{
                     />
                   ))}
                 </div>
-              )}
-            </div>
-          );
-        })}
-
-        {uncategorized.length > 0 && (
-          <div className="space-y-4">
-            {folders.length > 0 && (
-              <div className="flex items-center gap-2 pb-2 px-1 border-b mt-6">
-                <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Uncategorized Simulations</span>
-                <Badge variant="secondary" className="ml-2 text-muted-foreground">{uncategorized.length}</Badge>
               </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {uncategorized.map(simulation => (
-                <SimulationCard
-                  key={simulation.id}
-                  simulation={simulation}
-                  unitConversions={unitConversions}
-                  calculateNumCars={calculateNumCars}
-                  formatDate={formatDate}
-                  formatDuration={formatDuration}
-                  updateSimulationDetails={updateSimulationDetails}
-                  handleExportSimulation={handleExportSimulation}
-                  setSelectedSimulation={setSelectedSimulation}
-                  copySimulationParams={copySimulationParams}
-                  deleteSimulation={deleteSimulation}
-                  unitSystem={unitSystem}
-                  onMoveToFolder={openMoveDialogForSingle}
-                  isSelected={selectedIds.has(simulation.id)}
-                  onSelectionChange={onSelectionChange}
-                />
-              ))}
-            </div>
-          </div>
+          </>
         )}
 
         {savedSimulations.length === 0 && (
@@ -492,6 +523,8 @@ const SavedSimulations: React.FC = () => {
   const [selectedSimulation, setSelectedSimulation] = useState<SavedSimulation | null>(null);
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set());
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
+  const [viewMode, setViewMode] = useState<'folders' | 'individual'>('folders');
+  const [isUnauthorized, setIsUnauthorized] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -503,6 +536,8 @@ const SavedSimulations: React.FC = () => {
   const [simulationsToMove, setSimulationsToMove] = useState<Set<string>>(new Set());
 
   const { toast } = useToast();
+  const { getToken } = useAuth();
+  const { isSignedIn, isLoaded: isUserLoaded } = useUser();
 
   const unitConversions = getUnitConversions(unitSystem);
 
@@ -548,7 +583,8 @@ const SavedSimulations: React.FC = () => {
       }
 
       // Save the imported simulation
-      await simulationService.saveSimulation(simulation);
+      const token = await getToken();
+      await simulationService.saveSimulation(simulation, token || undefined);
       await loadSimulations(true); // Reset to page 1
 
       toast({
@@ -598,7 +634,8 @@ const SavedSimulations: React.FC = () => {
         setLoadingMore(true);
       }
 
-      const { simulations, pagination } = await simulationService.getAllSimulations(pageToLoad, 20);
+      const token = await getToken();
+      const { simulations, pagination } = await simulationService.getAllSimulations(pageToLoad, 20, token || undefined);
       console.log('Loaded simulations:', simulations);
 
       if (reset) {
@@ -610,13 +647,19 @@ const SavedSimulations: React.FC = () => {
       setHasMore(pagination.hasMore);
       setTotalSimulations(pagination.total);
       setCurrentPage(pageToLoad);
+      setIsUnauthorized(false);
     } catch (error) {
       console.error('Error loading simulations:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load saved simulations",
-        variant: "destructive",
-      });
+      const errorMessage = error instanceof Error ? error.message : '';
+      if (errorMessage.includes('401')) {
+        setIsUnauthorized(true);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load saved simulations",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -632,7 +675,8 @@ const SavedSimulations: React.FC = () => {
 
   const deleteSimulation = async (id: string) => {
     try {
-      await simulationService.deleteSimulation(id);
+      const token = await getToken();
+      await simulationService.deleteSimulation(id, token || undefined);
       await loadSimulations(true); // Reset to page 1
       toast({
         title: "Success",
@@ -653,8 +697,9 @@ const SavedSimulations: React.FC = () => {
       const simulation = savedSimulations.find(sim => sim.id === id);
       if (!simulation) return;
 
+      const token = await getToken();
       const updatedSimulation = { ...simulation, name: newName, folder: newFolder };
-      await simulationService.updateSimulation(updatedSimulation);
+      await simulationService.updateSimulation(updatedSimulation, token || undefined);
 
       setSavedSimulations(prev =>
         prev.map(sim => sim.id === id ? updatedSimulation : sim)
@@ -684,7 +729,8 @@ const SavedSimulations: React.FC = () => {
         return null;
       }).filter(Boolean) as SavedSimulation[];
 
-      await Promise.all(updates.map(sim => simulationService.updateSimulation(sim)));
+      const token = await getToken();
+      await Promise.all(updates.map(sim => simulationService.updateSimulation(sim, token || undefined)));
 
       setSavedSimulations(prev =>
         prev.map(sim => simulationsToMove.has(sim.id) ? { ...sim, folder: folderName } : sim)
@@ -724,7 +770,8 @@ const SavedSimulations: React.FC = () => {
 
   const handleRenameFolder = async (oldName: string, newName: string) => {
     try {
-      await simulationService.renameFolder(oldName, newName);
+      const token = await getToken();
+      await simulationService.renameFolder(oldName, newName, token || undefined);
       await loadSimulations(true); // Reset to page 1
       toast({
         title: "Success",
@@ -743,7 +790,8 @@ const SavedSimulations: React.FC = () => {
 
   const handleDeleteFolder = async (folderName: string) => {
     try {
-      await simulationService.deleteFolder(folderName);
+      const token = await getToken();
+      await simulationService.deleteFolder(folderName, token || undefined);
       await loadSimulations(true); // Reset to page 1
       toast({
         title: "Success",
@@ -816,6 +864,55 @@ const SavedSimulations: React.FC = () => {
 
 
 
+
+  if (isUnauthorized && isUserLoaded && !isSignedIn) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card className="max-w-md mx-auto mt-12">
+          <CardHeader>
+            <CardTitle className="text-center">Authentication Required</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-6 py-8">
+            <div className="bg-amber-100 p-4 rounded-full">
+              <Users className="h-12 w-12 text-amber-600" />
+            </div>
+            <p className="text-center text-gray-600">
+              Please sign in to view and manage your saved simulations.
+            </p>
+            <SignInButton mode="modal">
+              <Button size="lg" className="w-full">
+                Sign In to Continue
+              </Button>
+            </SignInButton>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isUnauthorized && isSignedIn) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card className="max-w-md mx-auto mt-12 border-destructive">
+          <CardHeader>
+            <CardTitle className="text-center text-destructive">Authentication Error</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-6 py-8">
+            <Alert variant="destructive">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Server rejected your session</AlertTitle>
+              <AlertDescription>
+                The backend was unable to verify your login. This usually means the server configuration is missing Clerk API keys.
+              </AlertDescription>
+            </Alert>
+            <Button variant="outline" onClick={() => loadSimulations(true)}>
+              Retry Connection
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -896,6 +993,23 @@ const SavedSimulations: React.FC = () => {
           </TabsList>
 
           <TabsContent value="individual">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Individual Simulations</h2>
+                <p className="text-gray-600">View and manage your saved simulations</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Folders</span>
+                  <Switch
+                    checked={viewMode === 'individual'}
+                    onCheckedChange={(checked) => setViewMode(checked ? 'individual' : 'folders')}
+                  />
+                  <span className="text-sm text-gray-600">Individual</span>
+                </div>
+              </div>
+            </div>
+
             <IndividualSimulationList
               savedSimulations={savedSimulations}
               unitConversions={unitConversions}
@@ -914,6 +1028,7 @@ const SavedSimulations: React.FC = () => {
               existingFolders={existingFolders}
               onRenameFolder={handleRenameFolder}
               onDeleteFolder={handleDeleteFolder}
+              viewMode={viewMode}
             />
 
             {/* Load More Button */}

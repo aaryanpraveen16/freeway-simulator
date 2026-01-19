@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb';
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { verifySession } from './lib/clerk.js';
 
 // MongoDB connection setup
 if (!process.env.MONGODB_URI) {
@@ -32,11 +33,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
     // Handle OPTIONS preflight request
     if (req.method === 'OPTIONS') {
         res.status(200).end();
+        return;
+    }
+
+    // Verify session
+    const session = await verifySession(req);
+    if (!session) {
+        res.status(401).json({ error: 'Unauthorized: Please log in' });
         return;
     }
 
@@ -51,12 +59,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const limit = parseInt(req.query.limit as string) || 20;
             const skip = (page - 1) * limit;
 
+            // Visibility filter
+            let query: any = {};
+            if (!session.isAdmin) {
+                query.$or = [
+                    { createdBy: session.userId }, // Own simulations
+                    { createdBy: { $exists: false } }, // Legacy simulations
+                    { createdBy: null }
+                ];
+            }
+
             // Get total count for pagination metadata
-            const total = await collection.countDocuments();
+            const total = await collection.countDocuments(query);
 
             // Fetch paginated simulations with index-optimized sort
             const simulations = await collection
-                .find({})
+                .find(query)
                 .sort({ timestamp: -1 })
                 .skip(skip)
                 .limit(limit)
@@ -80,12 +98,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else if (req.method === 'POST') {
         try {
             const simulation = req.body;
-            // Ensure ID is present, or generate one if needed (though frontend usually provides it)
+            // Ensure ID is present
             if (!simulation.id) {
                 simulation.id = `simulation-${Date.now()}`;
             }
 
-            console.log('Saving simulation:', simulation.id);
+            // Add owner information
+            simulation.createdBy = session.userId;
+            simulation.creatorName = session.fullName;
+
+            console.log('Saving simulation:', simulation.id, 'for user:', session.userId);
             await collection.insertOne(simulation);
             res.status(201).json({ message: 'Simulation saved successfully', id: simulation.id });
         } catch (error) {

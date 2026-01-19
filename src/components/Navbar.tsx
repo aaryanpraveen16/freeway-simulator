@@ -1,15 +1,15 @@
-
 import React, { useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Linkedin, ExternalLink, Save, Archive } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Linkedin, ExternalLink, Save, Archive, Home } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { contributors } from "@/types/contributor";
 import { SaveSimulationDialog } from "./SaveSimulationDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { UnitSystem } from "@/utils/unitConversion";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
 
 interface NavbarProps {
   onSaveSimulation?: (name: string, folder?: string) => void;
@@ -22,17 +22,27 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unitSystem = 'metric', onUnitSystemChange, showNotifications = true, onNotificationsToggle }) => {
   const [showCredits, setShowCredits] = useState(false);
+  const location = useLocation();
 
   return (
     <div className="bg-primary text-primary-foreground py-2 px-4 mb-6 shadow-md">
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {location.pathname !== "/" && location.pathname !== "/freeway-simulator" && (
+            <Link to="/freeway-simulator">
+              <Button variant="secondary" size="sm" className="flex items-center gap-2">
+                <Home size={16} />
+                Simulator
+              </Button>
+            </Link>
+          )}
+
           {onSaveSimulation && (
             <Button
               variant="secondary"
               size="sm"
               className="flex items-center gap-2"
-              onClick={() => onSaveSimulation("default", undefined)} // Parent handles dialog opening, args ignored
+              onClick={() => onSaveSimulation("default", undefined)}
               disabled={!canSave}
             >
               <Save size={16} />
@@ -72,6 +82,19 @@ const Navbar: React.FC<NavbarProps> = ({ onSaveSimulation, canSave = false, unit
           >
             Credits
           </Button>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <SignedOut>
+            <SignInButton mode="modal">
+              <Button variant="secondary" size="sm">
+                Sign In
+              </Button>
+            </SignInButton>
+          </SignedOut>
+          <SignedIn>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
         </div>
       </div>
 
