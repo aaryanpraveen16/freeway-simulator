@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Pause, Play, RotateCcw, Save, Archive, ChevronUp, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
-import SaveSimulationDialog from "./SaveSimulationDialog";
+import { SaveSimulationDialog } from "./SaveSimulationDialog";
 
 interface StickyControlBarProps {
   isRunning: boolean;
@@ -17,6 +17,7 @@ interface StickyControlBarProps {
   onTogglePackFormation: (show: boolean) => void;
   onSaveSimulation?: (name: string, folder?: string) => void;
   canSave?: boolean;
+  userId?: string | null;
 }
 
 const StickyControlBar: React.FC<StickyControlBarProps> = ({
@@ -28,6 +29,7 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
   onTogglePackFormation,
   onSaveSimulation,
   canSave = false,
+  userId,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -137,6 +139,19 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
                       checked={showPackFormation}
                       onCheckedChange={onTogglePackFormation}
                     />
+                  </div>
+
+                  <div className="pt-2 border-t">
+                    <Button
+                      onClick={onSaveSimulation ? () => onSaveSimulation("default", undefined) : undefined}
+                      variant="secondary"
+                      size="sm"
+                      className="w-full flex items-center justify-center gap-2"
+                      disabled={!canSave}
+                    >
+                      {userId ? <Save size={16} /> : <div className="relative"><Save size={16} className="opacity-50" /><div className="absolute -top-1 -right-1 bg-destructive rounded-full w-2 h-2" /></div>}
+                      {userId ? "Save to Cloud" : "Sign In to Save"}
+                    </Button>
                   </div>
 
 

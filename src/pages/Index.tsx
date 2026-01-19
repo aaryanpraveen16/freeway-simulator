@@ -671,7 +671,18 @@ const Index = () => {
   }, [elapsedTime, cars, params, trafficRule, speedDensityHistory, densityOfCarPacksHistory, percentageByLaneHistory, densityThroughputHistory, laneThroughputHistory, laneUtilizationHistory, packHistory, packLengthHistory, packsPerLaneHistory, laneChanges, toast, showNotifications, getToken, userId, user?.fullName]);
   useEffect(() => { executeSaveRef.current = executeSave; }, [executeSave]);
 
-  const onSaveClick = () => { setSaveDialogDefaultName(`Simulation ${new Date().toLocaleTimeString()}`); setShowSaveDialog(true); };
+  const onSaveClick = () => {
+    if (!userId) {
+      toast({
+        title: "Sign In Required",
+        description: "You must be signed in to save simulations to the cloud. Please use the Sign In button in the navigation bar.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSaveDialogDefaultName(`Simulation ${new Date().toLocaleTimeString()}`);
+    setShowSaveDialog(true);
+  };
   const togglePreviousRuns = () => setShowPreviousRuns(p => !p);
 
   // Keep a ref to the latest handleSaveSimulation so the animation loop can call it
@@ -754,8 +765,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Navbar onSaveSimulation={onSaveClick} canSave={packHistory.length > 0} unitSystem={unitSystem} onUnitSystemChange={setUnitSystem} showNotifications={showNotifications} onNotificationsToggle={setShowNotifications} />
-      <StickyControlBar isRunning={isRunning} onToggleSimulation={toggleSimulation} onReset={handleReset} setSimulationSpeed={setSimulationSpeed} showPackFormation={showPackFormation} onTogglePackFormation={setShowPackFormation} onSaveSimulation={onSaveClick} canSave={elapsedTime > 0 && cars.length > 0} />
+      <Navbar onSaveSimulation={onSaveClick} canSave={packHistory.length > 0} unitSystem={unitSystem} onUnitSystemChange={setUnitSystem} showNotifications={showNotifications} onNotificationsToggle={setShowNotifications} userId={userId} />
+      <StickyControlBar isRunning={isRunning} onToggleSimulation={toggleSimulation} onReset={handleReset} setSimulationSpeed={setSimulationSpeed} showPackFormation={showPackFormation} onTogglePackFormation={setShowPackFormation} onSaveSimulation={onSaveClick} canSave={elapsedTime > 0 && cars.length > 0} userId={userId} />
       <SaveSimulationDialog open={showSaveDialog} onOpenChange={setShowSaveDialog} onSave={executeSave} defaultName={saveDialogDefaultName} />
       <div className="w-full py-8 pt-16">
         {showFreewayUI ? (
