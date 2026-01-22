@@ -2,7 +2,7 @@
 
 A real-time traffic simulation that demonstrates how traffic jams can emerge from the dynamics of car following behavior in a closed-loop freeway system. This project implements the MOBIL (Minimizing Overall Braking Induced by Lane changes) framework for lane-changing behavior and uses a car-following model to simulate realistic traffic flow.
 
-🚀 **Live Demo**: [https://freewaysimulator.netlify.app/](https://freewaysimulator.netlify.app/)
+🚀 **Live Demo**: [https://freeway-simulator.vercel.app/](https://freeway-simulator.vercel.app/)
 
 ## Features
 
