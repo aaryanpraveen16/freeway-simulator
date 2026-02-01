@@ -641,7 +641,13 @@ const SavedSimulations: React.FC = () => {
       if (reset) {
         setSavedSimulations(simulations.sort((a, b) => b.timestamp - a.timestamp));
       } else {
-        setSavedSimulations(prev => [...prev, ...simulations].sort((a, b) => b.timestamp - a.timestamp));
+        setSavedSimulations(prev => {
+          const combined = [...prev, ...simulations];
+          // Use a Map to de-duplicate by ID, keeping the most recent version if duplicates exist
+          const uniqueMap = new Map();
+          combined.forEach(sim => uniqueMap.set(sim.id, sim));
+          return Array.from(uniqueMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+        });
       }
 
       setHasMore(pagination.hasMore);
@@ -669,7 +675,7 @@ const SavedSimulations: React.FC = () => {
   const loadMore = () => {
     if (!loadingMore && hasMore) {
       setCurrentPage(prev => prev + 1);
-      loadSimulations();
+      // Removed direct loadSimulations() call to avoid double fetching (useEffect handles it)
     }
   };
 
@@ -848,11 +854,12 @@ const SavedSimulations: React.FC = () => {
   const calculateNumCars = (simulation: SavedSimulation) => {
     // Calculate total cars based on traffic density and freeway length
     const numLanes = simulation.params.numLanes || 2;
-    const freewayLength = simulation.params.freewayLength || 10;
-    const trafficDensity = simulation.params.trafficDensity || 0.62;
+    const freewayLength = simulation.params.freewayLength || 1; // Standardized default 1km
+    const trafficDensity = simulation.params.trafficDensity || 10; // Standardized default 10veh/km
 
-    // Total cars = density (cars/km) * freeway length (km) * number of lanes
-    const totalCars = Math.round(trafficDensity * freewayLength * numLanes);
+    // Total cars = overall density (cars/km) * freeway length (km)
+    // NOTE: trafficDensity is absolute cars per km across ALL lanes.
+    const totalCars = Math.round(trafficDensity * freewayLength);
 
     return totalCars;
   };

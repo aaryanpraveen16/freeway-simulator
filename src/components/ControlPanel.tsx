@@ -466,6 +466,27 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 </div>
                 <div className="flex items-center justify-between pt-1">
                   <div className="flex items-center">
+                    <Label className="text-xs">Minimum Speed ({conversions.speed.unit}):</Label>
+                    <InfoTooltip content="The lowest possible desired speed for any vehicle. Clamps the random distribution." />
+                  </div>
+                  <Input
+                    type="number"
+                    value={Math.round(conversions.speed.toDisplay(params.minSpeed))}
+                    onChange={(e) => {
+                      const displayValue = Number(e.target.value) || 20;
+                      const internalValue = conversions.speed.fromDisplay(displayValue);
+                      // Clamp minSpeed to reasonable range (0 to meanSpeed)
+                      const value = Math.min(params.meanSpeed, Math.max(0, internalValue));
+                      onUpdateParams({ minSpeed: value });
+                    }}
+                    min={0}
+                    max={Math.round(conversions.speed.toDisplay(params.meanSpeed))}
+                    step={1}
+                    className="w-20 h-8 text-right"
+                  />
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center">
                     <Label className="text-xs">Trip Length Std Dev ({conversions.distance.unit}):</Label>
                     <InfoTooltip content="Standard deviation of trip lengths (how much individual car trips vary). Lower values mean most cars travel similar distances; higher values mean more variation." />
                   </div>
