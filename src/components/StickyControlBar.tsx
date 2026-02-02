@@ -2,19 +2,13 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Pause, Play, RotateCcw, Save, Archive, ChevronUp, ChevronDown } from "lucide-react";
-import { Link } from "react-router-dom";
-import { SaveSimulationDialog } from "./SaveSimulationDialog";
+import { ChevronUp, ChevronDown, Play, Pause, RotateCcw, Save } from "lucide-react";
 
 interface StickyControlBarProps {
   isRunning: boolean;
   onToggleSimulation: () => void;
   onReset: () => void;
   setSimulationSpeed: (speed: number) => void;
-  showPackFormation: boolean;
-  onTogglePackFormation: (show: boolean) => void;
   onSaveSimulation?: (name: string, folder?: string) => void;
   canSave?: boolean;
   userId?: string | null;
@@ -25,8 +19,6 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
   onToggleSimulation,
   onReset,
   setSimulationSpeed,
-  showPackFormation,
-  onTogglePackFormation,
   onSaveSimulation,
   canSave = false,
   userId,
@@ -129,18 +121,6 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
                     </Button>
                   </div>
 
-
-                  <div className="flex items-center justify-center gap-3 pt-2 border-t">
-                    <Label htmlFor="pack-formation-toggle" className="text-sm">
-                      Show Pack Information
-                    </Label>
-                    <Switch
-                      id="pack-formation-toggle"
-                      checked={showPackFormation}
-                      onCheckedChange={onTogglePackFormation}
-                    />
-                  </div>
-
                   <div className="pt-2 border-t">
                     <Button
                       onClick={onSaveSimulation ? () => onSaveSimulation("default", undefined) : undefined}
@@ -153,8 +133,6 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
                       {userId ? "Save to Cloud" : "Sign In to Save"}
                     </Button>
                   </div>
-
-
                 </div>
               )}
             </CardContent>
