@@ -26,7 +26,7 @@ const OverlayLaneThroughputDensityChart: React.FC<OverlayLaneThroughputDensityCh
       }
 
       const numLanes = sim.params.numLanes || sim.finalStats.perLaneThroughputs.length;
-      const freewayLength = sim.params.freewayLength || 10; // km
+      const freewayLength = sim.params.freewayLength || 1; // Standardized default 1km
       const totalCars = sim.finalStats.totalCars || 0;
       const trafficRule = sim.trafficRule || 'american';
       const color = trafficRule === 'american' ? '#ff4d4f' : '#1890ff';

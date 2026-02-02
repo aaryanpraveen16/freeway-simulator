@@ -638,8 +638,12 @@ export function updateSimulation(
     lane?: number;
   }[] = [];
 
+  // Sort vehicles by position (front to back - DESCENDING)
+  // This is the core of Approach A: Sequential decision resolution.
+  // By processing front vehicles first, their lane change decisions are immediately
+  // reflected for the followers in the same timestep.
   const sortedIndices = [...Array(numCars).keys()].sort((a, b) => {
-    return readOnlyCars[a].position - readOnlyCars[b].position;
+    return readOnlyCars[b].position - readOnlyCars[a].position;
   });
 
   // Apply simulation speed to the timestep
@@ -666,8 +670,8 @@ export function updateSimulation(
       carSpeed = 0;
       nextCar.color = "black"; // Set stopped cars to black
 
-      // Find car ahead in SAME LANE (Snapshot)
-      const sameLaneCars = readOnlyCars.filter(c => c.lane === currentCar.lane);
+      // Find car ahead in SAME LANE (Dynamic check against updatedCars for sequential resolution)
+      const sameLaneCars = updatedCars.filter(c => c.lane === currentCar.lane);
       const carAhead = sameLaneCars.find(c =>
         c.position > currentCar.position &&
         (c.position - currentCar.position) < laneLength / 2
@@ -695,9 +699,9 @@ export function updateSimulation(
     const distanceToExit = currentCar.distTripPlanned - currentCar.distanceTraveled;
     const shouldMoveToExitLane = distanceToExit <= 1 && distanceToExit > 0;
 
-    // Find the car ahead in the same lane (SNAPSHOT)
-    const currentLane = currentCar.lane;
-    const sameLaneCars = readOnlyCars.filter((c) => c.lane === currentLane);
+    // Find the car ahead in the same lane (SEQUENTIAL: check against updatedCars)
+    const currentLane = nextCar.lane; // Use nextCar.lane as it might have been updated if we were processed in a different order, though here we use currentCar.lane is safer
+    const sameLaneCars = updatedCars.filter((c) => c.lane === currentCar.lane);
     const sortedSameLaneCars = sameLaneCars.sort((a, b) => {
       const distA = (a.position - currentCar.position + laneLength) % laneLength;
       const distB = (b.position - currentCar.position + laneLength) % laneLength;
@@ -814,10 +818,10 @@ export function updateSimulation(
       nextCar.leftLaneStruggleStartTime = undefined;
     }
 
-    // Check right lane viability (SNAPSHOT)
+    // Check right lane viability (SEQUENTIAL: Check against updatedCars)
     let isRightLaneViable = false;
     if (currentCar.lane < (params.numLanes || 2) - 1) {
-      const adjacentLanes = findAdjacentCars(currentCar, readOnlyCars, laneLength, params);
+      const adjacentLanes = findAdjacentCars(currentCar, updatedCars, laneLength, params);
       isRightLaneViable = canMaintainSpeedInLane(
         currentCar,
         adjacentLanes.rightLane.leader,
@@ -892,16 +896,16 @@ export function updateSimulation(
     // --- LANE CHANGE DECISION (Two-Phase) ---
     const sourceLaneAlreadyHadChange = lanesWithChangeThisFrame.has(currentCar.lane);
 
-    // We check against SNAPSHOT for adjacency
+    // We check against updatedCars for adjacency to see the most recent lane occupancy
     if (!sourceLaneAlreadyHadChange) {
-      const adjacentLanes = findAdjacentCars(currentCar, readOnlyCars, laneLength, params);
+      const adjacentLanes = findAdjacentCars(currentCar, updatedCars, laneLength, params);
 
       // We pass `nextCar` to manage hysteresis state, but everything else comes from `readOnlyCars`
       const { shouldChange, targetLane } = shouldChangeLaneWithExitBehavior(
         nextCar, // Use nextCar to persist hysteresis (timers)
-        aheadCar, // Snapshot leader
-        adjacentLanes, // Snapshot adjacency
-        readOnlyCars, // Snapshot world
+        aheadCar, // Dynamic ahead car
+        adjacentLanes, // Dynamic adjacency
+        updatedCars, // Process with current lane states
         params,
         laneLength,
         currentTime,
