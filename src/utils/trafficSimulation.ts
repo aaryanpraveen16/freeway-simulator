@@ -94,6 +94,8 @@ export interface SimulationParams {
   mobilStoppedIncentive?: number;
   /** European Rules: Safety gap factor for rear check (default: 1.0) */
   europeanGapFactor?: number;
+  /** Lane change hysteresis timer in seconds (default: 1.0) */
+  laneChangeHysteresis?: number;
 }
 
 // Default simulation parameters
@@ -140,6 +142,7 @@ export const defaultParams: SimulationParams = {
   mobilSpeedGainThreshold: 1, // km/h (Lowered from 10 to 1 to allow acceleration-based overtakes)
   mobilStoppedIncentive: 3.0, // m/s² incentive boost
   europeanGapFactor: 1.0, // Default to 1.0 (standard safe distance)
+  laneChangeHysteresis: 1.0, // Default to 1 second for faster response
 };
 
 /**
@@ -1270,73 +1273,69 @@ function canMaintainSpeedInLane(
   showNotifications: boolean = false
 ): boolean {
   const desiredSpeed = car.desiredSpeed || 130; // km/h
+  const currentPos = car.position;
 
-  // If no leader in target lane, can definitely maintain speed
-  if (!targetLaneLeader) {
-    return true;
-  }
+  // 1. IMMEDIATE GAP CHECK (Safety Floor)
+  if (targetLaneLeader) {
+    const immediateGap = (targetLaneLeader.position - currentPos + laneLength) % laneLength;
+    const immediateGapMeters = immediateGap * 1000;
+    const carSpeedMs = (car.speed || 0) * (1000 / 3600);
+    const targetLeaderSpeedMs = (targetLaneLeader.speed || 0) * (1000 / 3600);
 
-  // Calculate the gap to the target lane leader
-  const immediateGap = (targetLaneLeader.position - car.position + laneLength) % laneLength;
-  const immediateGapMeters = immediateGap * 1000;
+    const s0 = Math.max(1.0, params.stoppedCarsGap ?? 1.0);
+    const T = params.tDist || 1.5;
+    const a = 1.4;
+    const b = 2.0;
+    const deltaV = carSpeedMs - targetLeaderSpeedMs;
+    const dynamicTerm = deltaV > 0 ? (carSpeedMs * deltaV) / (2 * Math.sqrt(a * b)) : 0;
+    const requiredGap = s0 + (carSpeedMs * T) + dynamicTerm;
 
-  // MINIMUM GAP REQUIREMENT based on car's current speed
-  // Use the same safe following distance calculation as IDM
-  // This prevents changing into a lane where we'd immediately need to brake
-  const carSpeedMs = (car.speed || 0) * (1000 / 3600); // km/h to m/s
-  const targetLeaderSpeedMs = (targetLaneLeader.speed || 0) * (1000 / 3600);
-
-  // Calculate the safe gap we need to avoid braking
-  // s* = s0 + v*T + (v * deltaV) / (2 * sqrt(a * b))
-  const s0 = Math.max(1.0, params.stoppedCarsGap ?? 1.0); // Minimum gap in meters
-  const T = params.tDist || 3;  // Time headway in seconds
-  const a = 1.4;  // Max accel
-  const b = 2.0;  // Comfortable decel
-  const deltaV = carSpeedMs - targetLeaderSpeedMs; // Approach speed
-
-  const dynamicTerm = deltaV > 0 ? (carSpeedMs * deltaV) / (2 * Math.sqrt(a * b)) : 0;
-  const requiredGap = s0 + (carSpeedMs * T) + dynamicTerm;
-
-  // If the gap is smaller than what we need for comfortable following, don't allow the change
-  if (immediateGapMeters < requiredGap) {
-    if (showNotifications) {
-      debugLog(showNotifications, `[GAP CHECK] Car ${car.id} blocked - gap ${immediateGapMeters.toFixed(1)}m < required ${requiredGap.toFixed(1)}m (speed: ${car.speed.toFixed(1)}, leader: ${targetLaneLeader.speed.toFixed(1)} km/h)`);
+    if (immediateGapMeters < requiredGap) {
+      if (showNotifications) {
+        debugLog(showNotifications, `[GAP CHECK] Car ${car.id} blocked - gap ${immediateGapMeters.toFixed(1)}m < required ${requiredGap.toFixed(1)}m`);
+      }
+      return false;
     }
-    return false;
   }
 
-  // Calculate look-ahead distance based on car's desired speed
-  // Convert km/h to km/s, then multiply by time
+  // 2. LOOK-AHEAD CALCULATION
   const lookAheadDistance = (desiredSpeed / 3600) * lookAheadTime; // km
 
-  // Find all cars in target lane ahead of our position within look-ahead distance
-  const carsInTargetLane = cars.filter((c) => c.lane === targetLane);
+  // Helper to find the "Performance Score" for a lane
+  const getLanePerformance = (laneIndex: number) => {
+    const carsInLane = cars.filter((c) => c.lane === laneIndex);
+    let minVirtualSpeed = Infinity;
+    let bottleneckCarId = -1;
 
-  let currentPos = car.position;
-  let minPotentialPerformance = Infinity;
-
-  for (const targetCar of carsInTargetLane) {
-    const distanceToTargetCar = (targetCar.position - currentPos + laneLength) % laneLength;
-
-    // Only consider cars within look-ahead distance
-    if (distanceToTargetCar > 0 && distanceToTargetCar <= lookAheadDistance) {
-      // DISTANCE WEIGHTING: A slow car much further ahead is less of an immediate problem.
-      // We add a virtual speed bonus based on distance (up to 15 km/h at the edge of look-ahead).
-      const distanceFactor = distanceToTargetCar / lookAheadDistance;
-      const virtualSpeed = targetCar.speed + (distanceFactor * 15);
-      minPotentialPerformance = Math.min(minPotentialPerformance, virtualSpeed);
+    for (const targetCar of carsInLane) {
+      const distance = (targetCar.position - currentPos + laneLength) % laneLength;
+      if (distance > 0 && distance <= lookAheadDistance) {
+        const distanceFactor = distance / lookAheadDistance;
+        const virtualSpeed = targetCar.speed + (distanceFactor * 15);
+        if (virtualSpeed < minVirtualSpeed) {
+          minVirtualSpeed = virtualSpeed;
+          bottleneckCarId = targetCar.id;
+        }
+      }
     }
-  }
 
-  // RELATIVE COMPARISON: Instead of an absolute threshold, compare to our current situation.
-  const currentPerformance = currentLeader ? currentLeader.speed : desiredSpeed;
+    return {
+      performance: minVirtualSpeed === Infinity ? desiredSpeed : minVirtualSpeed,
+      bottleneckCarId
+    };
+  };
 
-  // We only block if the target lane is significantly worse than our current lane.
-  // (Using a 5 km/h buffer to allow for slight downgrades that might improve later)
-  const canMaintain = minPotentialPerformance >= currentPerformance - 5;
+  // Evaluate both lanes
+  const targetLaneData = getLanePerformance(targetLane);
+  const currentLaneData = getLanePerformance(car.lane);
+
+  // Buffer to prevent frequent "fidgeting"
+  const STABILITY_BUFFER = 5.0; // km/h
+
+  const canMaintain = targetLaneData.performance >= currentLaneData.performance - STABILITY_BUFFER;
 
   if (showNotifications && !canMaintain) {
-    debugLog(showNotifications, `[LOOK-AHEAD] Car ${car.id} blocked from lane ${targetLane} - target performance: ${minPotentialPerformance.toFixed(1)} km/h < current: ${currentPerformance.toFixed(1)} km/h`);
+    debugLog(showNotifications, `[LOOK-AHEAD] Car ${car.id} blocked - Target Perf: ${targetLaneData.performance.toFixed(1)} km/h < Current Perf: ${currentLaneData.performance.toFixed(1)} km/h (Bottleneck in target: Car ${targetLaneData.bottleneckCarId})`);
   }
 
   return canMaintain;
@@ -1809,7 +1808,8 @@ function shouldChangeLaneWithExitBehavior(
   if (provisionalTarget !== null && provisionalTarget !== -1) {
     if (car.pendingLaneChange === provisionalTarget && car.laneChangeOpportunityDetectedTime) {
       const duration = currentTime - car.laneChangeOpportunityDetectedTime;
-      if (duration >= 5.0) {
+      const hysteresis = params.laneChangeHysteresis ?? 1.0;
+      if (duration >= hysteresis) {
         debugLog(showNotifications, `[HYSTERESIS] Car ${car.id} CONFIRMED ${isExitMove ? "EXIT " : ""}change to ${provisionalTarget} after ${duration.toFixed(1)}s`);
         return { shouldChange: true, targetLane: provisionalTarget };
       }

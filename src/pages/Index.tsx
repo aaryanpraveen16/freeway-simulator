@@ -119,7 +119,7 @@ const Index = () => {
   const [simulationSpeed, setSimulationSpeed] = useState<number>(1);
   const [trafficRule, setTrafficRule] = useState<'american' | 'european'>('american');
   const [stoppedCars, setStoppedCars] = useState<Set<number>>(new Set());
-  const [showPackFormation, setShowPackFormation] = useState<boolean>(true);
+  const [showPackFormation, setShowPackFormation] = useState<boolean>(false);
   const [laneChanges, setLaneChanges] = useState<number>(0);
   const [carSize, setCarSize] = useState<number>(24);
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
@@ -139,6 +139,8 @@ const Index = () => {
   const [currentPacks, setCurrentPacks] = useState<Pack[]>([]);
   const [batchQueue, setBatchQueue] = useState<BatchSimulation[]>([]);
   const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
+  const [showCharts, setShowCharts] = useState<boolean>(false);
+  const [showCarStats, setShowCarStats] = useState<boolean>(false);
 
   const batchQueueRef = useRef<BatchSimulation[]>([]);
 
@@ -766,7 +768,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <Navbar onSaveSimulation={onSaveClick} canSave={packHistory.length > 0} unitSystem={unitSystem} onUnitSystemChange={setUnitSystem} showNotifications={showNotifications} onNotificationsToggle={setShowNotifications} userId={userId} />
-      <StickyControlBar isRunning={isRunning} onToggleSimulation={toggleSimulation} onReset={handleReset} setSimulationSpeed={setSimulationSpeed} showPackFormation={showPackFormation} onTogglePackFormation={setShowPackFormation} onSaveSimulation={onSaveClick} canSave={elapsedTime > 0 && cars.length > 0} userId={userId} />
+      <StickyControlBar isRunning={isRunning} onToggleSimulation={toggleSimulation} onReset={handleReset} setSimulationSpeed={setSimulationSpeed} onSaveSimulation={onSaveClick} canSave={elapsedTime > 0 && cars.length > 0} userId={userId} />
       <SaveSimulationDialog open={showSaveDialog} onOpenChange={setShowSaveDialog} onSave={executeSave} defaultName={saveDialogDefaultName} />
       <div className="w-full py-8 pt-16">
         {showFreewayUI ? (
@@ -786,10 +788,36 @@ const Index = () => {
         <div className="container mx-auto px-4 space-y-8">
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="flex-1"><StatsDisplay cars={cars} laneLength={laneLength} elapsedTime={elapsedTime} laneChanges={laneChanges} unitSystem={unitSystem} trafficDensity={params.trafficDensity} /></div>
-            <div className="flex-1"><CarStatsCard cars={cars} laneLength={laneLength} params={params} showPackInfo={showPackFormation} unitSystem={unitSystem} /></div>
+            {showCarStats && (
+              <div className="flex-1"><CarStatsCard cars={cars} laneLength={laneLength} params={params} showPackInfo={showPackFormation} unitSystem={unitSystem} /></div>
+            )}
           </div>
-          <div><ControlPanel params={params} onUpdateParams={handleUpdateParams} onBatchImport={handleBatchImport} trafficRule={trafficRule} onTrafficRuleChange={setTrafficRule} carSize={carSize} onCarSizeChange={setCarSize} unitSystem={unitSystem} onUnitSystemChange={setUnitSystem} showFreewayUI={showFreewayUI} onShowFreewayUIChange={setShowFreewayUI} /></div>
-          <div><ChartDashboard laneLength={laneLength} params={params} trafficRule={trafficRule} unitSystem={unitSystem} speedDensityHistory={speedDensityHistory} densityOfCarPacksHistory={densityOfCarPacksHistory} percentageByLaneHistory={percentageByLaneHistory} densityThroughputHistory={densityThroughputHistory} laneThroughputHistory={laneThroughputHistory} laneUtilizationHistory={laneUtilizationHistory} packHistory={packHistory} packLengthHistory={packLengthHistory} packsPerLaneHistory={packsPerLaneHistory} showPackFormation={showPackFormation} previousRunsData={savedRuns.map(r => r.packHistory)} previousRunsPackLengthData={savedRuns.map(r => r.packLengthHistory)} onSaveCurrentRun={handleSaveCurrentRun} onTogglePreviousRuns={togglePreviousRuns} showPreviousRuns={showPreviousRuns} /></div>
+          <div>
+            <ControlPanel
+              params={params}
+              onUpdateParams={handleUpdateParams}
+              onBatchImport={handleBatchImport}
+              trafficRule={trafficRule}
+              onTrafficRuleChange={setTrafficRule}
+              carSize={carSize}
+              onCarSizeChange={setCarSize}
+              unitSystem={unitSystem}
+              onUnitSystemChange={setUnitSystem}
+              showFreewayUI={showFreewayUI}
+              onShowFreewayUIChange={setShowFreewayUI}
+              showCharts={showCharts}
+              onShowChartsChange={setShowCharts}
+              showPackInformation={showPackFormation}
+              onShowPackInformationChange={setShowPackFormation}
+              showCarStats={showCarStats}
+              onShowCarStatsChange={setShowCarStats}
+            />
+          </div>
+          {showCharts && (
+            <div>
+              <ChartDashboard laneLength={laneLength} params={params} trafficRule={trafficRule} unitSystem={unitSystem} speedDensityHistory={speedDensityHistory} densityOfCarPacksHistory={densityOfCarPacksHistory} percentageByLaneHistory={percentageByLaneHistory} densityThroughputHistory={densityThroughputHistory} laneThroughputHistory={laneThroughputHistory} laneUtilizationHistory={laneUtilizationHistory} packHistory={packHistory} packLengthHistory={packLengthHistory} packsPerLaneHistory={packsPerLaneHistory} showPackFormation={showPackFormation} previousRunsData={savedRuns.map(r => r.packHistory)} previousRunsPackLengthData={savedRuns.map(r => r.packLengthHistory)} onSaveCurrentRun={handleSaveCurrentRun} onTogglePreviousRuns={togglePreviousRuns} showPreviousRuns={showPreviousRuns} />
+            </div>
+          )}
         </div>
       </div>
       <Footer />

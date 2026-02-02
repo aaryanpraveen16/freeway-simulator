@@ -34,6 +34,12 @@ interface ControlPanelProps {
   onUnitSystemChange?: (system: UnitSystem) => void;
   showFreewayUI?: boolean;
   onShowFreewayUIChange?: (show: boolean) => void;
+  showCharts?: boolean;
+  onShowChartsChange?: (show: boolean) => void;
+  showPackInformation?: boolean;
+  onShowPackInformationChange?: (show: boolean) => void;
+  showCarStats?: boolean;
+  onShowCarStatsChange?: (show: boolean) => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -48,6 +54,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onUnitSystemChange,
   showFreewayUI = true,
   onShowFreewayUIChange,
+  showCharts = true,
+  onShowChartsChange,
+  showPackInformation = true,
+  onShowPackInformationChange,
+  showCarStats = true,
+  onShowCarStatsChange,
 }) => {
   const conversions = getUnitConversions(unitSystem);
   const handleVehicleTypeDensityChange = (vehicleType: 'car' | 'truck' | 'motorcycle', value: number) => {
@@ -795,6 +807,23 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     step={0.5}
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <Label className="text-xs">Decision Hysteresis</Label>
+                      <InfoTooltip content="Time (seconds) a lane change must remain beneficial before it is executed. Prevents 'lane flickering'. Recommended: 1.0s to 5.0s." />
+                    </div>
+                    <span className="text-xs font-mono">{(params.laneChangeHysteresis ?? 1.0).toFixed(1)}s</span>
+                  </div>
+                  <Slider
+                    value={[params.laneChangeHysteresis ?? 1.0]}
+                    onValueChange={([val]) => onUpdateParams({ laneChangeHysteresis: val })}
+                    min={0}
+                    max={10}
+                    step={0.5}
+                  />
+                </div>
               </div>
             </CollapsibleSection>
 
@@ -836,6 +865,51 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       <Switch
                         checked={showFreewayUI}
                         onCheckedChange={onShowFreewayUIChange}
+                      />
+                    </div>
+                  )}
+
+                  {onShowChartsChange && (
+                    <div className="flex items-center justify-between space-x-2 pt-2">
+                      <div className="space-y-0.5">
+                        <Label className="text-xs">Statistics Charts</Label>
+                        <div className="text-[10px] text-muted-foreground">
+                          Disable to improve FPS/performance
+                        </div>
+                      </div>
+                      <Switch
+                        checked={showCharts}
+                        onCheckedChange={onShowChartsChange}
+                      />
+                    </div>
+                  )}
+
+                  {onShowPackInformationChange && (
+                    <div className="flex items-center justify-between space-x-2 pt-2 border-t">
+                      <div className="space-y-0.5">
+                        <Label className="text-xs">Show Pack Info</Label>
+                        <div className="text-[10px] text-muted-foreground">
+                          Analyze groups of cars
+                        </div>
+                      </div>
+                      <Switch
+                        checked={showPackInformation}
+                        onCheckedChange={onShowPackInformationChange}
+                      />
+                    </div>
+                  )}
+
+                  {onShowCarStatsChange && (
+                    <div className="flex items-center justify-between space-x-2 pt-2 border-t">
+                      <div className="space-y-0.5">
+                        <Label className="text-xs">Individual Car Stats</Label>
+                        <div className="text-[10px] text-muted-foreground">
+                          Disable to simplify the dashboard
+                        </div>
+                      </div>
+                      <Switch
+                        checked={showCarStats}
+                        onCheckedChange={onShowCarStatsChange}
                       />
                     </div>
                   )}
