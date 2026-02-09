@@ -86,8 +86,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             res.status(500).json({ error: 'Failed to rename folder' });
         }
     } else if (req.method === 'DELETE') {
-        // Delete folder (move simulations to uncategorized)
+        // Delete folder (move simulations to uncategorized OR delete them all)
         try {
+            const folderName = req.query.folderName as string;
+            const deleteAll = req.query.deleteAll === 'true';
+
             if (!folderName) {
                 res.status(400).json({ error: 'Folder name is required' });
                 return;
@@ -95,20 +98,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const decodedFolderName = decodeURIComponent(folderName);
 
-            // Only update simulations owned by the user (or all if admin)
-            const query: any = { folder: decodedFolderName };
+            // Visibility filter: own simulations OR legacy simulations OR all if admin
+            let query: any = { folder: decodedFolderName };
             if (!session.isAdmin) {
-                query.createdBy = session.userId;
+                query.$or = [
+                    { createdBy: session.userId },
+                    { createdBy: { $exists: false } },
+                    { createdBy: null }
+                ];
             }
 
-            const result = await collection.updateMany(
-                query,
-                { $unset: { folder: "" } }
-            );
+            let result;
+            if (deleteAll) {
+                result = await collection.deleteMany(query);
+            } else {
+                result = await collection.updateMany(
+                    query,
+                    { $unset: { folder: "" } }
+                );
+            }
 
             res.status(200).json({
-                message: 'Folder deleted successfully',
-                modifiedCount: result.modifiedCount
+                message: deleteAll ? 'Folder and all simulations deleted' : 'Folder deleted successfully',
+                modifiedCount: deleteAll ? result.deletedCount : result.modifiedCount,
+                deleted: deleteAll
             });
         } catch (error) {
             console.error('DELETE error:', error);

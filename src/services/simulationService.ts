@@ -91,6 +91,18 @@ class SimulationService {
         }
     }
 
+    async deleteSimulations(ids: string[], token?: string): Promise<void> {
+        const response = await fetch(this.apiBaseUrl, {
+            method: 'DELETE',
+            headers: this.getHeaders(token),
+            body: JSON.stringify({ ids }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to delete simulations: ${response.status} ${response.statusText}`);
+        }
+    }
+
     async getSimulation(id: string, token?: string): Promise<SavedSimulation | undefined> {
         const response = await fetch(`${this.apiBaseUrl}/${id}`, {
             headers: this.getHeaders(token)
@@ -128,9 +140,10 @@ class SimulationService {
         }
     }
 
-    async deleteFolder(folderName: string, token?: string): Promise<void> {
+    async deleteFolder(folderName: string, token?: string, deleteAll: boolean = false): Promise<void> {
         const encodedFolderName = encodeURIComponent(folderName);
-        const response = await fetch(`${this.apiBaseUrl}/folders/${encodedFolderName}`, {
+        const url = `${this.apiBaseUrl}/folders?folderName=${encodedFolderName}${deleteAll ? '&deleteAll=true' : ''}`;
+        const response = await fetch(url, {
             method: 'DELETE',
             headers: this.getHeaders(token)
         });

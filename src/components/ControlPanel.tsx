@@ -19,6 +19,8 @@ interface BatchSimulation {
   name?: string;
   duration: number;
   params: Partial<SimulationParams>;
+  trafficRule?: 'american' | 'european';
+  compareRegionalRules?: boolean;
 }
 
 interface ControlPanelProps {
@@ -924,6 +926,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 onImport={onUpdateParams}
                 onBatchImport={onBatchImport}
                 currentParams={params}
+                trafficRule={trafficRule}
               />
             </div>
           </CardContent>

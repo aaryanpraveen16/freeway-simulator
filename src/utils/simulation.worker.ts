@@ -3,7 +3,8 @@ import {
     identifyPacks,
     Car,
     Pack,
-    SimulationParams
+    SimulationParams,
+    createPRNG
 } from './trafficSimulation';
 
 // Simulation state handled inside the worker
@@ -17,6 +18,7 @@ let stoppedCars: Set<number> = new Set();
 let showNotifications: boolean = false;
 let isRunning: boolean = false;
 let lastTimestamp: number = 0;
+let rng: (() => number) = Math.random;
 
 // Local refs for interval tracking
 let lastPackRecordTime: number = 0;
@@ -47,7 +49,8 @@ function runSimulationStep() {
         simulationSpeed,
         stoppedCars,
         showNotifications,
-        rawDeltaTime
+        rawDeltaTime,
+        rng
     );
 
     // 2. Identify Packs (needed for UI visualization and stats)
@@ -100,6 +103,12 @@ self.onmessage = (e) => {
             showNotifications = data.showNotifications || false;
             lastTimestamp = 0;
             lastPackRecordTime = 0;
+
+            if (params.seed !== undefined) {
+                rng = createPRNG(params.seed);
+            } else {
+                rng = Math.random;
+            }
             break;
 
         case 'START':

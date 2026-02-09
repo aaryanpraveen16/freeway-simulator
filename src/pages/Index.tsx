@@ -38,6 +38,8 @@ interface BatchSimulation {
   name?: string;
   duration: number;
   params: Partial<SimulationParams>;
+  trafficRule?: 'american' | 'european';
+  compareRegionalRules?: boolean;
 }
 
 interface LaneThroughputDataPoint {
@@ -139,6 +141,7 @@ const Index = () => {
   const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
   const [showCharts, setShowCharts] = useState<boolean>(false);
   const [showCarStats, setShowCarStats] = useState<boolean>(false);
+  const [isBatchPaused, setIsBatchPaused] = useState<boolean>(false);
 
   const batchQueueRef = useRef<BatchSimulation[]>([]);
 
@@ -437,6 +440,7 @@ const Index = () => {
       const newParams = { ...defaultParams, ...urlParams };
       setParams(newParams);
       resetSimulation(newParams);
+      // Auto-start ONLY if simulationDuration is set in URL and NOT just a general reset
       if (urlParams.simulationDuration && urlParams.simulationDuration > 0) {
         setTimeout(() => {
           setIsRunning(true);
@@ -516,7 +520,7 @@ const Index = () => {
 
   // Handle batch simulation progression
   useEffect(() => {
-    if (isBatchProcessing && batchQueue.length > 0 && !isRunning && !isStartingRef.current) {
+    if (isBatchProcessing && batchQueue.length > 0 && !isRunning && !isStartingRef.current && !isBatchPaused) {
       console.log('Starting next batch item:', batchQueue[0]);
       isStartingRef.current = true;
 
@@ -527,6 +531,9 @@ const Index = () => {
 
       // Reset state and notify worker
       setParams(newParams);
+      if (currentSim.trafficRule) {
+        setTrafficRule(currentSim.trafficRule);
+      }
       resetSimulation(newParams);
 
       // Small delay to ensure initialization is clean
@@ -557,7 +564,8 @@ const Index = () => {
       const singleBatch: BatchSimulation = {
         name: `Imported Sim ${new Date().toLocaleTimeString()}`,
         duration: newParams.simulationDuration || params.simulationDuration || 60,
-        params: newParams
+        params: newParams,
+        trafficRule: (newParams as any).trafficRule || trafficRule
       };
       setBatchQueue(prev => [...prev, singleBatch]);
       setIsBatchProcessing(true);
@@ -565,12 +573,24 @@ const Index = () => {
       setParams(prev => ({ ...prev, ...newParams }));
     }
   }, [params, batchQueue.length]);
-  const handleReset = useCallback(() => { resetSimulation(params); }, [resetSimulation, params]);
+  const handleReset = useCallback(() => {
+    resetSimulation(params);
+    setIsBatchPaused(false); // Reset pause state on manual reset
+  }, [resetSimulation, params]);
+
   const toggleSimulation = useCallback(() => {
     const nextRunning = !isRunning;
     setIsRunning(nextRunning);
     if (workerRef.current) workerRef.current.postMessage({ type: nextRunning ? 'START' : 'STOP' });
-  }, [isRunning]);
+
+    // If we are in batch mode and manually pause, set isBatchPaused to true
+    if (isBatchProcessing && !nextRunning) {
+      setIsBatchPaused(true);
+    } else if (nextRunning) {
+      // If we resume, clear the pause flag
+      setIsBatchPaused(false);
+    }
+  }, [isRunning, isBatchProcessing]);
 
   const handleStopCar = useCallback((carId: number) => {
     setStoppedCars(prev => new Set([...prev, carId]));
@@ -695,6 +715,7 @@ const Index = () => {
     });
     setBatchQueue(prev => [...prev, ...simulations]);
     setIsBatchProcessing(true);
+    setIsBatchPaused(false); // Ensure it's not paused when starting a new batch
   }, [toast, batchQueue.length]);
 
   return (

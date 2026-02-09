@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -41,7 +42,7 @@ const ComparisonSelectionList: React.FC<{
   openMoveDialogForSingle: (sim: SavedSimulation) => void;
   existingFolders: string[];
   onRenameFolder: (oldName: string, newName: string) => Promise<void>;
-  onDeleteFolder: (folderName: string) => Promise<void>;
+  onDeleteFolder: (folderName: string, deleteAll?: boolean) => Promise<void>;
 }> = ({
   savedSimulations,
   selectedForComparison,
@@ -88,8 +89,7 @@ const ComparisonSelectionList: React.FC<{
     };
 
     const toggleFolderSelection = (folder: string, checked: boolean | 'indeterminate') => {
-      if (checked === 'indeterminate') return; // Should not happen via click usually
-
+      if (checked === 'indeterminate') return;
       const simsInFolder = groupedSimulations[folder];
       simsInFolder.forEach(sim => {
         onSelectionChange(sim.id, !!checked);
@@ -155,6 +155,21 @@ const ComparisonSelectionList: React.FC<{
 
     return (
       <div className="space-y-4">
+        {savedSimulations.length > 0 && (
+          <div className="flex items-center gap-2 mb-2 p-2 bg-muted/20 rounded-lg">
+            <Checkbox
+              id="select-all-comparison"
+              checked={savedSimulations.every(s => selectedForComparison.has(s.id))}
+              onCheckedChange={(checked) => {
+                savedSimulations.forEach(sim => onSelectionChange(sim.id, !!checked));
+              }}
+            />
+            <Label htmlFor="select-all-comparison" className="text-sm font-medium cursor-pointer">
+              Select All {savedSimulations.length} for Comparison
+            </Label>
+          </div>
+        )}
+
         {folders.map(folder => {
           const sims = groupedSimulations[folder];
           const allSelected = sims.every(s => selectedForComparison.has(s.id));
@@ -256,8 +271,8 @@ const ComparisonSelectionList: React.FC<{
             onClose={() => setDeletingFolder(null)}
             folderName={deletingFolder}
             simulationCount={groupedSimulations[deletingFolder]?.length || 0}
-            onDelete={async () => {
-              await onDeleteFolder(deletingFolder);
+            onDelete={async (deleteAll) => {
+              await onDeleteFolder(deletingFolder, deleteAll);
               setDeletingFolder(null);
             }}
           />
@@ -283,8 +298,10 @@ const IndividualSimulationList: React.FC<{
   onSelectionChange: (id: string, checked: boolean) => void;
   existingFolders: string[];
   onRenameFolder: (oldName: string, newName: string) => Promise<void>;
-  onDeleteFolder: (folderName: string) => Promise<void>;
+  onDeleteFolder: (folderName: string, deleteAll?: boolean) => Promise<void>;
   viewMode: 'folders' | 'individual';
+  onSelectAll: (checked: boolean) => void;
+  allPageSelected: boolean;
 }> = ({
   savedSimulations,
   unitConversions,
@@ -303,7 +320,9 @@ const IndividualSimulationList: React.FC<{
   existingFolders,
   onRenameFolder,
   onDeleteFolder,
-  viewMode
+  viewMode,
+  onSelectAll,
+  allPageSelected
 }) => {
     // Default to all folders expanded? Or perhaps keep track of expanded set.
     // Let's default to expanded for better initial visibility, or track collapsed ones.
@@ -346,8 +365,20 @@ const IndividualSimulationList: React.FC<{
 
     return (
       <div className="space-y-4">
+        {savedSimulations.length > 0 && (
+          <div className="flex items-center gap-2 mb-4 p-2 bg-muted/20 rounded-lg">
+            <Checkbox
+              id="select-all-individual"
+              checked={allPageSelected}
+              onCheckedChange={(checked) => onSelectAll(checked as boolean)}
+            />
+            <Label htmlFor="select-all-individual" className="text-sm font-medium cursor-pointer">
+              Select All {savedSimulations.length} on this page
+            </Label>
+          </div>
+        )}
+
         {viewMode === 'individual' ? (
-          // Individual view - show all simulations in a flat grid
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {savedSimulations.map(simulation => (
               <SimulationCard
@@ -370,8 +401,7 @@ const IndividualSimulationList: React.FC<{
             ))}
           </div>
         ) : (
-          // Folder view - show simulations organized by folders
-          <>
+          <div className="space-y-4">
             {folders.map(folder => {
               const sims = groupedSimulations[folder];
               const isExpanded = expandedFolders.has(folder);
@@ -475,7 +505,7 @@ const IndividualSimulationList: React.FC<{
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
 
         {savedSimulations.length === 0 && (
@@ -506,8 +536,8 @@ const IndividualSimulationList: React.FC<{
             onClose={() => setDeletingFolder(null)}
             folderName={deletingFolder}
             simulationCount={groupedSimulations[deletingFolder]?.length || 0}
-            onDelete={async () => {
-              await onDeleteFolder(deletingFolder);
+            onDelete={async (deleteAll) => {
+              await onDeleteFolder(deletingFolder, deleteAll);
               setDeletingFolder(null);
             }}
           />
@@ -683,7 +713,21 @@ const SavedSimulations: React.FC = () => {
     try {
       const token = await getToken();
       await simulationService.deleteSimulation(id, token || undefined);
-      await loadSimulations(true); // Reset to page 1
+
+      // Update local state instead of reloading everything
+      setSavedSimulations(prev => prev.filter(sim => sim.id !== id));
+      setTotalSimulations(prev => Math.max(0, prev - 1));
+
+      // Also remove from selection if it was selected
+      setSelectedForComparison(prev => {
+        if (prev.has(id)) {
+          const newSet = new Set(prev);
+          newSet.delete(id);
+          return newSet;
+        }
+        return prev;
+      });
+
       toast({
         title: "Success",
         description: "Simulation deleted successfully",
@@ -794,14 +838,16 @@ const SavedSimulations: React.FC = () => {
     }
   };
 
-  const handleDeleteFolder = async (folderName: string) => {
+  const handleDeleteFolder = async (folderName: string, deleteAll: boolean = false) => {
     try {
       const token = await getToken();
-      await simulationService.deleteFolder(folderName, token || undefined);
+      await simulationService.deleteFolder(folderName, token || undefined, deleteAll);
       await loadSimulations(true); // Reset to page 1
       toast({
         title: "Success",
-        description: `Folder "${folderName}" deleted. Simulations moved to uncategorized.`,
+        description: deleteAll
+          ? `Folder "${folderName}" and all its simulations deleted.`
+          : `Folder "${folderName}" deleted. Simulations moved to uncategorized.`,
       });
     } catch (error) {
       console.error('Error deleting folder:', error);
@@ -820,6 +866,37 @@ const SavedSimulations: React.FC = () => {
       .map(s => s.folder)
       .filter((f): f is string => !!f && f.trim() !== '')
   )).sort();
+
+  const handleBulkDelete = async () => {
+    if (selectedForComparison.size === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${selectedForComparison.size} simulation(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const ids = Array.from(selectedForComparison);
+      const token = await getToken();
+      await simulationService.deleteSimulations(ids, token || undefined);
+
+      // Update local state
+      setSavedSimulations(prev => prev.filter(sim => !selectedForComparison.has(sim.id)));
+      setTotalSimulations(prev => Math.max(0, prev - ids.length));
+      setSelectedForComparison(new Set());
+
+      toast({
+        title: "Success",
+        description: `Successfully deleted ${ids.length} simulation(s)`,
+      });
+    } catch (error) {
+      console.error('Error deleting simulations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete simulations",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleComparisonSelection = (simulationId: string, checked: boolean) => {
     setSelectedForComparison(prev => {
@@ -965,6 +1042,16 @@ const SavedSimulations: React.FC = () => {
             <FolderPlus className="h-4 w-4" />
             Move Selected to Folder
           </Button>
+          <Button
+            variant="outline"
+            onClick={handleBulkDelete}
+            className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+            disabled={selectedForComparison.size === 0}
+            title={selectedForComparison.size === 0 ? "Select simulations to delete first" : `Delete ${selectedForComparison.size} selected simulations`}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Selected
+          </Button>
           <Link to="/freeway-simulator">
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -1036,6 +1123,18 @@ const SavedSimulations: React.FC = () => {
               onRenameFolder={handleRenameFolder}
               onDeleteFolder={handleDeleteFolder}
               viewMode={viewMode}
+              onSelectAll={(checked) => {
+                if (checked) {
+                  const newSet = new Set(selectedForComparison);
+                  savedSimulations.forEach(sim => newSet.add(sim.id));
+                  setSelectedForComparison(newSet);
+                } else {
+                  const newSet = new Set(selectedForComparison);
+                  savedSimulations.forEach(sim => newSet.delete(sim.id));
+                  setSelectedForComparison(newSet);
+                }
+              }}
+              allPageSelected={savedSimulations.length > 0 && savedSimulations.every(sim => selectedForComparison.has(sim.id))}
             />
 
             {/* Load More Button */}

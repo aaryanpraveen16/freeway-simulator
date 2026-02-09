@@ -7,6 +7,14 @@
             "handle": "filesystem"
         },
         {
+            "src": "/api/simulations/folders/(.*)",
+            "dest": "/api/simulations/folders.ts?folderName=$1"
+        },
+        {
+            "src": "/api/simulations/folders",
+            "dest": "/api/simulations/folders.ts"
+        },
+        {
             "src": "/api/simulations/([^/]+)",
             "dest": "/api/simulations/[id].ts?id=$1"
         },

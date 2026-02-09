@@ -71,6 +71,11 @@ const SimulationCard: React.FC<SimulationCardProps> = ({
                             <Calendar size={14} />
                             {formatDate(simulation.timestamp)}
                         </div>
+                        {simulation.creatorName && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5 ml-0.5">
+                                <span className="font-medium">Saved by {simulation.creatorName}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </CardHeader>
@@ -278,8 +283,6 @@ const SimulationCard: React.FC<SimulationCardProps> = ({
 
                                 <div className="border-t">
                                     <ChartDashboard
-                                        cars={[]}
-                                        elapsedTime={simulation.duration}
                                         laneLength={1000}
                                         params={simulation.params}
                                         trafficRule={simulation.trafficRule}

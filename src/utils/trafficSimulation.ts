@@ -96,6 +96,8 @@ export interface SimulationParams {
   europeanGapFactor?: number;
   /** Lane change hysteresis timer in seconds (default: 1.0) */
   laneChangeHysteresis?: number;
+  /** Seed for deterministic random number generation */
+  seed?: number;
 }
 
 // Default simulation parameters
@@ -168,15 +170,28 @@ export function calculatePhysicalLimit(params: SimulationParams): number {
   return carsPerKmPerLane * numLanes;
 }
 
+/**
+ * A seeded random number generator (Mulberry32)
+ */
+export function createPRNG(seed: number): () => number {
+  return function () {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
 // Generate random number from normal distribution
 export function normalRandom(
   mean: number,
   std: number,
   min?: number,
-  max?: number
+  max?: number,
+  rng: () => number = Math.random
 ): number {
-  let u1 = Math.random();
-  let u2 = Math.random();
+  let u1 = rng();
+  let u2 = rng();
   let z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
   let value = mean + z0 * std;
 
@@ -186,13 +201,13 @@ export function normalRandom(
 }
 
 // Generate random number from log-normal distribution (returns distance in same units as mean)
-export function logNormalRandom(mean: number, sigma: number): number {
+export function logNormalRandom(mean: number, sigma: number, rng: () => number = Math.random): number {
   // Convert mean and sigma to mu and sigma for log-normal distribution
   const mu = Math.log(mean) - 0.5 * Math.pow(sigma, 2);
 
   // Generate normal random variable
-  const u1 = Math.random();
-  const u2 = Math.random();
+  const u1 = rng();
+  const u2 = rng();
   const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
 
   // Transform to log-normal
@@ -224,7 +239,8 @@ function generateDriverProperties(
     conservative: number;
   },
   uniformDriverBehavior: boolean = false,
-  baseReactionTime: number = 2.0
+  baseReactionTime: number = 2.0,
+  rng: () => number = Math.random
 ): {
   driverType: "aggressive" | "normal" | "conservative";
   laneChangeProbability: number;
@@ -232,7 +248,7 @@ function generateDriverProperties(
   driverReactionTime: number;
   laneChangeStabilityThreshold: number;
 } {
-  const rand = Math.random();
+  const rand = rng();
 
   // Reaction time parameters (standard deviation for normal distribution)
   const reactionTimeMean = 2.0; // seconds (will be overridden by params.driverReactionTime if available)
@@ -282,42 +298,42 @@ function generateDriverProperties(
   // We'll need to pass the base reaction time if we want to center it exactly.
 
   // Lane Stability Threshold: Random integer between 3 and 10
-  const randomStabilityThreshold = Math.floor(normalRandom(6, 2, 3, 12));
+  const randomStabilityThreshold = Math.floor(normalRandom(6, 2, 3, 12, rng));
 
   // Aggressive: 70% of base, Normal: 100% of base, Conservative: 140% of base
   if (rand < aggressiveThreshold) {
     // Aggressive driver
     return {
       driverType: "aggressive",
-      laneChangeProbability: normalRandom(0.8, 0.1, 0.6, 1.0),
-      laneStickiness: normalRandom(0.3, 0.1, 0.1, 0.5),
-      driverReactionTime: normalRandom(baseReactionTime * 0.7, baseReactionTime * 0.15, 0.5, 5.0),
-      laneChangeStabilityThreshold: Math.floor(normalRandom(4, 1, 2, 7)),
+      laneChangeProbability: normalRandom(0.8, 0.1, 0.6, 1.0, rng),
+      laneStickiness: normalRandom(0.3, 0.1, 0.1, 0.5, rng),
+      driverReactionTime: normalRandom(baseReactionTime * 0.7, baseReactionTime * 0.15, 0.5, 5.0, rng),
+      laneChangeStabilityThreshold: Math.floor(normalRandom(4, 1, 2, 7, rng)),
     };
   } else if (rand < normalThreshold) {
     // Normal driver
     return {
       driverType: "normal",
-      laneChangeProbability: normalRandom(0.5, 0.15, 0.2, 0.8),
-      laneStickiness: normalRandom(0.6, 0.15, 0.3, 0.9),
-      driverReactionTime: normalRandom(baseReactionTime, baseReactionTime * 0.2, 0.8, 6.0),
-      laneChangeStabilityThreshold: Math.floor(normalRandom(7, 2, 4, 12)),
+      laneChangeProbability: normalRandom(0.5, 0.15, 0.2, 0.8, rng),
+      laneStickiness: normalRandom(0.6, 0.15, 0.3, 0.9, rng),
+      driverReactionTime: normalRandom(baseReactionTime, baseReactionTime * 0.2, 0.8, 6.0, rng),
+      laneChangeStabilityThreshold: Math.floor(normalRandom(7, 2, 4, 12, rng)),
     };
   } else {
     // Conservative driver
     return {
       driverType: "conservative",
-      laneChangeProbability: normalRandom(0.2, 0.1, 0.05, 0.4),
-      laneStickiness: normalRandom(0.8, 0.1, 0.6, 1.0),
-      driverReactionTime: normalRandom(baseReactionTime * 1.4, baseReactionTime * 0.3, 1.5, 8.0),
-      laneChangeStabilityThreshold: Math.floor(normalRandom(12, 3, 8, 20)),
+      laneChangeProbability: normalRandom(0.2, 0.1, 0.05, 0.4, rng),
+      laneStickiness: normalRandom(0.8, 0.1, 0.6, 1.0, rng),
+      driverReactionTime: normalRandom(baseReactionTime * 1.4, baseReactionTime * 0.3, 1.5, 8.0, rng),
+      laneChangeStabilityThreshold: Math.floor(normalRandom(12, 3, 8, 20, rng)),
     };
   }
 }
 
 // Generate vehicle type based on density parameters
-function generateVehicleType(params: SimulationParams): "car" | "truck" | "motorcycle" {
-  const rand = Math.random() * 100;
+function generateVehicleType(params: SimulationParams, rng: () => number = Math.random): "car" | "truck" | "motorcycle" {
+  const rand = rng() * 100;
   const { car, truck, motorcycle } = params.vehicleTypeDensity;
 
   if (rand < car) {
@@ -360,6 +376,7 @@ export function initializeSimulation(params: SimulationParams, showNotifications
   laneLength: number;
   density: number;
 } {
+  const rng = params.seed !== undefined ? createPRNG(params.seed) : Math.random;
   const cars: Car[] = [];
   const carColors = [
     "hsl(var(--car-red))",
@@ -394,14 +411,15 @@ export function initializeSimulation(params: SimulationParams, showNotifications
 
     for (let i = 0; i < carsInThisLane; i++) {
       // Generate vehicle type first
-      const vehicleType = generateVehicleType(params);
+      const vehicleType = generateVehicleType(params, rng);
       const vehicleProps = getVehicleProperties(vehicleType);
 
       const desiredSpeed = normalRandom(
         params.meanSpeed * vehicleProps.speedModifier,
         params.stdSpeed,
         params.minSpeed,
-        params.maxSpeed
+        params.maxSpeed,
+        rng
       );
 
       // Initial speed is the desired speed
@@ -413,7 +431,7 @@ export function initializeSimulation(params: SimulationParams, showNotifications
 
       // Generate planned trip distance using log-normal distribution (km)
       const minTripDistance = 1; // minimum trip distance in km
-      const distTripPlannedRaw = logNormalRandom(params.meanDistTripPlanned, params.sigmaDistTripPlanned);
+      const distTripPlannedRaw = logNormalRandom(params.meanDistTripPlanned, params.sigmaDistTripPlanned, rng);
       const distTripPlanned = Math.max(
         minTripDistance,
         distTripPlannedRaw
@@ -424,7 +442,8 @@ export function initializeSimulation(params: SimulationParams, showNotifications
       const driverProps = generateDriverProperties(
         params.driverTypeDensity,
         params.uniformDriverBehavior,
-        params.driverReactionTime ?? 2.0
+        params.driverReactionTime ?? 2.0,
+        rng
       );
 
       cars.push({
@@ -492,7 +511,7 @@ export function initializeSimulation(params: SimulationParams, showNotifications
       car.speed = Math.max(
         0,
         Math.min(
-          safeSpeedKph * (0.9 + Math.random() * 0.1), // Add slight randomness
+          safeSpeedKph * (0.9 + rng() * 0.1), // Add slight randomness
           car.desiredSpeed,
           params.speedLimit || 130
         )
@@ -601,7 +620,8 @@ export function updateSimulation(
   simulationSpeed: number = 1,
   stoppedCars: Set<number> = new Set(),
   showNotifications: boolean = true,
-  actualDeltaTime?: number // Optional parameter for actual time elapsed since last frame
+  actualDeltaTime?: number, // Optional parameter for actual time elapsed since last frame
+  rng: () => number = Math.random
 ): {
   cars: Car[];
   events: {
@@ -1056,23 +1076,24 @@ export function updateSimulation(
   // Handling New Entries
   for (let i = 0; i < carsToRemove.length; i++) {
     const newPosition = 0;
-    const vehicleType = generateVehicleType(params);
+    const vehicleType = generateVehicleType(params, rng);
     const vehicleProps = getVehicleProperties(vehicleType);
     const desiredSpeed = normalRandom(
       params.meanSpeed * vehicleProps.speedModifier,
       params.stdSpeed,
       params.minSpeed,
-      params.maxSpeed
+      params.maxSpeed,
+      rng
     );
     const speed = desiredSpeed;
     const physicalLength = vehicleProps.lengthMeters;
     const virtualLength = calculateVirtualLength(speed, physicalLength, params);
-    const distTripPlanned = Math.max(1, logNormalRandom(params.meanDistTripPlanned, params.sigmaDistTripPlanned));
-    const driverProps = generateDriverProperties(params.driverTypeDensity, params.uniformDriverBehavior, params.driverReactionTime ?? 2.0);
+    const distTripPlanned = Math.max(1, logNormalRandom(params.meanDistTripPlanned, params.sigmaDistTripPlanned, rng));
+    const driverProps = generateDriverProperties(params.driverTypeDensity, params.uniformDriverBehavior, params.driverReactionTime ?? 2.0, rng);
 
     // Find safe ID
     const newId = updatedCars.length > 0 ? Math.max(...updatedCars.map(c => c.id)) + 1 : 0;
-    const lane = Math.floor(Math.random() * numLanesSim);
+    const lane = Math.floor(rng() * numLanesSim);
 
     const newCar = {
       id: newId,

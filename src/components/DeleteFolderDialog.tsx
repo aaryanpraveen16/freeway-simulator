@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Trash2 } from "lucide-react";
+import { AlertTriangle, Trash2, Info } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface DeleteFolderDialogProps {
     isOpen: boolean;
     onClose: () => void;
     folderName: string;
     simulationCount: number;
-    onDelete: () => Promise<void>;
+    onDelete: (deleteAll: boolean) => Promise<void>;
 }
 
 const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
@@ -21,13 +23,14 @@ const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
 }) => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [deleteAll, setDeleteAll] = useState(false);
 
     const handleDelete = async () => {
         setError(null);
         setIsDeleting(true);
 
         try {
-            await onDelete();
+            await onDelete(deleteAll);
             handleClose();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to delete folder");
@@ -38,6 +41,7 @@ const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
 
     const handleClose = () => {
         setError(null);
+        setDeleteAll(false);
         onClose();
     };
 
@@ -61,11 +65,34 @@ const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
                             <p className="font-medium mb-2">You are about to delete the folder "{folderName}"</p>
                             <ul className="list-disc pl-5 space-y-1 text-sm">
                                 <li>The folder contains {simulationCount} simulation{simulationCount !== 1 ? 's' : ''}</li>
-                                <li>All simulations will be moved to "Uncategorized"</li>
-                                <li>No simulation data will be lost</li>
+                                {deleteAll ? (
+                                    <li className="text-destructive font-semibold">ALL {simulationCount} simulations will be PERMANENTLY DELETED</li>
+                                ) : (
+                                    <li>All simulations will be moved to "Uncategorized"</li>
+                                )}
+                                <li>{deleteAll ? "This action IS destructive and cannot be undone" : "No simulation data will be lost"}</li>
                             </ul>
                         </AlertDescription>
                     </Alert>
+
+                    <div className="flex items-center space-x-2 p-2 rounded-md border bg-muted/20">
+                        <Checkbox
+                            id="delete-all-sims"
+                            checked={deleteAll}
+                            onCheckedChange={(checked) => setDeleteAll(checked === true)}
+                        />
+                        <div className="grid gap-1.5 leading-none">
+                            <Label
+                                htmlFor="delete-all-sims"
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            >
+                                Also delete all simulations in this folder
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                                Use this to permanently remove all {simulationCount} simulations from the database.
+                            </p>
+                        </div>
+                    </div>
 
                     {error && (
                         <Alert variant="destructive">
@@ -84,7 +111,7 @@ const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
                         onClick={handleDelete}
                         disabled={isDeleting}
                     >
-                        {isDeleting ? "Deleting..." : "Delete Folder"}
+                        {isDeleting ? "Deleting..." : deleteAll ? "Delete Everything" : "Delete Folder"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

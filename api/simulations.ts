@@ -114,6 +114,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.error('POST error:', error);
             res.status(500).json({ error: 'Failed to save simulation' });
         }
+    } else if (req.method === 'DELETE') {
+        try {
+            const { ids } = req.body;
+
+            if (!ids || !Array.isArray(ids) || ids.length === 0) {
+                res.status(400).json({ error: 'Valid simulation IDs are required' });
+                return;
+            }
+
+            // Visibility filter: only what the user owns OR all if admin
+            let query: any = { id: { $in: ids } };
+            if (!session.isAdmin) {
+                query.createdBy = session.userId;
+            }
+
+            const result = await collection.deleteMany(query);
+
+            res.status(200).json({
+                message: `Successfully deleted ${result.deletedCount} simulation(s)`,
+                deletedCount: result.deletedCount
+            });
+        } catch (error) {
+            console.error('DELETE error:', error);
+            res.status(500).json({ error: 'Failed to delete simulations' });
+        }
     } else {
         res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']);
         res.status(405).end(`Method ${req.method} Not Allowed`);

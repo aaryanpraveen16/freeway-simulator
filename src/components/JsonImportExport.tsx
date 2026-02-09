@@ -9,16 +9,19 @@ import { Copy, FileText } from "lucide-react";
 interface BatchSimulation {
   name?: string;
   duration: number; // in seconds
-  params: Partial<SimulationParams>;
+  params: Partial<SimulationParams> & { seed?: number };
+  trafficRule?: 'american' | 'european';
+  compareRegionalRules?: boolean;
 }
 
 interface JsonImportExportProps {
   onImport: (params: Partial<SimulationParams>, autoStart?: boolean) => void;
   onBatchImport?: (simulations: BatchSimulation[]) => void;
   currentParams: SimulationParams;
+  trafficRule: 'american' | 'european';
 }
 
-export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, onBatchImport, currentParams }) => {
+export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, onBatchImport, currentParams, trafficRule }) => {
   const [jsonInput, setJsonInput] = useState<string>('');
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -63,28 +66,53 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
           throw new Error('Batch import not supported in this context');
         }
 
-        // Validate batch format
-        const batchSimulations: BatchSimulation[] = parsedData.map((item, index) => {
+        // Validate batch format and expansion
+        const batchSimulations: BatchSimulation[] = [];
+
+        parsedData.forEach((item, index) => {
           if (typeof item !== 'object' || item === null) {
             throw new Error(`Invalid batch item at index ${index}: Expected an object`);
           }
 
-          // Support both strict {name, duration, params} and flat parameter objects
-          if ('params' in item && typeof item.params === 'object') {
-            const { name, duration, params } = item;
-            if (typeof duration !== 'number' || duration <= 0) {
-              throw new Error(`Invalid duration at index ${index}: Must be a positive number`);
+          const baseDuration = item.simulationDuration || item.duration || 60;
+          const baseName = item.name || `Sim ${index + 1}`;
+          const baseParams = item.params && typeof item.params === 'object' ? item.params : item;
+          const baseRule = item.trafficRule || 'american';
+          const shouldCompare = item.compareRegionalRules === true;
+
+          if (shouldCompare) {
+            // Generate a shared seed for this comparison set
+            const sharedSeed = Math.floor(Math.random() * 1000000);
+
+            // Add 3 American runs
+            for (let i = 1; i <= 3; i++) {
+              batchSimulations.push({
+                name: `${baseName} [US ${i}/3]`,
+                duration: baseDuration,
+                params: { ...baseParams, seed: sharedSeed },
+                trafficRule: 'american'
+              });
             }
-            return { name, duration, params };
+            // Add 3 European runs
+            for (let i = 1; i <= 3; i++) {
+              batchSimulations.push({
+                name: `${baseName} [EU ${i}/3]`,
+                duration: baseDuration,
+                params: { ...baseParams, seed: sharedSeed },
+                trafficRule: 'european'
+              });
+            }
           } else {
-            // Treat the whole object as params
-            const duration = item.simulationDuration || item.duration || 60;
-            const name = item.name || `Sim ${index + 1}`;
-            return { name, duration, params: item };
+            batchSimulations.push({
+              name: baseName,
+              duration: baseDuration,
+              params: baseParams,
+              trafficRule: baseRule
+            });
           }
         });
 
-        console.log('Parsed batch simulations:', batchSimulations);
+        console.log('Parsed batch simulations (expanded):', batchSimulations);
         onBatchImport(batchSimulations);
 
         toast({
@@ -131,6 +159,11 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
 
       console.log('Current params before import:', currentParams);
 
+      if (parsedParams.trafficRule && (parsedParams.trafficRule === 'american' || parsedParams.trafficRule === 'european')) {
+        // We'll pass this via a slightly modified onImport call or handle it separately
+        // For now, let's just make sure it's recognized
+      }
+
       // Only copy over valid parameters
       Object.entries(parsedParams).forEach(([key, value]) => {
         // Check if the key is in our valid parameters list
@@ -170,7 +203,36 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
       }
 
       console.log('Final params to import:', validParams);
-      onImport(validParams, true); // Auto-start single imports
+
+      // Handle Regional Comparison Expansion for single imports
+      if (parsedData.compareRegionalRules === true) {
+        const expansion: BatchSimulation[] = [];
+        const baseName = parsedData.name || `Comparison ${new Date().toLocaleTimeString()}`;
+        const duration = parsedData.simulationDuration || parsedData.duration || 60;
+        const sharedSeed = Math.floor(Math.random() * 1000000);
+
+        for (let i = 1; i <= 3; i++) {
+          expansion.push({ name: `${baseName} [US ${i}/3]`, duration, params: { ...validParams, seed: sharedSeed } as any, trafficRule: 'american' });
+        }
+        for (let i = 1; i <= 3; i++) {
+          expansion.push({ name: `${baseName} [EU ${i}/3]`, duration, params: { ...validParams, seed: sharedSeed } as any, trafficRule: 'european' });
+        }
+
+        if (onBatchImport) {
+          onBatchImport(expansion);
+          toast({ title: "Success", description: "Expanded comparison into 6 batch simulations.", variant: "default" });
+          setJsonInput('');
+          return;
+        }
+      }
+
+      // If the imported data had a top-level trafficRule, respect it
+      if (parsedData.trafficRule && (parsedData.trafficRule === 'american' || parsedData.trafficRule === 'european')) {
+        // We'll pass it alongside the params if onImport supports it or via separate channel
+        onImport({ ...validParams, trafficRule: parsedData.trafficRule } as any, true);
+      } else {
+        onImport(validParams, true); // Auto-start single imports
+      }
       console.log('Import complete, showing success toast');
 
       toast({
@@ -199,10 +261,12 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
       const exportableParams = { ...currentParams };
 
       // Remove internal function references if any (though params shouldn't have them)
-      // @ts-ignore
-      delete exportableParams.onUpdate;
+      const exportObject = {
+        params: exportableParams,
+        trafficRule
+      };
 
-      const jsonString = JSON.stringify(exportableParams, null, 2);
+      const jsonString = JSON.stringify(exportObject, null, 2);
 
       // Copy to clipboard
       navigator.clipboard.writeText(jsonString);
@@ -236,6 +300,7 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
           meanSpeed: 65,
           speedLimit: 70,
           freewayLength: 1,
+          trafficRule: 'american',
           vehicleTypeDensity: {
             car: 70,
             truck: 20,
@@ -244,11 +309,12 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
           tDist: 3,
           meanDistTripPlanned: 8
         };
-      } else {
+      } else if (type === 'batch') {
         sampleJson = [
           {
             name: "Low Traffic Scenario",
             duration: 60,
+            trafficRule: 'european',
             params: {
               numLanes: 2,
               trafficDensity: 1.0,
@@ -295,6 +361,17 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
             }
           }
         ];
+      } else if (type === 'comparison' as any) {
+        sampleJson = {
+          name: "Regional Comparison Study",
+          duration: 60,
+          compareRegionalRules: true,
+          params: {
+            numLanes: 3,
+            trafficDensity: 30,
+            meanSpeed: 65
+          }
+        };
       }
 
       const jsonString = JSON.stringify(sampleJson, null, 2);
@@ -371,6 +448,15 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
           >
             <FileText className="w-4 h-4 mr-2" />
             Batch Simulations
+          </Button>
+
+          <Button
+            onClick={() => generateSampleJson('comparison' as any)}
+            variant="secondary"
+            size="sm"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            Regional Comparison (3+3)
           </Button>
         </div>
         <div className="text-xs text-muted-foreground">
