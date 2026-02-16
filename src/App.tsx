@@ -17,26 +17,42 @@ if (!PUBLISHABLE_KEY) {
   console.warn("Missing Clerk Publishable Key in .env");
 }
 
-const App = () => (
+import { useEffect } from "react";
+import { simulationCache } from "@/utils/simulationCache";
 
-  <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-    <Analytics />
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/freeway-simulator" element={<Index />} />
-            <Route path="/saved-simulations" element={<SavedSimulations />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ClerkProvider>
-);
+const App = () => {
+  useEffect(() => {
+    // Session management for cache
+    const sessionActive = sessionStorage.getItem('freeway_session_active');
+    if (!sessionActive) {
+      // New session (tab opened), clear previous cache to ensure fresh start
+      // while allowing persistence on refresh (F5) because sessionStorage survives refreshes
+      console.log("New session detected: Clearing simulation cache");
+      simulationCache.clear().catch(err => console.error("Failed to clear cache:", err));
+      sessionStorage.setItem('freeway_session_active', 'true');
+    }
+  }, []);
+
+  return (
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <Analytics />
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/freeway-simulator" element={<Index />} />
+              <Route path="/saved-simulations" element={<SavedSimulations />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
+  );
+};
 
 export default App;

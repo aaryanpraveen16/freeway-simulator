@@ -572,7 +572,7 @@ const SavedSimulations: React.FC = () => {
   const unitConversions = getUnitConversions(unitSystem);
 
   useEffect(() => {
-    loadSimulations();
+    loadSimulations(true);
   }, []);
 
   useEffect(() => {
@@ -612,6 +612,7 @@ const SavedSimulations: React.FC = () => {
         simulation.name = `${simulation.name} (Imported)`;
       }
 
+      // Save the imported simulation
       // Save the imported simulation
       const token = await getToken();
       await simulationService.saveSimulation(simulation, token || undefined);
@@ -656,8 +657,25 @@ const SavedSimulations: React.FC = () => {
   const loadSimulations = async (reset: boolean = false) => {
     try {
       const pageToLoad = reset ? 1 : currentPage;
+      const currentCount = savedSimulations.length;
+
+      // PERSISTENCE: Check localStorage if this is a hard reset (like a page refresh)
+      const storedCountStr = localStorage.getItem('freeway_savedSims_visibleCount');
+      const storedCount = storedCountStr ? parseInt(storedCountStr, 10) : 20;
+
+      // Optimization: If we are resetting, use the maximum of:
+      // 1. Default (20)
+      // 2. Currently loaded in state (important for background refreshes)
+      // 3. Stored in localStorage (important for page refreshes)
+      let limitToFetch = 20;
+      if (reset) {
+        limitToFetch = Math.max(20, currentCount, storedCount);
+      }
+
       if (reset) {
         setLoading(true);
+        // We don't necessarily want to clear immediately if we're doing a background refresh
+        // but the current implementation expects an empty array for a clean reset
         setSavedSimulations([]);
         setCurrentPage(1);
       } else {
@@ -665,24 +683,40 @@ const SavedSimulations: React.FC = () => {
       }
 
       const token = await getToken();
-      const { simulations, pagination } = await simulationService.getAllSimulations(pageToLoad, 20, token || undefined);
+      const { simulations, pagination } = await simulationService.getAllSimulations(pageToLoad, limitToFetch, token || undefined);
       console.log('Loaded simulations:', simulations);
 
+      let finalSims = [];
       if (reset) {
-        setSavedSimulations(simulations.sort((a, b) => b.timestamp - a.timestamp));
+        finalSims = simulations.sort((a, b) => b.timestamp - a.timestamp);
+        setSavedSimulations(finalSims);
       } else {
         setSavedSimulations(prev => {
           const combined = [...prev, ...simulations];
           // Use a Map to de-duplicate by ID, keeping the most recent version if duplicates exist
           const uniqueMap = new Map();
           combined.forEach(sim => uniqueMap.set(sim.id, sim));
-          return Array.from(uniqueMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+          const sorted = Array.from(uniqueMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+          finalSims = sorted;
+          return sorted;
         });
+      }
+
+      // Update persistence
+      if (finalSims.length > 0) {
+        localStorage.setItem('freeway_savedSims_visibleCount', finalSims.length.toString());
       }
 
       setHasMore(pagination.hasMore);
       setTotalSimulations(pagination.total);
-      setCurrentPage(pageToLoad);
+
+      // If we did a reset fetch with a large limit, we need to set the current 
+      // page according to how many items we actually loaded so next loadMore works
+      if (reset) {
+        setCurrentPage(Math.max(1, Math.ceil(simulations.length / 20)));
+      } else {
+        setCurrentPage(pageToLoad);
+      }
       setIsUnauthorized(false);
     } catch (error) {
       console.error('Error loading simulations:', error);

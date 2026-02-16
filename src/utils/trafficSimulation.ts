@@ -34,6 +34,7 @@ export interface Car {
   rightLaneOpportunityStartTime?: number; // timestamp when right lane became a viable option
   acceleration: number; // Current acceleration in m/s^2
   lastLeaderId?: number; // Track leader for reaction reset
+  compliance: number; // Speed limit compliance factor (0-1)
 }
 
 /**
@@ -122,14 +123,14 @@ export const defaultParams: SimulationParams = {
   initialGap: 15, // meters (safe following distance at low speed)
   brakeTime: 5, // seconds
   brakeCarIndex: 0, // default to first car
-  minSpeed: 20, // km/h (minimum realistic speed)
-  maxSpeed: 130, // km/h (typical highway speed limit)
-  meanSpeed: 90, // km/h (average desired speed)
-  stdSpeed: 40, // km/h (standard deviation of desired speeds)
-  meanDistTripPlanned: 15, // km (average trip length)
+  minSpeed: 60, // km/h (minimum desired speed to ensure freeway flow)
+  maxSpeed: 135, // km/h (maximum cap for aggressive drivers)
+  meanSpeed: 95, // km/h (average desired speed, slightly below limit)
+  stdSpeed: 10, // km/h (standard deviation of desired speeds)
+  meanDistTripPlanned: 3, // km (average trip length)
   sigmaDistTripPlanned: 0.5, // km (standard deviation of trip lengths, reduced from 1 to 0.5 for realistic values)
-  speedLimit: 130, // km/h (standard highway speed limit)
-  freewayLength: 1, // km (default 1 km)
+  speedLimit: 150, // km/h (standard highway speed limit benchmark)
+  freewayLength: 5, // km (default 1 km)
   numLanes: 2, // default to 2 lanes
   rightLaneBias: 0.1, // small bias for right lane
   accelerationThreshold: 0.2, // Threshold for lane change - lowered to 0.2 to encourage overtakes
@@ -247,6 +248,7 @@ function generateDriverProperties(
   laneStickiness: number;
   driverReactionTime: number;
   laneChangeStabilityThreshold: number;
+  compliance: number;
 } {
   const rand = rng();
 
@@ -271,6 +273,7 @@ function generateDriverProperties(
         laneStickiness: uniformLaneStickiness,
         driverReactionTime: baseReactionTime * 0.7,
         laneChangeStabilityThreshold: 4,
+        compliance: normalRandom(0.2, 0.1, 0.05, 0.4, rng),
       };
     } else if (rand < normalThreshold) {
       return {
@@ -279,6 +282,7 @@ function generateDriverProperties(
         laneStickiness: uniformLaneStickiness,
         driverReactionTime: baseReactionTime,
         laneChangeStabilityThreshold: 7,
+        compliance: normalRandom(0.7, 0.1, 0.5, 0.85, rng),
       };
     } else {
       return {
@@ -287,6 +291,7 @@ function generateDriverProperties(
         laneStickiness: uniformLaneStickiness,
         driverReactionTime: baseReactionTime * 1.4,
         laneChangeStabilityThreshold: 12,
+        compliance: normalRandom(0.95, 0.05, 0.9, 1.0, rng),
       };
     }
   }
@@ -309,6 +314,7 @@ function generateDriverProperties(
       laneStickiness: normalRandom(0.3, 0.1, 0.1, 0.5, rng),
       driverReactionTime: normalRandom(baseReactionTime * 0.7, baseReactionTime * 0.15, 0.5, 5.0, rng),
       laneChangeStabilityThreshold: Math.floor(normalRandom(4, 1, 2, 7, rng)),
+      compliance: normalRandom(0.2, 0.1, 0.05, 0.4, rng),
     };
   } else if (rand < normalThreshold) {
     // Normal driver
@@ -318,6 +324,7 @@ function generateDriverProperties(
       laneStickiness: normalRandom(0.6, 0.15, 0.3, 0.9, rng),
       driverReactionTime: normalRandom(baseReactionTime, baseReactionTime * 0.2, 0.8, 6.0, rng),
       laneChangeStabilityThreshold: Math.floor(normalRandom(7, 2, 4, 12, rng)),
+      compliance: normalRandom(0.7, 0.1, 0.5, 0.85, rng),
     };
   } else {
     // Conservative driver
@@ -327,6 +334,7 @@ function generateDriverProperties(
       laneStickiness: normalRandom(0.8, 0.1, 0.6, 1.0, rng),
       driverReactionTime: normalRandom(baseReactionTime * 1.4, baseReactionTime * 0.3, 1.5, 8.0, rng),
       laneChangeStabilityThreshold: Math.floor(normalRandom(12, 3, 8, 20, rng)),
+      compliance: normalRandom(0.95, 0.05, 0.9, 1.0, rng),
     };
   }
 }
@@ -422,8 +430,8 @@ export function initializeSimulation(params: SimulationParams, showNotifications
         rng
       );
 
-      // Initial speed is the desired speed
-      const speed = desiredSpeed;
+      // Initial speed is the desired speed, but capped by the legal limit for initialization
+      const speed = Math.min(desiredSpeed, params.speedLimit || 100);
 
       // Calculate virtual length based on vehicle type and initial speed (in meters)
       const physicalLength = vehicleProps.lengthMeters;
@@ -882,7 +890,22 @@ export function updateSimulation(
 
     const accelKmhS = appliedAccelMs2 * 3.6;
     carSpeed = Math.max(0, carSpeed + accelKmhS * effectiveDt);
-    carSpeed = Math.min(carSpeed, params.speedLimit);
+
+    // COMPLIANCE MODEL: Replace hard cap with a penalty force (invisible fine/risk)
+    const speedLimit = params.speedLimit || 100;
+    if (carSpeed > speedLimit) {
+      // Sensitivity of the "risk" force. High value (0.5+) makes speeding very difficult.
+      const riskSensitivity = 0.5;
+      // Penalty increases with the square of the delta to represent scaling risk
+      const deltaSpeed = carSpeed - speedLimit;
+      const penaltyDeaccelKmhS = deltaSpeed * currentCar.compliance * riskSensitivity;
+
+      carSpeed = Math.max(speedLimit, carSpeed - penaltyDeaccelKmhS * effectiveDt);
+
+      // Hard hard cap at maxSpeed just for simulation stability
+      const hardCap = params.maxSpeed || 160;
+      if (carSpeed > hardCap) carSpeed = hardCap;
+    }
 
     // STRICT JAM DENSITY ENFORCEMENT
     if (aheadCar) {
@@ -1085,7 +1108,7 @@ export function updateSimulation(
       params.maxSpeed,
       rng
     );
-    const speed = desiredSpeed;
+    const speed = Math.min(desiredSpeed, params.speedLimit || 100);
     const physicalLength = vehicleProps.lengthMeters;
     const virtualLength = calculateVirtualLength(speed, physicalLength, params);
     const distTripPlanned = Math.max(1, logNormalRandom(params.meanDistTripPlanned, params.sigmaDistTripPlanned, rng));
@@ -1132,7 +1155,15 @@ function calculateAcceleration(
   const kmhToMs = 1000 / 3600;
   const currentSpeedMs = car.speed * kmhToMs;
   const leaderSpeedMs = leaderSpeed * kmhToMs;
-  const desiredSpeedMs = (car.desiredSpeed || 130) * kmhToMs;
+  const limitKmh = params.speedLimit || 100;
+
+  // COMPLIANCE: Conservative drivers treat the limit as an absolute cap for their desire.
+  // Others might have a desired speed above the limit but are pulled back by the compliance force.
+  const effectiveDesiredSpeedKmh = car.driverType === 'conservative'
+    ? Math.min(car.desiredSpeed, limitKmh)
+    : car.desiredSpeed;
+
+  const desiredSpeedMs = effectiveDesiredSpeedKmh * kmhToMs;
 
   // IDM PARAMETERS
   const T = params.tDist || 1.5;         // Safe time headway (seconds)

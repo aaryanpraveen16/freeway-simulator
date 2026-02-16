@@ -474,19 +474,25 @@ const Index = () => {
           recordPackDataRef.current(data.cars, data.time, laneLengthRef.current, data.packs || []);
         }
       } else if (type === 'COMPLETED') {
-        setIsRunning(false);
-        if (isBatchProcessingRef.current && batchQueueRef.current.length > 0) {
-          const finishedSim = batchQueueRef.current[0];
+        const batchQueueSnapshot = batchQueueRef.current;
+        if (isBatchProcessingRef.current && batchQueueSnapshot.length > 0) {
+          const finishedSim = batchQueueSnapshot[0];
           const name = finishedSim.name || `Batch Sim ${Date.now()}`;
+          const folder = batchFolderRef.current || "Batch Results";
 
           toast({ title: "Simulation Complete", description: `Saving "${name}" and starting next scenario...` });
 
+          // SLICE QUEUE IMMEDIATELY to prevent duplicate starts
+          setBatchQueue(prev => prev.slice(1));
+          setIsRunning(false);
+
           if (executeSaveRef.current) {
-            executeSaveRef.current(name, batchFolderRef.current || "Batch Results").then(() => {
-              // Remove the completed simulation from the queue
-              setBatchQueue(prev => prev.slice(1));
+            executeSaveRef.current(name, folder).catch(err => {
+              console.error("Failed to save batch simulation:", err);
             });
           }
+        } else {
+          setIsRunning(false);
         }
       }
     };

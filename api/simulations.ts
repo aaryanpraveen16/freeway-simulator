@@ -52,6 +52,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = mongoClient.db('traffic-simulator');
     const collection = db.collection('simulations');
 
+    // Ensure critical indexes exist (idempotent)
+    await collection.createIndex({ timestamp: -1 });
+    if (!session.isAdmin) {
+        await collection.createIndex({ createdBy: 1, timestamp: -1 });
+    }
+
     if (req.method === 'GET') {
         try {
             // Parse pagination parameters
@@ -78,6 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .sort({ timestamp: -1 })
                 .skip(skip)
                 .limit(limit)
+                .allowDiskUse() // Prevent QueryExceededMemoryLimitNoDiskUseAllowed
                 .toArray();
 
             // Return with pagination metadata
