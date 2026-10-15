@@ -635,6 +635,74 @@ const debugLog = (showNotifications: boolean, message: string) => {
   }
 };
 
+// Spatial Partitioning Helpers for O(1) / O(K) Lookups
+function findLeaderInLane(
+  laneCars: Car[],
+  refPos: number,
+  laneLength: number,
+  excludeId?: number
+): Car | undefined {
+  if (laneCars.length === 0) return undefined;
+
+  let bestCar: Car | undefined;
+  let minGap = Infinity;
+
+  for (let i = 0; i < laneCars.length; i++) {
+    const c = laneCars[i];
+    if (excludeId !== undefined && c.id === excludeId) continue;
+    const gap = (c.position - refPos + laneLength) % laneLength;
+    if (gap > 0.000001 && gap < minGap) {
+      minGap = gap;
+      bestCar = c;
+    }
+  }
+
+  return bestCar;
+}
+
+function findSurroundingInLane(
+  laneCars: Car[],
+  refPos: number,
+  laneLength: number,
+  excludeId?: number
+): { leader?: Car; follower?: Car } {
+  if (laneCars.length === 0) return { leader: undefined, follower: undefined };
+
+  let leader: Car | undefined;
+  let minAheadDist = Infinity;
+
+  let follower: Car | undefined;
+  let minBehindDist = Infinity;
+
+  for (let i = 0; i < laneCars.length; i++) {
+    const c = laneCars[i];
+    if (excludeId !== undefined && c.id === excludeId) continue;
+
+    const distAhead = (c.position - refPos + laneLength) % laneLength;
+    const distBehind = (refPos - c.position + laneLength) % laneLength;
+
+    if (distAhead > 0.000001 && distAhead < minAheadDist) {
+      minAheadDist = distAhead;
+      leader = c;
+    }
+
+    if (distBehind > 0.000001 && distBehind < minBehindDist) {
+      minBehindDist = distBehind;
+      follower = c;
+    }
+  }
+
+  if (leader && follower && leader.id === follower.id) {
+    if (minAheadDist < minBehindDist) {
+      follower = undefined;
+    } else {
+      leader = undefined;
+    }
+  }
+
+  return { leader, follower };
+}
+
 // Update simulation for one time step
 export function updateSimulation(
   cars: Car[],
@@ -701,6 +769,19 @@ export function updateSimulation(
   // Debug tick-based logging
   const tick = Math.round(currentTime / params.dt);
 
+  // SPATIAL PARTITIONING: Bucket cars by lane for O(1) / O(K) lookups instead of O(N^2)
+  const numLanes = params.numLanes || 1;
+  const laneCarsBuffer: Car[][] = Array.from({ length: numLanes }, () => []);
+  const readOnlyLaneCars: Car[][] = Array.from({ length: numLanes }, () => []);
+
+  for (let i = 0; i < numCars; i++) {
+    const car = updatedCars[i];
+    if (car.lane >= 0 && car.lane < numLanes) {
+      laneCarsBuffer[car.lane].push(car);
+      readOnlyLaneCars[readOnlyCars[i].lane]?.push(readOnlyCars[i]);
+    }
+  }
+
   // Track which SOURCE lanes have had a car leave this frame (prevents synchronized changes)
   const lanesWithChangeThisFrame = new Set<number>();
 
@@ -718,12 +799,8 @@ export function updateSimulation(
       carSpeed = 0;
       nextCar.color = "black"; // Set stopped cars to black
 
-      // Find car ahead in SAME LANE (Dynamic check against updatedCars for sequential resolution)
-      const sameLaneCars = updatedCars.filter(c => c.lane === currentCar.lane);
-      const carAhead = sameLaneCars.find(c =>
-        c.position > currentCar.position &&
-        (c.position - currentCar.position) < laneLength / 2
-      );
+      // Find car ahead in SAME LANE (Dynamic check against laneCarsBuffer for sequential resolution)
+      const carAhead = findLeaderInLane(laneCarsBuffer[currentCar.lane], currentCar.position, laneLength, currentCar.id);
 
       if (carAhead) {
         const currentGap = (carAhead.position - currentCar.position) * 1000;
@@ -747,21 +824,11 @@ export function updateSimulation(
     const distanceToExit = currentCar.distTripPlanned - currentCar.distanceTraveled;
     const shouldMoveToExitLane = distanceToExit <= 1 && distanceToExit > 0;
 
-    // Find the car ahead in the same lane (SEQUENTIAL: check against updatedCars)
-    const currentLane = nextCar.lane; // Use nextCar.lane as it might have been updated if we were processed in a different order, though here we use currentCar.lane is safer
-    const sameLaneCars = updatedCars.filter((c) => c.lane === currentCar.lane);
-    const sortedSameLaneCars = sameLaneCars.sort((a, b) => {
-      const distA = (a.position - currentCar.position + laneLength) % laneLength;
-      const distB = (b.position - currentCar.position + laneLength) % laneLength;
-      return distA - distB;
-    });
+    // Find the car ahead in the same lane (SEQUENTIAL: O(K) lookup in lane partition)
+    const currentLane = nextCar.lane;
+    const aheadCar = findLeaderInLane(laneCarsBuffer[currentLane], currentCar.position, laneLength, currentCar.id);
 
-    // Determine ahead car from SNAPSHOT
-    const aheadCar = sortedSameLaneCars.find(
-      (c) => (c.position - currentCar.position + laneLength) % laneLength > 0
-    );
-
-    // Calculate gap from SNAPSHOT
+    // Calculate gap
     const gap = aheadCar
       ? (aheadCar.position - currentCar.position + laneLength) % laneLength
       : laneLength;
@@ -866,15 +933,15 @@ export function updateSimulation(
       nextCar.leftLaneStruggleStartTime = undefined;
     }
 
-    // Check right lane viability (SEQUENTIAL: Check against updatedCars)
+    // Check right lane viability (SEQUENTIAL: Check against laneCarsBuffer)
     let isRightLaneViable = false;
     if (currentCar.lane < (params.numLanes || 2) - 1) {
-      const adjacentLanes = findAdjacentCars(currentCar, updatedCars, laneLength, params);
+      const adjacentLanes = findAdjacentCars(currentCar, laneCarsBuffer, laneLength, params);
       isRightLaneViable = canMaintainSpeedInLane(
         currentCar,
         adjacentLanes.rightLane.leader,
         aheadCar,
-        readOnlyCars,
+        readOnlyLaneCars,
         currentCar.lane + 1,
         laneLength,
         params,
@@ -959,16 +1026,16 @@ export function updateSimulation(
     // --- LANE CHANGE DECISION (Two-Phase) ---
     const sourceLaneAlreadyHadChange = lanesWithChangeThisFrame.has(currentCar.lane);
 
-    // We check against updatedCars for adjacency to see the most recent lane occupancy
+    // We check against laneCarsBuffer for adjacency to see the most recent lane occupancy
     if (!sourceLaneAlreadyHadChange) {
-      const adjacentLanes = findAdjacentCars(currentCar, updatedCars, laneLength, params);
+      const adjacentLanes = findAdjacentCars(currentCar, laneCarsBuffer, laneLength, params);
 
       // We pass `nextCar` to manage hysteresis state, but everything else comes from `readOnlyCars`
       const { shouldChange, targetLane } = shouldChangeLaneWithExitBehavior(
         nextCar, // Use nextCar to persist hysteresis (timers)
         aheadCar, // Dynamic ahead car
         adjacentLanes, // Dynamic adjacency
-        updatedCars, // Process with current lane states
+        laneCarsBuffer, // Process with current partitioned lane states
         params,
         laneLength,
         currentTime,
@@ -989,7 +1056,8 @@ export function updateSimulation(
       }
 
       if (canExecuteLaneChange && targetLane !== null) {
-        nextCar.previousLane = currentCar.lane;
+        const oldLane = currentCar.lane;
+        nextCar.previousLane = oldLane;
         nextCar.lane = targetLane;
         nextCar.lastLaneChange = currentTime;
         nextCar.pendingLaneChange = undefined;
@@ -999,7 +1067,14 @@ export function updateSimulation(
         nextCar.leaderWasBraking = false;
         nextCar.isOvertaking = false; // Reset overtake state
 
-        debugLog(showNotifications, `[LANE CHANGE] Car ${nextCar.id}: ${currentCar.lane} -> ${targetLane}`);
+        // Dynamic spatial partition update: move car from oldLane to targetLane
+        const oldIdx = laneCarsBuffer[oldLane].findIndex((c) => c.id === nextCar.id);
+        if (oldIdx !== -1) {
+          laneCarsBuffer[oldLane].splice(oldIdx, 1);
+        }
+        laneCarsBuffer[targetLane].push(nextCar);
+
+        debugLog(showNotifications, `[LANE CHANGE] Car ${nextCar.id}: ${oldLane} -> ${targetLane}`);
 
         events.push({
           type: "laneChange",
@@ -1011,7 +1086,7 @@ export function updateSimulation(
         });
 
         // We mark the SOURCE lane as "busy"
-        lanesWithChangeThisFrame.add(currentCar.lane);
+        lanesWithChangeThisFrame.add(oldLane);
       }
     }
 
@@ -1027,37 +1102,36 @@ export function updateSimulation(
   }
 
   // POST-MOVEMENT VALIDATION (Conflict Resolution)
-  // Ensures no two cars end up overlapping in the NEW state
+  // Ensures no two cars end up overlapping in the NEW state using lane partitioning
   const s0 = Math.max(1.0, params.stoppedCarsGap ?? 1.0);
-
+  const laneIndices: number[][] = Array.from({ length: numLanes }, () => []);
   for (let i = 0; i < numCars; i++) {
-    const car = updatedCars[i]; // The car in its NEW state/lane
-    const proposedPosition = movements[i].newPosition;
+    const lane = updatedCars[i].lane;
+    if (lane >= 0 && lane < numLanes) {
+      laneIndices[lane].push(i);
+    }
+  }
 
-    // Check against all other cars' PROPOSED positions in the SAME NEW LANE
-    // We verify against `updatedCars` (which holds the new lanes) and `movements` (new positions)
-    for (let j = 0; j < numCars; j++) {
-      if (i === j) continue;
-      const otherCar = updatedCars[j];
+  for (let l = 0; l < numLanes; l++) {
+    const indicesInLane = laneIndices[l];
+    for (let a = 0; a < indicesInLane.length; a++) {
+      const i = indicesInLane[a];
+      const proposedPosition = movements[i].newPosition;
 
-      // Only check collision if in same lane
-      if (car.lane !== otherCar.lane) continue;
+      for (let b = 0; b < indicesInLane.length; b++) {
+        if (a === b) continue;
+        const j = indicesInLane[b];
+        const otherCar = updatedCars[j];
+        const otherPos = movements[j].newPosition;
 
-      const otherPos = movements[j].newPosition;
-
-      // Check distance
-      const frontToFrontKm = ((otherPos - proposedPosition + laneLength) % laneLength);
-
-      // If `otherCar` is ahead and too close
-      if (frontToFrontKm > 0 && frontToFrontKm < laneLength / 2) {
-        const bumperToBumperMeters = (frontToFrontKm * 1000) - otherCar.physicalLength;
-
-        if (bumperToBumperMeters < s0) {
-          // Collision/Overlap detected in future state!
-          // Fallback: freeze position to prevent overlap
-          movements[i].newPosition = readOnlyCars[i].position;
-          movements[i].newSpeed = 0;
-          break;
+        const frontToFrontKm = ((otherPos - proposedPosition + laneLength) % laneLength);
+        if (frontToFrontKm > 0 && frontToFrontKm < laneLength / 2) {
+          const bumperToBumperMeters = (frontToFrontKm * 1000) - otherCar.physicalLength;
+          if (bumperToBumperMeters < s0) {
+            movements[i].newPosition = readOnlyCars[i].position;
+            movements[i].newSpeed = 0;
+            break;
+          }
         }
       }
     }
@@ -1083,7 +1157,8 @@ export function updateSimulation(
       const car = updatedCars[i];
       if (car.isOvertaking && car.overtakeStartTime) {
         const overtakeTime = currentTime - car.overtakeStartTime;
-        const rightLaneCars = updatedCars.filter(c => c.lane === car.lane + 1);
+        const targetRightLane = car.lane + 1;
+        const rightLaneCars = targetRightLane < numLanes ? laneCarsBuffer[targetRightLane] : [];
         const hasPassedSlowerCars = rightLaneCars.every(rightCar => {
           const distance = ((car.position - rightCar.position + laneLength) % laneLength);
           return distance > 0.1;
@@ -1246,83 +1321,42 @@ function calculateAcceleration(
 // Find cars in adjacent lanes
 function findAdjacentCars(
   car: Car,
-  cars: Car[],
+  cars: Car[] | Car[][],
   laneLength: number,
   params: SimulationParams
 ): {
   leftLane: { leader?: Car; follower?: Car };
   rightLane: { leader?: Car; follower?: Car };
 } {
-  const result = {
+  const result: {
+    leftLane: { leader?: Car; follower?: Car };
+    rightLane: { leader?: Car; follower?: Car };
+  } = {
     leftLane: { leader: undefined, follower: undefined },
     rightLane: { leader: undefined, follower: undefined },
   };
 
-  // Check if left lane exists
+  const isPartitioned = Array.isArray(cars[0]);
+
+  // Check left lane
   if (car.lane > 0) {
-    const leftLaneCars = cars.filter((c) => c.lane === car.lane - 1);
-    if (leftLaneCars.length > 0) {
-      // Find closest ahead and closest behind
-      const sortedByAhead = [...leftLaneCars].sort((a, b) => {
-        const distA = (a.position - car.position + laneLength) % laneLength;
-        const distB = (b.position - car.position + laneLength) % laneLength;
-        return distA - distB;
-      });
-      const sortedByBehind = [...leftLaneCars].sort((a, b) => {
-        const distA = (car.position - a.position + laneLength) % laneLength;
-        const distB = (car.position - b.position + laneLength) % laneLength;
-        return distA - distB;
-      });
-
-      const leader = sortedByAhead[0];
-      const follower = sortedByBehind[0];
-
-      if (leader === follower) {
-        // Only one car found. Is it more likely a leader or a follower?
-        const distAhead = (leader.position - car.position + laneLength) % laneLength;
-        const distBehind = (car.position - leader.position + laneLength) % laneLength;
-        if (distAhead < distBehind) {
-          result.leftLane.leader = leader;
-        } else {
-          result.leftLane.follower = leader;
-        }
-      } else {
-        result.leftLane.leader = leader;
-        result.leftLane.follower = follower;
-      }
+    if (isPartitioned) {
+      const leftCars = (cars as Car[][])[car.lane - 1] || [];
+      result.leftLane = findSurroundingInLane(leftCars, car.position, laneLength, car.id);
+    } else {
+      const leftCars = (cars as Car[]).filter((c) => c.lane === car.lane - 1);
+      result.leftLane = findSurroundingInLane(leftCars, car.position, laneLength, car.id);
     }
   }
 
-  // Check if right lane exists
+  // Check right lane
   if (car.lane < (params.numLanes || 3) - 1) {
-    const rightLaneCars = cars.filter((c) => c.lane === car.lane + 1);
-    if (rightLaneCars.length > 0) {
-      const sortedByAhead = [...rightLaneCars].sort((a, b) => {
-        const distA = (a.position - car.position + laneLength) % laneLength;
-        const distB = (b.position - car.position + laneLength) % laneLength;
-        return distA - distB;
-      });
-      const sortedByBehind = [...rightLaneCars].sort((a, b) => {
-        const distA = (car.position - a.position + laneLength) % laneLength;
-        const distB = (car.position - b.position + laneLength) % laneLength;
-        return distA - distB;
-      });
-
-      const leader = sortedByAhead[0];
-      const follower = sortedByBehind[0];
-
-      if (leader === follower) {
-        const distAhead = (leader.position - car.position + laneLength) % laneLength;
-        const distBehind = (car.position - leader.position + laneLength) % laneLength;
-        if (distAhead < distBehind) {
-          result.rightLane.leader = leader;
-        } else {
-          result.rightLane.follower = leader;
-        }
-      } else {
-        result.rightLane.leader = leader;
-        result.rightLane.follower = follower;
-      }
+    if (isPartitioned) {
+      const rightCars = (cars as Car[][])[car.lane + 1] || [];
+      result.rightLane = findSurroundingInLane(rightCars, car.position, laneLength, car.id);
+    } else {
+      const rightCars = (cars as Car[]).filter((c) => c.lane === car.lane + 1);
+      result.rightLane = findSurroundingInLane(rightCars, car.position, laneLength, car.id);
     }
   }
 
@@ -1334,7 +1368,7 @@ function canMaintainSpeedInLane(
   car: Car,
   targetLaneLeader: Car | undefined,
   currentLeader: Car | undefined,
-  cars: Car[],
+  cars: Car[] | Car[][],
   targetLane: number,
   laneLength: number,
   params: SimulationParams,
@@ -1369,14 +1403,20 @@ function canMaintainSpeedInLane(
 
   // 2. LOOK-AHEAD CALCULATION
   const lookAheadDistance = (desiredSpeed / 3600) * lookAheadTime; // km
+  const isPartitioned = Array.isArray(cars[0]);
 
   // Helper to find the "Performance Score" for a lane
   const getLanePerformance = (laneIndex: number) => {
-    const carsInLane = cars.filter((c) => c.lane === laneIndex);
+    const carsInLane: Car[] = isPartitioned
+      ? ((cars as Car[][])[laneIndex] || [])
+      : (cars as Car[]).filter((c) => c.lane === laneIndex);
+
     let minVirtualSpeed = Infinity;
     let bottleneckCarId = -1;
 
-    for (const targetCar of carsInLane) {
+    for (let i = 0; i < carsInLane.length; i++) {
+      const targetCar = carsInLane[i];
+      if (targetCar.id === car.id) continue;
       const distance = (targetCar.position - currentPos + laneLength) % laneLength;
       if (distance > 0 && distance <= lookAheadDistance) {
         const distanceFactor = distance / lookAheadDistance;
@@ -1590,9 +1630,18 @@ export function identifyPacks(
   const maxLane = cars.reduce((max, car) => Math.max(max, car.lane), 0);
   const numLanes = maxLane + 1;
 
+  // Single O(N) partitioning of cars by lane
+  const carsByLane: Car[][] = Array.from({ length: numLanes }, () => []);
+  for (let i = 0; i < cars.length; i++) {
+    const c = cars[i];
+    if (c.lane >= 0 && c.lane < numLanes) {
+      carsByLane[c.lane].push(c);
+    }
+  }
+
   // Process specific lane
   for (let lane = 0; lane < numLanes; lane++) {
-    const laneCars = cars.filter(car => car.lane === lane);
+    const laneCars = carsByLane[lane];
 
     // Sort cars by position in this lane
     const sortedCars = laneCars.sort((a, b) => a.position - b.position);

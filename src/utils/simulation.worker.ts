@@ -6,6 +6,8 @@ import {
     SimulationParams,
     createPRNG
 } from './trafficSimulation';
+import { serializeCarsToBuffer } from './carBuffer';
+import { computeMetricsSnapshot } from './metricsAggregator';
 
 // Simulation state handled inside the worker
 let cars: Car[] = [];
@@ -91,26 +93,37 @@ function runSimulationStep() {
 
     cars = lastUpdatedCars;
 
-    // 3. Post Back to Main Thread
+    // 3. Post Back to Main Thread with Zero-Copy Binary Buffer
+    const carBuffer = serializeCarsToBuffer(cars);
     const statsData: any = {
         time: currentTime,
-        cars: cars,
+        carBuffer: carBuffer,
         packs: lastPacks,
         events: batchEvents,
     };
 
-    // Throttle chart data recording to 1.0s to prevent UI lag
+    // Throttle full rich car state and chart metrics aggregation to 1.0s to completely eliminate 60 FPS GC pressure
     if (currentTime - lastPackRecordTime >= 1.0) {
-        statsData.metrics = {
-            tick: true
-        };
+        statsData.cars = cars;
+        statsData.metricsSnapshot = computeMetricsSnapshot(
+            cars,
+            currentTime,
+            laneLength,
+            lastPacks,
+            params,
+            trafficRule
+        );
         lastPackRecordTime = currentTime;
     }
 
-    self.postMessage({
-        type: 'TICK',
-        data: statsData
-    });
+    // Transfer carBuffer's underlying ArrayBuffer with 0ms cloning overhead
+    self.postMessage(
+        {
+            type: 'TICK',
+            data: statsData
+        },
+        [carBuffer.buffer]
+    );
 
     if (!isRunning) {
         self.postMessage({ type: 'COMPLETED' });

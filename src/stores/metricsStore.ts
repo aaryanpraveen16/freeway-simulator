@@ -86,6 +86,7 @@ interface MetricsState {
   showPreviousRuns: boolean;
 
   // Actions
+  appendMetricsSnapshot: (snapshot: import('@/utils/metricsAggregator').AggregatedMetricsSnapshot) => void;
   recordMetrics: (
     newCars: Car[],
     time: number,
@@ -113,6 +114,20 @@ export const useMetricsStore = create<MetricsState>((set) => ({
   packLengthHistory: [],
   savedRuns: [],
   showPreviousRuns: false,
+
+  appendMetricsSnapshot: (snapshot) =>
+    set((state) => ({
+      densityThroughputHistory: [...state.densityThroughputHistory, snapshot.densityItem].slice(-MAX_HISTORY_LENGTH),
+      speedDensityHistory: [...state.speedDensityHistory, snapshot.speedDensityItem].slice(-1000),
+      packHistory: [...state.packHistory, snapshot.packItem].slice(-1000),
+      packLengthHistory: [...state.packLengthHistory, snapshot.packLengthItem].slice(-1000),
+      packFormationHistory: [...state.packFormationHistory, snapshot.packFormationItem].slice(-MAX_HISTORY_LENGTH),
+      packsPerLaneHistory: [...state.packsPerLaneHistory, snapshot.packsPerLanePoint].slice(-MAX_HISTORY_LENGTH),
+      densityOfCarPacksHistory: [...state.densityOfCarPacksHistory, snapshot.densityOfPacksPoint].slice(-MAX_HISTORY_LENGTH),
+      percentageByLaneHistory: [...state.percentageByLaneHistory, snapshot.percentagePoint].slice(-MAX_HISTORY_LENGTH),
+      laneUtilizationHistory: [...state.laneUtilizationHistory, snapshot.laneDist].slice(-MAX_HISTORY_LENGTH),
+      laneThroughputHistory: [...state.laneThroughputHistory, snapshot.laneTP].slice(-MAX_HISTORY_LENGTH),
+    })),
 
   resetMetrics: () =>
     set({

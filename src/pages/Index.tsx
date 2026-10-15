@@ -11,8 +11,10 @@ import {
   initializeSimulation,
   defaultParams,
   calculateStableDuration,
+  getCarColor,
   type SimulationParams,
 } from "@/utils/trafficSimulation";
+import { applyBufferToCars } from "@/utils/carBuffer";
 import { simulationService, SavedSimulation } from "@/services/simulationService";
 import { useToast } from "@/hooks/use-toast";
 import { SaveSimulationDialog } from "@/components/SaveSimulationDialog";
@@ -72,6 +74,7 @@ const Index = () => {
   const savedRuns = useMetricsStore((s) => s.savedRuns);
   const showPreviousRuns = useMetricsStore((s) => s.showPreviousRuns);
 
+  const appendMetricsSnapshot = useMetricsStore((s) => s.appendMetricsSnapshot);
   const recordMetrics = useMetricsStore((s) => s.recordMetrics);
   const resetMetrics = useMetricsStore((s) => s.resetMetrics);
   const setSavedRuns = useMetricsStore((s) => s.setSavedRuns);
@@ -197,7 +200,18 @@ const Index = () => {
     worker.onmessage = (e) => {
       const { type, data } = e.data;
       if (type === 'TICK') {
-        setCars(data.cars);
+        let updatedCarsList: typeof cars;
+        if (data.carBuffer) {
+          const currentCars = useSimulationStore.getState().cars;
+          updatedCarsList = applyBufferToCars(data.carBuffer, currentCars, getCarColor);
+          setCars(updatedCarsList);
+        } else if (data.cars) {
+          updatedCarsList = data.cars;
+          setCars(data.cars);
+        } else {
+          updatedCarsList = useSimulationStore.getState().cars;
+        }
+
         setElapsedTime(data.time);
 
         if (data.packs) {
@@ -208,10 +222,13 @@ const Index = () => {
           handleSimulationEvents(data.events);
         }
 
-        // Throttled history recording (only triggers once per second)
-        if (data.metrics) {
+        // Throttled history recording: offloaded to Web Worker!
+        if (data.metricsSnapshot) {
+          appendMetricsSnapshot(data.metricsSnapshot);
+        } else if (data.metrics) {
+          const carsForMetrics = data.cars || updatedCarsList;
           recordMetrics(
-            data.cars,
+            carsForMetrics,
             data.time,
             laneLengthRef.current,
             data.packs || [],
