@@ -82,9 +82,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // Fetch paginated simulations with index-optimized sort
             let findCursor = collection.find(query);
 
-            // Optimization: Exclude chartData if only summary is needed
+            // Optimization: Exclude chartData and replay if only summary is needed
             if (summary) {
-                findCursor = findCursor.project({ chartData: 0 });
+                findCursor = findCursor.project({ chartData: 0, replay: 0 });
             }
 
             const simulations = await findCursor
@@ -105,9 +105,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     hasMore: skip + simulations.length < total
                 }
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('GET error:', error);
-            res.status(500).json({ error: 'Failed to fetch simulations' });
+            res.status(500).json({ 
+                error: 'Failed to fetch simulations',
+                details: error?.message || String(error)
+            });
         }
     } else if (req.method === 'POST') {
         try {

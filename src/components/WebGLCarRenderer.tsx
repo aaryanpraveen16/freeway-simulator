@@ -87,6 +87,8 @@ export const WebGLCarRenderer: React.FC<WebGLCarRendererProps> = ({
         });
     }, [cars, laneLength, trackType, width, height, trackRadius, trackLength, laneHeight, laneCenterOffset, trackPadding, currentTime]);
 
+    const [isReady, setIsReady] = useState(false);
+
     // 2. Initialize Pixi.js WebGL Application
     useEffect(() => {
         let isMounted = true;
@@ -97,8 +99,8 @@ export const WebGLCarRenderer: React.FC<WebGLCarRendererProps> = ({
             const dpr = window.devicePixelRatio || 1;
 
             await app.init({
-                width,
-                height,
+                width: width || 800,
+                height: height || 200,
                 backgroundAlpha: 0,
                 resolution: dpr,
                 autoDensity: true,
@@ -120,12 +122,14 @@ export const WebGLCarRenderer: React.FC<WebGLCarRendererProps> = ({
 
             pixiAppRef.current = app;
             graphicsRef.current = graphics;
+            setIsReady(true);
         }
 
         initPixi();
 
         return () => {
             isMounted = false;
+            setIsReady(false);
             if (pixiAppRef.current) {
                 pixiAppRef.current.destroy(true, { children: true });
                 pixiAppRef.current = null;
@@ -318,7 +322,7 @@ export const WebGLCarRenderer: React.FC<WebGLCarRendererProps> = ({
                 }
             }
         });
-    }, [carPositions, stoppedCars, packs, trackType, width, height, carSize, laneLength, trackLength, laneHeight, laneCenterOffset, trackPadding]);
+    }, [isReady, carPositions, stoppedCars, packs, trackType, width, height, carSize, laneLength, trackLength, laneHeight, laneCenterOffset, trackPadding]);
 
     // 5. Mouse Hit-Testing for Tooltip & Click-to-Stop
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {

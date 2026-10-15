@@ -108,6 +108,7 @@ const Index = () => {
   const batchFolderRef = useRef<string | undefined>(undefined);
   const executeSaveRef = useRef<((name: string, folder?: string) => Promise<any>) | null>(null);
   const workerRef = useRef<Worker | null>(null);
+  const pendingReplayResolverRef = useRef<((replay: any) => void) | null>(null);
 
   const { toast } = useToast();
   const { getToken, userId } = useAuth();
@@ -256,6 +257,11 @@ const Index = () => {
         } else {
           setIsRunning(false);
         }
+      } else if (type === 'REPLAY_DATA') {
+        if (pendingReplayResolverRef.current) {
+          pendingReplayResolverRef.current(data);
+          pendingReplayResolverRef.current = null;
+        }
       }
     };
 
@@ -398,6 +404,23 @@ const Index = () => {
       const stabilizedAverageSpeed = calculateStabilizedValue(speedHistory).value;
       const stabilizedThroughput = calculateStabilizedValue(throughputHistory).value;
 
+      // Fetch recorded trajectory from worker if available
+      let replayData: any = undefined;
+      if (workerRef.current) {
+        try {
+          replayData = await new Promise((resolve) => {
+            const timeout = setTimeout(() => resolve(undefined), 300);
+            pendingReplayResolverRef.current = (replay) => {
+              clearTimeout(timeout);
+              resolve(replay);
+            };
+            workerRef.current?.postMessage({ type: 'GET_REPLAY' });
+          });
+        } catch {
+          // fallback gracefully
+        }
+      }
+
       const savedDoc: SavedSimulation = {
         id: `simulation-${Date.now()}`,
         name,
@@ -406,6 +429,7 @@ const Index = () => {
         simulationNumber,
         params: { ...params },
         trafficRule,
+        replay: replayData,
         chartData: {
           speedByLaneHistory: speedDensityHistory.filter((_, i) => i % 20 === 0),
           densityOfCarPacksHistory: densityOfCarPacksHistory.filter((_, i) => i % 20 === 0),

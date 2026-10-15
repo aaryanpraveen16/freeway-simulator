@@ -36,19 +36,27 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   const laneHeight = 80; // Height of each lane in pixels
   const trackPadding = 16; // Padding around the track
 
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [trackContentWidth, setTrackContentWidth] = React.useState(800);
+  const trackAreaRef = React.useRef<HTMLDivElement>(null);
+  const [trackContentWidth, setTrackContentWidth] = React.useState(1000);
 
   React.useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        setTrackContentWidth(containerRef.current.offsetWidth);
-      }
-    };
+    const el = trackAreaRef.current;
+    if (!el) return;
 
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setTrackContentWidth(entry.contentRect.width);
+        }
+      }
+    });
+
+    observer.observe(el);
+    if (el.offsetWidth > 0) {
+      setTrackContentWidth(el.offsetWidth);
+    }
+
+    return () => observer.disconnect();
   }, []);
 
   const totalTrackHeight = laneHeight * numLanes;
@@ -115,7 +123,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   };
 
   return (
-    <div className="w-full max-w-full pb-4" ref={containerRef}>
+    <div className="w-full max-w-full pb-4">
       <div className="mx-auto flex flex-col gap-6 w-full">
 
         {/* Track visualization */}
@@ -128,6 +136,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
 
             {/* Track area: Modern Dark Asphalt Freeway */}
             <div
+              ref={trackAreaRef}
               className="relative rounded-xl border border-slate-700/80 overflow-hidden shadow-2xl"
               style={{
                 height: `${numLanes * laneHeight + trackPadding * 2}px`,

@@ -413,8 +413,8 @@ export function initializeSimulation(params: SimulationParams, showNotifications
   ];
 
   const numLanes = params.numLanes || 1;
-  // Ensure laneLength is in kilometers
-  let laneLength = params.freewayLength ?? 16; // default 16 km if not set
+  // Ensure laneLength is in kilometers (freewayLength)
+  let laneLength = params.freewayLength || 5;
   // All code below uses kilometers for laneLength and positions.
 
   // Calculate total number of cars based on overall traffic density (cars/km)

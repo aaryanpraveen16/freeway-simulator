@@ -8,6 +8,7 @@ import {
 } from './trafficSimulation';
 import { serializeCarsToBuffer } from './carBuffer';
 import { computeMetricsSnapshot } from './metricsAggregator';
+import { TrajectoryRecorder } from './trajectoryRecorder';
 
 // Simulation state handled inside the worker
 let cars: Car[] = [];
@@ -21,6 +22,9 @@ let showNotifications: boolean = false;
 let isRunning: boolean = false;
 let lastTimestamp: number = 0;
 let rng: (() => number) = Math.random;
+
+// Trajectory recorder (10 Hz sampling, up to 10 min)
+const recorder = new TrajectoryRecorder(10, 600);
 
 // Local refs for interval tracking
 let lastPackRecordTime: number = 0;
@@ -92,6 +96,7 @@ function runSimulationStep() {
     }
 
     cars = lastUpdatedCars;
+    recorder.recordTick(currentTime, cars);
 
     // 3. Post Back to Main Thread with Zero-Copy Binary Buffer
     const carBuffer = serializeCarsToBuffer(cars);
@@ -149,12 +154,24 @@ self.onmessage = (e) => {
             showNotifications = data.showNotifications || false;
             lastTimestamp = 0;
             lastPackRecordTime = 0;
+            recorder.reset();
+            if (cars.length > 0) {
+                recorder.recordTick(currentTime, cars);
+            }
 
             if (params.seed !== undefined) {
                 rng = createPRNG(params.seed);
             } else {
                 rng = Math.random;
             }
+            break;
+
+        case 'GET_REPLAY':
+            const replay = recorder.getReplayData(currentTime);
+            self.postMessage({
+                type: 'REPLAY_DATA',
+                data: replay
+            });
             break;
 
         case 'START':

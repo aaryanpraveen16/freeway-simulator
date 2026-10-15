@@ -72,10 +72,12 @@ interface SimulationState {
   popBatchQueue: () => void;
 }
 
+const initialSimulation = initializeSimulation(defaultParams, false);
+
 export const useSimulationStore = create<SimulationState>((set, get) => ({
   params: defaultParams,
-  cars: [],
-  laneLength: 0,
+  cars: initialSimulation.cars,
+  laneLength: defaultParams.freewayLength || initialSimulation.laneLength,
   isRunning: false,
   elapsedTime: 0,
   simulationSpeed: 1,
@@ -224,7 +226,64 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       updated.autoCalculateDuration = false;
     }
 
-    const { worker } = get();
+    const { worker, isRunning, trafficRule, simulationSpeed } = get();
+
+    // Structural params that require car regeneration: density, lanes, length, vehicle/driver distributions
+    const isStructuralChange =
+      newParams.trafficDensity !== undefined ||
+      newParams.freewayLength !== undefined ||
+      newParams.numLanes !== undefined ||
+      newParams.vehicleTypeDensity !== undefined ||
+      newParams.driverTypeDensity !== undefined;
+
+    // If simulation is not running, or if structural road geometry changed, immediately regenerate cars
+    if (!isRunning || isStructuralChange) {
+      const { cars: freshCars, laneLength: newLaneLength } = initializeSimulation(updated, false);
+      const nextLaneLength = updated.freewayLength || newLaneLength;
+
+      if (worker) {
+        if (!isRunning) {
+          worker.postMessage({
+            type: 'INIT',
+            data: {
+              cars: freshCars,
+              laneLength: nextLaneLength,
+              params: updated,
+              trafficRule,
+              simulationSpeed,
+              showNotifications: false,
+              stoppedCars: new Set(),
+            },
+          });
+        } else {
+          // If running, inform worker of updated cars and params
+          worker.postMessage({
+            type: 'INIT',
+            data: {
+              cars: freshCars,
+              laneLength: nextLaneLength,
+              params: updated,
+              trafficRule,
+              simulationSpeed,
+              showNotifications: false,
+              stoppedCars: new Set(),
+            },
+          });
+          worker.postMessage({ type: 'START' });
+        }
+      }
+
+      set({
+        params: updated,
+        cars: freshCars,
+        laneLength: nextLaneLength,
+        stoppedCars: new Set(),
+        currentPacks: [],
+      });
+      return;
+    }
+
+    // Otherwise, for live physical tuning (e.g. speedLimit, aMax, k, dt) during an active run
     if (worker) {
       worker.postMessage({ type: 'UPDATE_PARAMS', data: { params: updated } });
     }

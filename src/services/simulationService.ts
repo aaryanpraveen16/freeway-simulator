@@ -20,6 +20,7 @@ export interface SavedSimulation {
         packsPerLaneHistory?: any[];
     };
     duration: number;
+    replay?: import('@/utils/trajectoryRecorder').SimulationReplay;
     finalStats: {
         totalCars: number;
         averageSpeed: number;
@@ -104,7 +105,14 @@ class SimulationService {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch simulations: ${response.status} ${response.statusText}`);
+            let errorDetails = '';
+            try {
+                const errJson = await response.json();
+                errorDetails = errJson.details || errJson.error || '';
+            } catch {
+                // ignore
+            }
+            throw new Error(`Failed to fetch simulations: ${response.status} ${response.statusText}${errorDetails ? ` - ${errorDetails}` : ''}`);
         }
 
         const data = await response.json();

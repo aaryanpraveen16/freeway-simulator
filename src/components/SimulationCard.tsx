@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Calendar, Clock, Copy, Edit2, Eye, FileDown, Gauge, Info, Repeat, Trash2, Users, FolderInput } from "lucide-react";
+import { Calendar, Clock, Copy, Edit2, Eye, Gauge, Info, Repeat, Trash2, Users, FolderInput, Play } from "lucide-react";
 import EditSimulationNameDialog from "@/components/EditSimulationNameDialog";
 import ChartDashboard from "@/components/ChartDashboard";
 import { SavedSimulation } from "@/services/simulationService";
@@ -18,12 +18,13 @@ interface SimulationCardProps {
     formatDate: (timestamp: number) => string;
     formatDuration: (seconds: number) => string;
     updateSimulationDetails: (id: string, name: string, folder?: string) => void;
-    handleExportSimulation: (simulation: SavedSimulation) => void;
+    handleExportSimulation?: (simulation: SavedSimulation) => void;
     setSelectedSimulation: (simulation: SavedSimulation) => void;
     copySimulationParams: (simulation: SavedSimulation) => void;
     deleteSimulation: (id: string) => void;
     unitSystem: UnitSystem;
     onMoveToFolder: (simulation: SavedSimulation) => void;
+    onReplaySimulation?: (simulation: SavedSimulation) => void;
     isSelected?: boolean;
     onSelectionChange?: (id: string, checked: boolean) => void;
 }
@@ -41,6 +42,7 @@ const SimulationCard: React.FC<SimulationCardProps> = ({
     deleteSimulation,
     unitSystem,
     onMoveToFolder,
+    onReplaySimulation,
     isSelected,
     onSelectionChange
 }) => {
@@ -168,17 +170,20 @@ const SimulationCard: React.FC<SimulationCardProps> = ({
                         {simulation.trafficRule}
                     </Badge>
                     <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleExportSimulation(simulation);
-                            }}
-                            title="Export simulation"
-                        >
-                            <FileDown size={16} />
-                        </Button>
+                        {onReplaySimulation && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onReplaySimulation(simulation);
+                                }}
+                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200"
+                                title="VCR Replay simulation"
+                            >
+                                <Play size={16} className="fill-indigo-500 text-indigo-500" />
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"
