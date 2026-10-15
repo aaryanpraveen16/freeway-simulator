@@ -169,6 +169,9 @@ self.onmessage = (e) => {
 
         case 'UPDATE_PARAMS':
             params = { ...params, ...data.params };
+            if (data.params && data.params.freewayLength !== undefined) {
+                laneLength = data.params.freewayLength;
+            }
             break;
 
         case 'UPDATE_SPEED':

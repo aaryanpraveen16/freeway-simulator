@@ -228,7 +228,13 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     if (worker) {
       worker.postMessage({ type: 'UPDATE_PARAMS', data: { params: updated } });
     }
-    set({ params: updated });
+
+    const nextState: Partial<SimulationState> = { params: updated };
+    if (newParams.freewayLength !== undefined) {
+      nextState.laneLength = newParams.freewayLength;
+    }
+
+    set(nextState as any);
   },
 
   addBatchSimulation: (simulations: BatchSimulation[]) => {

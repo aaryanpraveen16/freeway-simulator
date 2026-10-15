@@ -637,12 +637,12 @@ const debugLog = (showNotifications: boolean, message: string) => {
 
 // Spatial Partitioning Helpers for O(1) / O(K) Lookups
 function findLeaderInLane(
-  laneCars: Car[],
+  laneCars: Car[] | undefined,
   refPos: number,
   laneLength: number,
   excludeId?: number
 ): Car | undefined {
-  if (laneCars.length === 0) return undefined;
+  if (!laneCars || laneCars.length === 0) return undefined;
 
   let bestCar: Car | undefined;
   let minGap = Infinity;
@@ -661,12 +661,12 @@ function findLeaderInLane(
 }
 
 function findSurroundingInLane(
-  laneCars: Car[],
+  laneCars: Car[] | undefined,
   refPos: number,
   laneLength: number,
   excludeId?: number
 ): { leader?: Car; follower?: Car } {
-  if (laneCars.length === 0) return { leader: undefined, follower: undefined };
+  if (!laneCars || laneCars.length === 0) return { leader: undefined, follower: undefined };
 
   let leader: Car | undefined;
   let minAheadDist = Infinity;
@@ -776,10 +776,16 @@ export function updateSimulation(
 
   for (let i = 0; i < numCars; i++) {
     const car = updatedCars[i];
-    if (car.lane >= 0 && car.lane < numLanes) {
-      laneCarsBuffer[car.lane].push(car);
-      readOnlyLaneCars[readOnlyCars[i].lane]?.push(readOnlyCars[i]);
+    if (car.lane >= numLanes) {
+      car.lane = numLanes - 1;
+      readOnlyCars[i].lane = numLanes - 1;
     }
+    if (car.lane < 0) {
+      car.lane = 0;
+      readOnlyCars[i].lane = 0;
+    }
+    laneCarsBuffer[car.lane].push(car);
+    readOnlyLaneCars[readOnlyCars[i].lane]?.push(readOnlyCars[i]);
   }
 
   // Track which SOURCE lanes have had a car leave this frame (prevents synchronized changes)

@@ -1,7 +1,8 @@
 
 import React from "react";
 import { Car, calculateDistanceToCarAhead, Pack } from "@/utils/trafficSimulation";
-import CanvasCarRenderer from "./CanvasCarRenderer";
+import WebGLCarRenderer from "./WebGLCarRenderer";
+import TrafficHeatStrip from "./TrafficHeatStrip";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,44 +126,70 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
               <p className="text-sm text-gray-500">Real-time vehicle movement and interactions</p>
             </div>
 
-            {/* Track area */}
+            {/* Track area: Modern Dark Asphalt Freeway */}
             <div
-              className="relative rounded-lg border-2 border-gray-200 overflow-hidden"
+              className="relative rounded-xl border border-slate-700/80 overflow-hidden shadow-2xl"
               style={{
                 height: `${numLanes * laneHeight + trackPadding * 2}px`,
-                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
+                backgroundColor: '#181b22', // Realistic dark asphalt
+                boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.6), 0 10px 25px -5px rgba(0, 0, 0, 0.3)'
               }}
             >
+              {/* Top Shoulder / Guardrail Barrier */}
+              <div
+                className="absolute top-0 left-0 right-0 h-4 border-b border-amber-500/60 flex items-center"
+                style={{
+                  background: 'linear-gradient(180deg, #27272a 0%, #18181b 100%)',
+                }}
+              >
+                <div className="w-full h-0.5 bg-amber-400/80 shadow-[0_0_4px_rgba(251,191,36,0.6)]" />
+              </div>
+
+              {/* Bottom Shoulder / Guardrail Barrier */}
+              <div
+                className="absolute bottom-0 left-0 right-0 h-4 border-t border-amber-500/60 flex items-center"
+                style={{
+                  background: 'linear-gradient(0deg, #27272a 0%, #18181b 100%)',
+                }}
+              >
+                <div className="w-full h-0.5 bg-amber-400/80 shadow-[0_0_4px_rgba(251,191,36,0.6)]" />
+              </div>
+
               {/* Lanes */}
               {Array.from({ length: numLanes }).map((_, i) => (
-                <motion.div
+                <div
                   key={i}
-                  className={`absolute left-0 right-0 h-[${laneHeight}px] bg-gradient-to-r ${getLaneGradient(i)}`}
+                  className="absolute left-0 right-0"
                   style={{
                     top: `${i * laneHeight + trackPadding}px`,
                     height: `${laneHeight}px`,
-                    borderBottom: i < numLanes - 1 ? '1px dashed rgba(203, 213, 225, 0.6)' : 'none'
                   }}
-                  custom={i}
-                  initial="hidden"
-                  animate="visible"
-                  variants={laneVariant}
                 >
-                  {/* Lane markers */}
-                  <div className="absolute inset-0">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-sm text-xs font-bold text-gray-700 w-6 h-6 rounded-full flex items-center justify-center shadow-sm">
-                      {i + 1}
+                  {/* Dashed White Highway Lane Separators */}
+                  {i < numLanes - 1 && (
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-[2px]"
+                      style={{
+                        backgroundImage: 'repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.45) 0px, rgba(255, 255, 255, 0.45) 24px, transparent 24px, transparent 52px)',
+                        boxShadow: '0 0 3px rgba(255, 255, 255, 0.2)'
+                      }}
+                    />
+                  )}
+
+                  {/* Lane badges & Speed stats */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 bg-slate-900/80 backdrop-blur-md border border-slate-700/80 text-[11px] font-bold text-slate-300 w-6 h-6 rounded-md flex items-center justify-center shadow-lg font-mono">
+                      L{i + 1}
                     </div>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm text-xs font-medium px-2 py-1 rounded-full text-gray-700 shadow-sm">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-slate-900/85 backdrop-blur-md border border-slate-700/70 text-[11px] font-mono px-2.5 py-0.5 rounded-full text-emerald-400 shadow-md">
                       {(() => {
-                        // Calculate average speed for this lane
                         const laneCars = cars.filter(car => car.lane === i);
                         const avgSpeedKmh = laneCars.length > 0
                           ? laneCars.reduce((sum, car) => sum + car.speed, 0) / laneCars.length
                           : 0;
 
                         if (unitSystem === 'imperial') {
-                          const mph = avgSpeedKmh * 0.621371; // Convert km/h to mph
+                          const mph = avgSpeedKmh * 0.621371;
                           return `${Math.round(mph)} mph`;
                         } else {
                           return `${Math.round(avgSpeedKmh)} km/h`;
@@ -170,12 +197,21 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
                       })()}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
 
-              {/* Cars */}
+              {/* Live Freeway Velocity / Density Heat Strip */}
+              <TrafficHeatStrip
+                cars={cars}
+                laneLength={laneLength}
+                numLanes={numLanes}
+                trackLength={trackContentWidth}
+                laneHeight={laneHeight}
+              />
+
+              {/* Cars (WebGL Accelerated) */}
               <div className="absolute inset-0 overflow-visible">
-                <CanvasCarRenderer
+                <WebGLCarRenderer
                   cars={cars}
                   packs={packs}
                   laneLength={laneLength}
@@ -195,14 +231,13 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
                 />
               </div>
 
-              {/* Grid lines for better spatial reference */}
-              <div className="absolute inset-0 pointer-events-none" style={{
-                backgroundImage: `
-                  linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px),
-                  linear-gradient(0deg, rgba(0,0,0,0.03) 1px, transparent 1px)
-                `,
-                backgroundSize: '40px 40px'
-              }}></div>
+              {/* Subtle road distance tick markers along bottom shoulder */}
+              <div
+                className="absolute bottom-4 left-0 right-0 h-1.5 pointer-events-none opacity-40"
+                style={{
+                  backgroundImage: 'repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0px, rgba(255, 255, 255, 0.4) 1px, transparent 1px, transparent 40px)',
+                }}
+              />
             </div>
 
             {/* Legend */}

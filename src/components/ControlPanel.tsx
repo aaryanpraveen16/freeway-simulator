@@ -285,6 +285,53 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   </div>
                 </div>
 
+                {/* Freeway Length Control */}
+                <div className="space-y-2 pb-2 border-b">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="font-semibold text-xs text-slate-700">Freeway Length</Label>
+                      <InfoTooltip content="Total distance of the freeway track. Increasing length provides more distance for shockwaves to travel and develop." />
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-bold text-blue-700">
+                        {conversions.distance.toDisplay(params.freewayLength || 10).toFixed(1)}
+                      </span>
+                      <span className="text-xs text-slate-500 ml-1">{conversions.distance.unit}</span>
+                    </div>
+                  </div>
+
+                  <Slider
+                    value={[params.freewayLength || 10]}
+                    onValueChange={([val]) => onUpdateParams({ freewayLength: val })}
+                    min={1}
+                    max={30}
+                    step={1}
+                    className="py-1"
+                  />
+
+                  <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                    {[
+                      { label: "1 km", km: 1 },
+                      { label: "5 km", km: 5 },
+                      { label: "10 km", km: 10 },
+                      { label: "20 km", km: 20 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => onUpdateParams({ freewayLength: preset.km })}
+                        className={`px-1.5 py-1 rounded text-center text-[11px] font-medium transition-all ${
+                          (params.freewayLength || 10) === preset.km
+                            ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                            : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
+                        }`}
+                      >
+                        {conversions.distance.toDisplay(preset.km).toFixed(0)} {conversions.distance.unit}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Traffic Rule Card */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
