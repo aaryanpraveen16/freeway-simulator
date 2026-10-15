@@ -154,7 +154,8 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
         'initialGap', 'brakeTime', 'brakeCarIndex', 'minSpeed', 'stdSpeed',
         'sigmaDistTripPlanned', 'rightLaneBias',
         'accelerationThreshold', 'simulationDuration', 'uniformDriverBehavior',
-        'stoppedCarsGap', 'driverReactionTime', 'brakingReactionTime'
+        'stoppedCarsGap', 'driverReactionTime', 'brakingReactionTime',
+        'autoCalculateDuration'
       ];
 
       console.log('Current params before import:', currentParams);
@@ -369,7 +370,8 @@ export const JsonImportExport: React.FC<JsonImportExportProps> = ({ onImport, on
           params: {
             numLanes: 3,
             trafficDensity: 30,
-            meanSpeed: 65
+            meanSpeed: 65,
+            autoCalculateDuration: true
           }
         };
       }

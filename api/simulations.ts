@@ -60,9 +60,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'GET') {
         try {
-            // Parse pagination parameters
+            // Parse pagination and summary flags
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 20;
+            const summary = req.query.summary === 'true';
             const skip = (page - 1) * limit;
 
             // Visibility filter
@@ -79,8 +80,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const total = await collection.countDocuments(query);
 
             // Fetch paginated simulations with index-optimized sort
-            const simulations = await collection
-                .find(query)
+            let findCursor = collection.find(query);
+
+            // Optimization: Exclude chartData if only summary is needed
+            if (summary) {
+                findCursor = findCursor.project({ chartData: 0 });
+            }
+
+            const simulations = await findCursor
                 .sort({ timestamp: -1 })
                 .skip(skip)
                 .limit(limit)

@@ -8,7 +8,7 @@ export interface SavedSimulation {
     simulationNumber: number;
     params: SimulationParams;
     trafficRule: "american" | "european";
-    chartData: {
+    chartData?: {
         speedByLaneHistory: any[];
         densityOfCarPacksHistory: any[];
         percentageByLaneHistory: any[];
@@ -27,7 +27,6 @@ export interface SavedSimulation {
         minSpeed: number;
         laneChanges: number;
         perLaneThroughputs: number[];
-        // Optional stabilized metrics
         stabilizedDensity?: number;
         stabilizedAverageSpeed?: number;
         stabilizedThroughput?: number;
@@ -99,8 +98,8 @@ class SimulationService {
             };
         }
 
-        // 2. Fetch from API
-        const response = await fetch(`${this.apiBaseUrl}?page=${page}&limit=${limit}`, {
+        // 2. Fetch from API (Always fetch summaries for the list)
+        const response = await fetch(`${this.apiBaseUrl}?page=${page}&limit=${limit}&summary=true`, {
             headers: this.getHeaders(token)
         });
 

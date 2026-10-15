@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
 import { AlertCircle } from "lucide-react";
-import { SimulationParams, calculatePhysicalLimit } from "@/utils/trafficSimulation";
+import { SimulationParams, calculatePhysicalLimit, calculateStableDuration } from "@/utils/trafficSimulation";
 import { JsonImportExport } from "./JsonImportExport";
 import { InfoTooltip } from "./InfoTooltip";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
@@ -110,7 +110,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
    */
   const handleOverallDensityChange = (value: string) => {
     const newDensity = parseFloat(value) || 10;
-    onUpdateParams({ trafficDensity: newDensity });
+
+    const updates: Partial<SimulationParams> = { trafficDensity: newDensity };
+
+    // If auto-calculation is enabled, update duration as well
+    if (params.autoCalculateDuration) {
+      updates.simulationDuration = calculateStableDuration(newDensity);
+    }
+
+    onUpdateParams(updates);
   };
 
   const physicalLimit = calculatePhysicalLimit(params);
@@ -423,11 +431,30 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       variant="outline"
                       size="sm"
                       className={`h-7 px-2 text-xs ${params.simulationDuration === duration ? 'bg-primary/10' : ''}`}
-                      onClick={() => onUpdateParams({ simulationDuration: duration })}
+                      onClick={() => onUpdateParams({ simulationDuration: duration, autoCalculateDuration: false })}
                     >
                       {duration < 60 ? `${duration}s` : duration === 60 ? '1 min' : duration < 300 ? `${duration / 60} mins` : duration === 600 ? '10 mins (max)' : `${duration / 60} mins`}
                     </Button>
                   ))}
+                </div>
+
+                <Separator className="my-2" />
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Label className="text-xs">Auto-calculate stable duration</Label>
+                    <InfoTooltip content="Automatically adjusts simulation duration based on traffic density to ensure stabilized results ($T = 45000 / D$)." />
+                  </div>
+                  <Switch
+                    checked={params.autoCalculateDuration || false}
+                    onCheckedChange={(checked) => {
+                      const updates: Partial<SimulationParams> = { autoCalculateDuration: checked };
+                      if (checked) {
+                        updates.simulationDuration = calculateStableDuration(params.trafficDensity);
+                      }
+                      onUpdateParams(updates);
+                    }}
+                  />
                 </div>
               </div>
             </CollapsibleSection>

@@ -551,6 +551,7 @@ const SavedSimulations: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedSimulation, setSelectedSimulation] = useState<SavedSimulation | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set());
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
   const [viewMode, setViewMode] = useState<'folders' | 'individual'>('folders');
@@ -736,10 +737,51 @@ const SavedSimulations: React.FC = () => {
     }
   };
 
+  const fetchFullSimulation = async (id: string) => {
+    try {
+      setLoadingDetail(true);
+      const token = await getToken();
+      const fullSim = await simulationService.getSimulation(id, token || undefined);
+
+      // Update the local state with the full data so it's cached
+      setSavedSimulations(prev =>
+        prev.map(sim => sim.id === id ? fullSim : sim)
+      );
+
+      return fullSim;
+    } catch (error) {
+      console.error('Error fetching full simulation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load simulation details",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
   const loadMore = () => {
     if (!loadingMore && hasMore) {
       setCurrentPage(prev => prev + 1);
       // Removed direct loadSimulations() call to avoid double fetching (useEffect handles it)
+    }
+  };
+
+  const handleSelectSimulation = async (sim: SavedSimulation | null) => {
+    if (sim) {
+      // Set immediately to open the dialog and show existing info
+      setSelectedSimulation(sim);
+
+      if (!sim.chartData) {
+        const fullSim = await fetchFullSimulation(sim.id);
+        if (fullSim) {
+          setSelectedSimulation(fullSim);
+        }
+      }
+    } else {
+      setSelectedSimulation(null);
     }
   };
 
@@ -932,7 +974,15 @@ const SavedSimulations: React.FC = () => {
     }
   };
 
-  const handleComparisonSelection = (simulationId: string, checked: boolean) => {
+  const handleComparisonSelection = async (simulationId: string, checked: boolean) => {
+    if (checked) {
+      const sim = savedSimulations.find(s => s.id === simulationId);
+      if (sim && !sim.chartData) {
+        // Need to fetch data for comparison
+        await fetchFullSimulation(simulationId);
+      }
+    }
+
     setSelectedForComparison(prev => {
       const newSet = new Set(prev);
       if (checked) {
@@ -1146,7 +1196,7 @@ const SavedSimulations: React.FC = () => {
               formatDuration={formatDuration}
               updateSimulationDetails={updateSimulationDetails}
               handleExportSimulation={handleExportSimulation}
-              setSelectedSimulation={setSelectedSimulation}
+              setSelectedSimulation={handleSelectSimulation}
               copySimulationParams={copySimulationParams}
               deleteSimulation={deleteSimulation}
               unitSystem={unitSystem}
@@ -1319,6 +1369,106 @@ const SavedSimulations: React.FC = () => {
 
       <Footer />
 
+      {/* Full details view dialog */}
+      <Dialog
+        open={!!selectedSimulation}
+        onOpenChange={async (open) => {
+          if (!open) {
+            setSelectedSimulation(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-7xl h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Eye className="w-6 h-6" />
+              {selectedSimulation?.name}
+              {selectedSimulation && (
+                <Badge variant="outline" className="ml-2">
+                  #{selectedSimulation.simulationNumber}
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          {loadingDetail ? (
+            <div className="flex flex-col items-center justify-center h-64 space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              <p className="text-muted-foreground animate-pulse">Loading simulation details...</p>
+            </div>
+          ) : selectedSimulation && selectedSimulation.chartData ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Total Cars</p>
+                        <p className="text-2xl font-bold">{selectedSimulation.finalStats.totalCars}</p>
+                      </div>
+                      <Users className="w-8 h-8 text-blue-500 opacity-20" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Traffic Density</p>
+                        <p className="text-2xl font-bold">{selectedSimulation.params.trafficDensity}</p>
+                      </div>
+                      <Gauge className="w-8 h-8 text-green-500 opacity-20" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Avg Speed</p>
+                        <p className="text-2xl font-bold">{Math.round(selectedSimulation.finalStats.averageSpeed)}</p>
+                      </div>
+                      <Clock className="w-8 h-8 text-purple-500 opacity-20" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Throughput</p>
+                        <p className="text-2xl font-bold">{Math.round(selectedSimulation.finalStats.stabilizedThroughput || 0)}</p>
+                      </div>
+                      <BarChart3 className="w-8 h-8 text-orange-500 opacity-20" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <ChartDashboard
+                laneLength={selectedSimulation.params.freewayLength || 1}
+                params={selectedSimulation.params}
+                trafficRule={selectedSimulation.trafficRule}
+                unitSystem={unitSystem}
+                speedDensityHistory={selectedSimulation.chartData.speedByLaneHistory}
+                densityOfCarPacksHistory={selectedSimulation.chartData.densityOfCarPacksHistory}
+                percentageByLaneHistory={selectedSimulation.chartData.percentageByLaneHistory}
+                densityThroughputHistory={selectedSimulation.chartData.densityThroughputHistory}
+                laneThroughputHistory={selectedSimulation.chartData.laneThroughputHistory}
+                laneUtilizationHistory={selectedSimulation.chartData.laneUtilizationHistory}
+                packHistory={selectedSimulation.chartData.packHistory}
+                packLengthHistory={selectedSimulation.chartData.packLengthHistory}
+                packsPerLaneHistory={selectedSimulation.chartData.packsPerLaneHistory}
+                showPackFormation={true}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64">
+              <p className="text-muted-foreground">No chart data available for this simulation.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       <MoveToFolderDialog
         open={isMoveDialogOpen}
         onOpenChange={setIsMoveDialogOpen}

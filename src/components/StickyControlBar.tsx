@@ -112,12 +112,28 @@ const StickyControlBar: React.FC<StickyControlBarProps> = ({
                       4x
                     </Button>
                     <Button
-                      onClick={() => setSimulationSpeed(8)}
+                      onClick={() => setSimulationSpeed(16)}
                       variant="outline"
                       size="sm"
                       className="flex-1"
                     >
-                      8x
+                      16x
+                    </Button>
+                    <Button
+                      onClick={() => setSimulationSpeed(32)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      32x
+                    </Button>
+                    <Button
+                      onClick={() => setSimulationSpeed(64)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      64x
                     </Button>
                   </div>
 

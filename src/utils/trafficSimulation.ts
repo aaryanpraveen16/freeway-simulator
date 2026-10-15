@@ -76,6 +76,7 @@ export interface SimulationParams {
   accelerationThreshold?: number; // threshold for lane change
   laneChangeCooldown?: number; // min time between lane changes (seconds)
   simulationDuration?: number; // simulation duration in seconds (0 = unlimited)
+  autoCalculateDuration?: boolean; // automatically calculate duration based on density
   uniformDriverBehavior?: boolean;
   /** Gap between stopped cars in meters (default: 1.0) */
   stoppedCarsGap?: number; // if true, all drivers have same lane change probability (default false)
@@ -136,6 +137,7 @@ export const defaultParams: SimulationParams = {
   accelerationThreshold: 0.2, // Threshold for lane change - lowered to 0.2 to encourage overtakes
   laneChangeCooldown: 10, // Increased to 10s default for more stability
   simulationDuration: 600, // 10 minutes by default, 0 would be unlimited but we're setting a max
+  autoCalculateDuration: false, // Default to false
   uniformDriverBehavior: true, // default to uniform driver behavior for deterministic lane changes
   driverReactionTime: 2.0, // 2 seconds reaction time by default
   brakingReactionTime: 1.0, // 1 second braking reaction time by default (faster than acceleration)
@@ -213,6 +215,21 @@ export function logNormalRandom(mean: number, sigma: number, rng: () => number =
 
   // Transform to log-normal
   return Math.exp(mu + sigma * z0);
+}
+
+// Stabilization constants
+export const STABLE_DENSITY = 150; // cars/km
+export const STABLE_DURATION = 300; // seconds
+
+/**
+ * Calculates the simulation duration needed for stabilization based on density.
+ * Formula: S = S_stable * (D_stable / D)
+ * @param density Current traffic density in cars/km
+ * @returns Suggested duration in seconds
+ */
+export function calculateStableDuration(density: number): number {
+  if (density <= 0) return STABLE_DURATION;
+  return Math.round(STABLE_DURATION * (STABLE_DENSITY / density));
 }
 
 // Calculate safe following distance based on speed (returns meters)

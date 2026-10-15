@@ -14,6 +14,7 @@ import {
   updateSimulation,
   defaultParams,
   identifyPacks,
+  calculateStableDuration,
   type SimulationParams,
   type Car,
   type Pack
@@ -433,11 +434,19 @@ const Index = () => {
         const type = key.split('.')[1] as 'car' | 'truck' | 'motorcycle';
         if (!urlParams.vehicleTypeDensity) urlParams.vehicleTypeDensity = { ...params.vehicleTypeDensity };
         urlParams.vehicleTypeDensity[type] = parseInt(value);
+      } else if (key === 'autoCalculateDuration') {
+        urlParams.autoCalculateDuration = (value === 'true');
       }
     });
 
     if (Object.keys(urlParams).length > 0) {
       const newParams = { ...defaultParams, ...urlParams };
+
+      // If autoCalculateDuration is coming from URL or default, and we have density from URL
+      if (newParams.autoCalculateDuration && urlParams.trafficDensity !== undefined) {
+        newParams.simulationDuration = calculateStableDuration(newParams.trafficDensity);
+      }
+
       setParams(newParams);
       resetSimulation(newParams);
       // Auto-start ONLY if simulationDuration is set in URL and NOT just a general reset
@@ -533,7 +542,13 @@ const Index = () => {
       const currentSim = batchQueue[0];
       // Build parameters for the next run
       const newParams = { ...defaultParams, ...currentSim.params };
-      if (currentSim.duration) newParams.simulationDuration = currentSim.duration;
+
+      // Force auto-calculation if requested in params
+      if (newParams.autoCalculateDuration && newParams.trafficDensity) {
+        newParams.simulationDuration = calculateStableDuration(newParams.trafficDensity);
+      } else if (currentSim.duration) {
+        newParams.simulationDuration = currentSim.duration;
+      }
 
       // Reset state and notify worker
       setParams(newParams);
@@ -576,7 +591,22 @@ const Index = () => {
       setBatchQueue(prev => [...prev, singleBatch]);
       setIsBatchProcessing(true);
     } else {
-      setParams(prev => ({ ...prev, ...newParams }));
+      setParams(prev => {
+        const updated = { ...prev, ...newParams };
+
+        // Handle auto-calculation if enabled
+        if (updated.autoCalculateDuration && newParams.trafficDensity !== undefined) {
+          updated.simulationDuration = calculateStableDuration(updated.trafficDensity);
+        }
+
+        // If simulationDuration is manually updated, maybe we should disable auto-calculation?
+        // Let's check if newParams explicitly contains simulationDuration but NOT autoCalculateDuration
+        if (newParams.simulationDuration !== undefined && newParams.autoCalculateDuration === undefined) {
+          updated.autoCalculateDuration = false;
+        }
+
+        return updated;
+      });
     }
   }, [params, batchQueue.length]);
   const handleReset = useCallback(() => {
@@ -652,15 +682,15 @@ const Index = () => {
         params: { ...params },
         trafficRule,
         chartData: {
-          speedByLaneHistory: [...speedDensityHistory],
-          densityOfCarPacksHistory: [...densityOfCarPacksHistory],
-          percentageByLaneHistory: [...percentageByLaneHistory],
-          densityThroughputHistory: [...densityThroughputHistory],
-          laneThroughputHistory: [...laneThroughputHistory],
-          laneUtilizationHistory: [...laneUtilizationHistory],
-          packHistory: [...packHistory],
-          packLengthHistory: [...packLengthHistory],
-          packsPerLaneHistory: [...packsPerLaneHistory]
+          speedByLaneHistory: speedDensityHistory.filter((_, i) => i % 20 === 0),
+          densityOfCarPacksHistory: densityOfCarPacksHistory.filter((_, i) => i % 20 === 0),
+          percentageByLaneHistory: percentageByLaneHistory.filter((_, i) => i % 20 === 0),
+          densityThroughputHistory: densityThroughputHistory.filter((_, i) => i % 20 === 0),
+          laneThroughputHistory: laneThroughputHistory.filter((_, i) => i % 20 === 0),
+          laneUtilizationHistory: laneUtilizationHistory.filter((_, i) => i % 20 === 0),
+          packHistory: packHistory.filter((_, i) => i % 20 === 0),
+          packLengthHistory: packLengthHistory.filter((_, i) => i % 20 === 0),
+          packsPerLaneHistory: packsPerLaneHistory.filter((_, i) => i % 20 === 0)
         },
         duration: elapsedTime,
         finalStats: {

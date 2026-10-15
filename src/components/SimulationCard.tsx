@@ -179,128 +179,17 @@ const SimulationCard: React.FC<SimulationCardProps> = ({
                         >
                             <FileDown size={16} />
                         </Button>
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setSelectedSimulation(simulation)}
-                                >
-                                    <Eye size={16} />
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto p-0">
-                                <div className="p-6 space-y-6">
-                                    <DialogHeader>
-                                        <DialogTitle className="flex items-center gap-2">
-                                            {simulation.name} - Simulation #{simulation.simulationNumber}
-                                            <Badge variant="outline" className="capitalize">
-                                                {simulation.trafficRule}
-                                            </Badge>
-                                        </DialogTitle>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 text-sm">
-                                            <div className="flex items-center gap-2">
-                                                <Users size={16} className="text-blue-500" />
-                                                <span>{calculateNumCars(simulation)} cars</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-4 h-4 bg-gray-400 rounded"></div>
-                                                <span>{simulation.params.numLanes} lanes</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Gauge size={16} className="text-green-500" />
-                                                <span>{unitConversions.speed.toDisplay(simulation.finalStats.averageSpeed).toFixed(1)} {unitConversions.speed.unit} avg</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Repeat size={16} className="text-amber-500" />
-                                                <span>{simulation.finalStats.laneChanges} lane changes</span>
-                                            </div>
-                                        </div>
-                                    </DialogHeader>
-
-                                    {/* Per-Lane Throughput Section */}
-                                    {simulation.finalStats.perLaneThroughputs?.length > 0 && (
-                                        <div className="p-4 border rounded-lg bg-muted/10">
-                                            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                                                Per-Lane Throughput (cars/hour)
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <button className="text-muted-foreground hover:text-foreground">
-                                                                <Info className="h-4 w-4" />
-                                                                <span className="sr-only">How is this calculated?</span>
-                                                            </button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent className="max-w-[300px] p-4">
-                                                            <p className="font-medium mb-2">How throughput is calculated:</p>
-                                                            <p className="text-sm mb-1">For each lane:</p>
-                                                            <ul className="text-xs space-y-1 list-disc pl-4">
-                                                                <li>Average speed = Sum of all car speeds / number of cars</li>
-                                                                <li>Density = Number of cars / lane length (in km)</li>
-                                                                <li>Throughput = Average speed × Density (cars/hour)</li>
-                                                            </ul>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </h3>
-                                            <div className="flex flex-wrap gap-3">
-                                                {simulation.finalStats.perLaneThroughputs.map((throughput, idx) => {
-                                                    const laneName = idx === 0 ? 'Left' :
-                                                        idx === simulation.finalStats.perLaneThroughputs.length - 1 ? 'Right' :
-                                                            `L${idx + 1}`;
-                                                    const numLanes = simulation.params.numLanes || 3;
-                                                    const freewayLength = simulation.params.freewayLength || 1;
-                                                    const laneCars = simulation.finalStats.totalCars * (1 / numLanes);
-                                                    const avgSpeed = throughput / (laneCars / freewayLength) || 0;
-
-                                                    return (
-                                                        <TooltipProvider key={idx}>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-background cursor-help">
-                                                                        <span className="text-sm font-medium text-muted-foreground">{laneName}:</span>
-                                                                        <span className="text-lg font-bold">{Math.round(throughput)}</span>
-                                                                        <span className="text-xs text-muted-foreground">cars/hr</span>
-                                                                    </div>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="max-w-[300px] p-3 text-sm" side="top">
-                                                                    <p className="font-medium mb-1">{laneName} Calculation:</p>
-                                                                    <p className="text-sm">
-                                                                        {laneCars.toFixed(0)} cars • {avgSpeed.toFixed(1)} {unitConversions.speed.unit}
-                                                                    </p>
-                                                                    <p className="mt-1 text-muted-foreground text-xs">
-                                                                        = {throughput.toFixed(1)} cars/hour
-                                                                    </p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="border-t">
-                                    <ChartDashboard
-                                        laneLength={1000}
-                                        params={simulation.params}
-                                        trafficRule={simulation.trafficRule}
-                                        unitSystem={unitSystem}
-                                        speedDensityHistory={simulation.chartData.speedByLaneHistory}
-                                        densityOfCarPacksHistory={simulation.chartData.densityOfCarPacksHistory}
-                                        percentageByLaneHistory={simulation.chartData.percentageByLaneHistory}
-                                        densityThroughputHistory={simulation.chartData.densityThroughputHistory}
-                                        laneThroughputHistory={simulation.chartData.laneThroughputHistory || []}
-                                        laneUtilizationHistory={simulation.chartData.laneUtilizationHistory || []}
-                                        packHistory={simulation.chartData.packHistory}
-                                        packLengthHistory={simulation.chartData.packLengthHistory}
-                                        packsPerLaneHistory={simulation.chartData.packsPerLaneHistory || []}
-                                        showPackFormation={true}
-                                    />
-                                </div>
-                            </DialogContent>
-                        </Dialog>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSimulation(simulation);
+                            }}
+                            title="View details"
+                        >
+                            <Eye size={16} />
+                        </Button>
                         <Button
                             variant="outline"
                             size="sm"

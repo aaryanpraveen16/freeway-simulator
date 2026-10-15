@@ -29,43 +29,77 @@ function runSimulationStep() {
     const now = performance.now();
     if (lastTimestamp === 0) {
         lastTimestamp = now;
-        setTimeout(runSimulationStep, 16); // ~60fps
+        setTimeout(runSimulationStep, 16);
         return;
     }
 
+    const isWarp = simulationSpeed > 10;
+    const physicsDt = params.dt || 0.1;
     const rawDeltaTime = (now - lastTimestamp) / 1000;
-    const deltaTime = rawDeltaTime * simulationSpeed;
     lastTimestamp = now;
 
-    currentTime += deltaTime;
+    // Determine how many steps to run in this tick
+    // In normal mode, we run 1 step based on the clock.
+    // In Warp mode, we run enough steps to satisfy the simulationSpeed multiplier
+    // regardless of how fast the computer actually is.
+    let stepsToRun = 1;
+    let effectiveDtPerStep = rawDeltaTime * simulationSpeed;
 
-    // 1. Run Physics
-    const { cars: updatedCars, events } = updateSimulation(
-        cars,
-        laneLength,
-        params,
-        currentTime,
-        trafficRule,
-        simulationSpeed,
-        stoppedCars,
-        showNotifications,
-        rawDeltaTime,
-        rng
-    );
+    if (isWarp) {
+        // Each worker tick (16ms) should process simulationSpeed/60 seconds of simulation time
+        const targetSimTime = simulationSpeed / 60;
+        stepsToRun = Math.max(1, Math.ceil(targetSimTime / physicsDt));
+        effectiveDtPerStep = physicsDt;
+    }
 
-    // 2. Identify Packs (needed for UI visualization and stats)
-    const currentPacks = identifyPacks(updatedCars, laneLength, params.tDist);
-    cars = updatedCars;
+    let batchEvents: any[] = [];
+    let lastUpdatedCars = cars;
+    let lastPacks = [];
 
-    // 3. Run Statistics (Heavy stuff)
+    for (let i = 0; i < stepsToRun; i++) {
+        currentTime += effectiveDtPerStep;
+
+        // 1. Run Physics
+        // IMPORTANT: In Warp Mode, each step is a discrete 1x speed update (batching handles the velocity)
+        // If we pass simulationSpeed > 1 here, updateSimulation will double-apply it to the dt.
+        const { cars: updatedCars, events } = updateSimulation(
+            lastUpdatedCars,
+            laneLength,
+            params,
+            currentTime,
+            trafficRule,
+            isWarp ? 1 : simulationSpeed,
+            stoppedCars,
+            showNotifications,
+            isWarp ? effectiveDtPerStep : rawDeltaTime,
+            rng
+        );
+
+        lastUpdatedCars = updatedCars;
+        if (events.length > 0) {
+            batchEvents = [...batchEvents, ...events];
+        }
+
+        // 2. Identify Packs (needed for UI visualization and stats)
+        lastPacks = identifyPacks(lastUpdatedCars, laneLength, params.tDist);
+
+        if (params.simulationDuration > 0 && currentTime >= params.simulationDuration) {
+            isRunning = false;
+            break;
+        }
+    }
+
+    cars = lastUpdatedCars;
+
+    // 3. Post Back to Main Thread
     const statsData: any = {
         time: currentTime,
-        cars: updatedCars,
-        packs: currentPacks,
-        events: events,
+        cars: cars,
+        packs: lastPacks,
+        events: batchEvents,
     };
 
-    // Throttle chart data recording to 1.0s to prevent UI lag as history grows
+    // Throttle chart data recording to 1.0s to prevent UI lag
     if (currentTime - lastPackRecordTime >= 1.0) {
         statsData.metrics = {
             tick: true
@@ -73,18 +107,17 @@ function runSimulationStep() {
         lastPackRecordTime = currentTime;
     }
 
-    // 3. Post Back to Main Thread
     self.postMessage({
         type: 'TICK',
         data: statsData
     });
 
-    if (params.simulationDuration > 0 && currentTime >= params.simulationDuration) {
-        isRunning = false;
+    if (!isRunning) {
         self.postMessage({ type: 'COMPLETED' });
         return;
     }
 
+    // Schedule next tick
     setTimeout(runSimulationStep, 16);
 }
 
