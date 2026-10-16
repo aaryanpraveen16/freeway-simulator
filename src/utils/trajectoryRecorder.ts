@@ -96,7 +96,7 @@ export class TrajectoryRecorder {
       packed[offset] = c.id;
       packed[offset + 1] = Math.round(c.position * 1000) / 1000; // km with meter precision
       packed[offset + 2] = Math.round(c.speed * 10) / 10;
-      packed[offset + 3] = c.lane;
+      packed[offset + 3] = typeof c.lane === 'number' && !isNaN(c.lane) ? Math.round(c.lane) : 0;
       packed[offset + 4] = c.previousLane !== undefined ? c.previousLane : -1;
       packed[offset + 5] = c.lastLaneChange !== undefined ? Math.round(c.lastLaneChange * 10) / 10 : -1;
       packed[offset + 6] = Math.round(c.distanceTraveled * 100) / 100;
@@ -108,6 +108,13 @@ export class TrajectoryRecorder {
       t: Math.round(currentTime * 100) / 100,
       data: packed,
     });
+  }
+
+  public truncateToTime(targetTime: number): void {
+    while (this.frames.length > 0 && this.frames[this.frames.length - 1].t > targetTime) {
+      this.frames.pop();
+    }
+    this.lastSampleTime = this.frames.length > 0 ? this.frames[this.frames.length - 1].t : -1;
   }
 
   public getReplayData(totalDuration: number): SimulationReplay | null {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Car, calculateDistanceToCarAhead, Pack } from "@/utils/trafficSimulation";
-import CanvasCarRenderer from "./CanvasCarRenderer";
+import WebGLCarRenderer from "./WebGLCarRenderer";
 import StraightLineTrack from "./StraightLineTrack";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnitSystem } from "@/utils/unitConversion";
@@ -122,8 +122,8 @@ const TrafficTrack: React.FC<TrafficTrackProps> = ({
               </div>
 
               {/* Cars container with high z-index to ensure tooltips appear above all */}
-              <div className="relative" style={{ zIndex: 2 }}>
-                <CanvasCarRenderer
+              <div className="absolute inset-0" style={{ zIndex: 2 }}>
+                <WebGLCarRenderer
                   cars={cars}
                   packs={packs}
                   laneLength={laneLength}

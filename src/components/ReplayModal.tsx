@@ -24,8 +24,7 @@ import {
 import { SavedSimulation } from "@/services/simulationService";
 import { interpolateReplayFrame } from "@/utils/replayInterpolation";
 import { Car, Pack, identifyPacks } from "@/utils/trafficSimulation";
-import { WebGLCarRenderer } from "./WebGLCarRenderer";
-import TrafficHeatStrip from "./TrafficHeatStrip";
+import StraightLineTrack from "./StraightLineTrack";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 
 interface ReplayModalProps {
@@ -44,7 +43,6 @@ export const ReplayModal: React.FC<ReplayModalProps> = ({
   const replay = simulation?.replay;
   const duration = replay?.totalDuration || simulation?.duration || 0;
   const freewayLength = simulation?.params?.freewayLength || 5;
-  const numLanes = simulation?.params?.numLanes || 2;
   const conversions = getUnitConversions(unitSystem);
 
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -53,22 +51,12 @@ export const ReplayModal: React.FC<ReplayModalProps> = ({
   const [cars, setCars] = useState<Car[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [trackWidth, setTrackWidth] = useState<number>(1000);
+  // Dynamically ensure track height covers all vehicle lanes
+  const maxLaneInCars = cars.length > 0 ? Math.max(...cars.map(c => c.lane)) + 1 : 1;
+  const numLanes = Math.max(simulation?.params?.numLanes || 2, maxLaneInCars);
+
   const animFrameRef = useRef<number | null>(null);
   const lastRealTimeRef = useRef<number | null>(null);
-
-  // Resize listener
-  useEffect(() => {
-    const handleResize = () => {
-      if (containerRef.current) {
-        setTrackWidth(containerRef.current.offsetWidth);
-      }
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [isOpen]);
 
   // Reset when dialog opens with a new simulation
   useEffect(() => {
@@ -222,45 +210,18 @@ export const ReplayModal: React.FC<ReplayModalProps> = ({
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Traffic Heatstrip for road congestion visualization */}
-              <div className="rounded-lg overflow-hidden border border-slate-800/80 bg-slate-900/40 p-2">
-                <TrafficHeatStrip
-                  cars={cars}
-                  laneLength={freewayLength}
-                  numLanes={numLanes}
-                  unitSystem={unitSystem}
-                />
-              </div>
-
-              {/* WebGL Highway Canvas View */}
-              <div
-                ref={containerRef}
-                className="relative rounded-xl border border-slate-800 bg-slate-900/70 p-4 overflow-hidden shadow-inner flex flex-col justify-center"
-                style={{ minHeight: `${numLanes * 80 + 32}px` }}
-              >
-                <div className="absolute top-2 left-3 z-10 flex items-center gap-2 pointer-events-none">
-                  <span className="text-[10px] font-mono tracking-widest text-slate-500 uppercase">
-                    Straight Highway • PixiJS WebGL
-                  </span>
-                </div>
-                <WebGLCarRenderer
-                  cars={cars}
-                  packs={packs}
-                  laneLength={freewayLength}
-                  width={trackWidth > 50 ? trackWidth - 32 : 900}
-                  height={numLanes * 80}
-                  trackType="straight"
-                  laneHeight={80}
-                  laneCenterOffset={40}
-                  trackPadding={0}
-                  carSize={24}
-                  unitSystem={unitSystem}
-                  stoppedCars={new Set()}
-                  currentTime={currentTime}
-                />
-              </div>
-            </div>
+            <StraightLineTrack
+              cars={cars}
+              packs={packs}
+              laneLength={freewayLength}
+              numLanes={numLanes}
+              stoppedCars={new Set()}
+              carSize={24}
+              unitSystem={unitSystem}
+              currentTime={currentTime}
+              hideHeader={true}
+              className="bg-slate-900/90 border-slate-800 shadow-xl"
+            />
           )}
         </div>
 

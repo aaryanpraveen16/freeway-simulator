@@ -18,6 +18,7 @@ import { applyBufferToCars } from "@/utils/carBuffer";
 import { simulationService, SavedSimulation } from "@/services/simulationService";
 import { useToast } from "@/hooks/use-toast";
 import { SaveSimulationDialog } from "@/components/SaveSimulationDialog";
+import { ReplayModal } from "@/components/ReplayModal";
 import { calculateStabilizedValue, extractDataValues } from "@/utils/stabilizedValueCalculator";
 import { useAuth, useUser } from "@clerk/clerk-react";
 
@@ -54,6 +55,8 @@ const Index = () => {
   const setIsBatchProcessing = useSimulationStore((s) => s.setIsBatchProcessing);
   const setBatchQueue = useSimulationStore((s) => s.setBatchQueue);
   const toggleSimulation = useSimulationStore((s) => s.toggleSimulation);
+  const stepTick = useSimulationStore((s) => s.stepTick);
+  const stepBack = useSimulationStore((s) => s.stepBack);
   const resetSimulation = useSimulationStore((s) => s.resetSimulation);
   const stopCar = useSimulationStore((s) => s.stopCar);
   const resumeCar = useSimulationStore((s) => s.resumeCar);
@@ -100,6 +103,8 @@ const Index = () => {
   // Local dialog UI states
   const [showSaveDialog, setShowSaveDialog] = React.useState<boolean>(false);
   const [saveDialogDefaultName, setSaveDialogDefaultName] = React.useState<string>("");
+  const [isReplayOpen, setIsReplayOpen] = React.useState<boolean>(false);
+  const [liveReplayDoc, setLiveReplayDoc] = React.useState<SavedSimulation | null>(null);
 
   // Refs for background loops and worker synchronization
   const batchQueueRef = useRef<BatchSimulation[]>([]);
@@ -352,7 +357,50 @@ const Index = () => {
     resetSimulation(params);
     resetMetrics();
     setIsBatchPaused(false);
+    setLiveReplayDoc(null);
   }, [resetSimulation, resetMetrics, params, setIsBatchPaused]);
+
+  const handleOpenLiveReplay = useCallback(() => {
+    if (!workerRef.current || elapsedTime === 0) return;
+    if (isRunning) {
+      toggleSimulation();
+    }
+    pendingReplayResolverRef.current = (replayData) => {
+      if (!replayData || !replayData.frames || replayData.frames.length === 0) {
+        toast({
+          title: "No Replay Frames Available",
+          description: "Simulation hasn't advanced far enough to generate replay frames.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const liveDoc: SavedSimulation = {
+        id: `live-replay-${Date.now()}`,
+        name: `Current Session Replay (${elapsedTime.toFixed(1)}s)`,
+        timestamp: Date.now(),
+        simulationNumber: 0,
+        params: { ...params },
+        trafficRule,
+        duration: elapsedTime,
+        replay: replayData,
+        chartData: {},
+        finalStats: {
+          totalCars: cars.length,
+          averageSpeed: 0,
+          maxSpeed: 0,
+          minSpeed: 0,
+          laneChanges,
+          perLaneThroughputs: [],
+          stabilizedDensity: 0,
+          stabilizedAverageSpeed: 0,
+          stabilizedThroughput: 0,
+        },
+      };
+      setLiveReplayDoc(liveDoc);
+      setIsReplayOpen(true);
+    };
+    workerRef.current.postMessage({ type: 'GET_REPLAY' });
+  }, [elapsedTime, isRunning, toggleSimulation, params, trafficRule, cars.length, laneChanges, toast]);
 
   const handleSaveCurrentRun = useCallback(() => {
     if (packHistory.length === 0) {
@@ -404,23 +452,6 @@ const Index = () => {
       const stabilizedAverageSpeed = calculateStabilizedValue(speedHistory).value;
       const stabilizedThroughput = calculateStabilizedValue(throughputHistory).value;
 
-      // Fetch recorded trajectory from worker if available
-      let replayData: any = undefined;
-      if (workerRef.current) {
-        try {
-          replayData = await new Promise((resolve) => {
-            const timeout = setTimeout(() => resolve(undefined), 300);
-            pendingReplayResolverRef.current = (replay) => {
-              clearTimeout(timeout);
-              resolve(replay);
-            };
-            workerRef.current?.postMessage({ type: 'GET_REPLAY' });
-          });
-        } catch {
-          // fallback gracefully
-        }
-      }
-
       const savedDoc: SavedSimulation = {
         id: `simulation-${Date.now()}`,
         name,
@@ -429,7 +460,6 @@ const Index = () => {
         simulationNumber,
         params: { ...params },
         trafficRule,
-        replay: replayData,
         chartData: {
           speedByLaneHistory: speedDensityHistory.filter((_, i) => i % 20 === 0),
           densityOfCarPacksHistory: densityOfCarPacksHistory.filter((_, i) => i % 20 === 0),
@@ -536,9 +566,14 @@ const Index = () => {
       <StickyControlBar
         isRunning={isRunning}
         onToggleSimulation={toggleSimulation}
+        onStepTick={stepTick}
+        onStepBack={stepBack}
+        canStepBack={elapsedTime > 0.05}
         onReset={handleReset}
         setSimulationSpeed={setSimulationSpeed}
         onSaveSimulation={onSaveClick}
+        onOpenReplay={handleOpenLiveReplay}
+        canReplay={elapsedTime > 0}
         canSave={elapsedTime > 0 && cars.length > 0}
         userId={userId}
       />
@@ -547,6 +582,12 @@ const Index = () => {
         onOpenChange={setShowSaveDialog}
         onSave={executeSave}
         defaultName={saveDialogDefaultName}
+      />
+      <ReplayModal
+        simulation={liveReplayDoc}
+        isOpen={isReplayOpen}
+        onClose={() => setIsReplayOpen(false)}
+        unitSystem={unitSystem}
       />
       <div className="w-full py-8 pt-16">
         {showFreewayUI ? (

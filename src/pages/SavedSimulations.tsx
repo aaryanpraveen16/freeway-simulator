@@ -30,7 +30,6 @@ import OverlayPackFormationDensityChart from "@/components/OverlayPackFormationD
 import DensityLaneDistributionChart from "@/components/DensityLaneDistributionChart";
 import Footer from "@/components/Footer";
 import SimulationCard from "@/components/SimulationCard";
-import ReplayModal from "@/components/ReplayModal";
 
 // Sub-component for the collapsible selection list
 const ComparisonSelectionList: React.FC<{
@@ -295,7 +294,6 @@ const IndividualSimulationList: React.FC<{
   deleteSimulation: (id: string) => void;
   unitSystem: UnitSystem;
   openMoveDialogForSingle: (sim: SavedSimulation) => void;
-  onReplaySimulation: (sim: SavedSimulation) => void;
   selectedIds: Set<string>;
   onSelectionChange: (id: string, checked: boolean) => void;
   existingFolders: string[];
@@ -317,7 +315,6 @@ const IndividualSimulationList: React.FC<{
   deleteSimulation,
   unitSystem,
   openMoveDialogForSingle,
-  onReplaySimulation,
   selectedIds,
   onSelectionChange,
   existingFolders,
@@ -398,7 +395,6 @@ const IndividualSimulationList: React.FC<{
                 deleteSimulation={deleteSimulation}
                 unitSystem={unitSystem}
                 onMoveToFolder={openMoveDialogForSingle}
-                onReplaySimulation={onReplaySimulation}
                 isSelected={selectedIds.has(simulation.id)}
                 onSelectionChange={onSelectionChange}
               />
@@ -468,7 +464,6 @@ const IndividualSimulationList: React.FC<{
                           deleteSimulation={deleteSimulation}
                           unitSystem={unitSystem}
                           onMoveToFolder={openMoveDialogForSingle}
-                          onReplaySimulation={onReplaySimulation}
                           isSelected={selectedIds.has(simulation.id)}
                           onSelectionChange={onSelectionChange}
                         />
@@ -503,7 +498,6 @@ const IndividualSimulationList: React.FC<{
                       deleteSimulation={deleteSimulation}
                       unitSystem={unitSystem}
                       onMoveToFolder={openMoveDialogForSingle}
-                      onReplaySimulation={onReplaySimulation}
                       isSelected={selectedIds.has(simulation.id)}
                       onSelectionChange={onSelectionChange}
                     />
@@ -557,8 +551,6 @@ const SavedSimulations: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedSimulation, setSelectedSimulation] = useState<SavedSimulation | null>(null);
-  const [replaySimulation, setReplaySimulation] = useState<SavedSimulation | null>(null);
-  const [isReplayOpen, setIsReplayOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set());
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
@@ -790,19 +782,6 @@ const SavedSimulations: React.FC = () => {
       }
     } else {
       setSelectedSimulation(null);
-    }
-  };
-
-  const handleReplaySimulation = async (sim: SavedSimulation) => {
-    setReplaySimulation(sim);
-    setIsReplayOpen(true);
-
-    // If full document (including replay) hasn't been fetched yet
-    if (!sim.replay) {
-      const fullSim = await fetchFullSimulation(sim.id);
-      if (fullSim) {
-        setReplaySimulation(fullSim);
-      }
     }
   };
 
@@ -1222,7 +1201,6 @@ const SavedSimulations: React.FC = () => {
               deleteSimulation={deleteSimulation}
               unitSystem={unitSystem}
               openMoveDialogForSingle={openMoveDialogForSingle}
-              onReplaySimulation={handleReplaySimulation}
               selectedIds={selectedForComparison}
               onSelectionChange={handleComparisonSelection}
               existingFolders={existingFolders}
@@ -1402,29 +1380,15 @@ const SavedSimulations: React.FC = () => {
       >
         <DialogContent className="max-w-7xl h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <div className="flex items-center justify-between pr-8">
-              <DialogTitle className="flex items-center gap-2 text-2xl">
-                <Eye className="w-6 h-6" />
-                {selectedSimulation?.name}
-                {selectedSimulation && (
-                  <Badge variant="outline" className="ml-2">
-                    #{selectedSimulation.simulationNumber}
-                  </Badge>
-                )}
-              </DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <Eye className="w-6 h-6" />
+              {selectedSimulation?.name}
               {selectedSimulation && (
-                <Button
-                  onClick={() => {
-                    handleReplaySimulation(selectedSimulation);
-                  }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2 shadow-sm"
-                  size="sm"
-                >
-                  <Play size={16} className="fill-white" />
-                  Launch VCR Replay
-                </Button>
+                <Badge variant="outline" className="ml-2">
+                  #{selectedSimulation.simulationNumber}
+                </Badge>
               )}
-            </div>
+            </DialogTitle>
           </DialogHeader>
 
           {loadingDetail ? (
@@ -1511,15 +1475,6 @@ const SavedSimulations: React.FC = () => {
         existingFolders={existingFolders}
         onMove={handleMoveSimulations}
         selectedCount={simulationsToMove.size}
-      />
-      <ReplayModal
-        simulation={replaySimulation}
-        isOpen={isReplayOpen}
-        onClose={() => {
-          setIsReplayOpen(false);
-          setReplaySimulation(null);
-        }}
-        unitSystem={unitSystem}
       />
     </div>
   );

@@ -64,6 +64,8 @@ interface SimulationState {
   startSimulation: () => void;
   stopSimulation: () => void;
   toggleSimulation: () => void;
+  stepTick: (dt?: number) => void;
+  stepBack: (dt?: number) => void;
   resetSimulation: (newParams?: SimulationParams) => void;
   stopCar: (carId: number) => void;
   resumeCar: (carId: number) => void;
@@ -160,6 +162,33 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       if (isBatchProcessing) {
         set({ isBatchPaused: false });
       }
+    }
+  },
+
+  stepTick: (dt?: number) => {
+    const { worker, isRunning, stopSimulation } = get();
+    if (isRunning) {
+      stopSimulation();
+    }
+    if (worker) {
+      worker.postMessage({
+        type: 'STEP_TICK',
+        data: { dt: dt || 0.5 }
+      });
+    }
+  },
+
+  stepBack: (dt?: number) => {
+    const { worker, isRunning, stopSimulation, elapsedTime } = get();
+    if (elapsedTime <= 0) return;
+    if (isRunning) {
+      stopSimulation();
+    }
+    if (worker) {
+      worker.postMessage({
+        type: 'STEP_BACK',
+        data: { dt: dt || 0.5 }
+      });
     }
   },
 

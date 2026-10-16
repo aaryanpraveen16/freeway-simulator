@@ -107,7 +107,8 @@ export function interpolateReplayFrame(
       distTraveled = distTraveledA + (b.distTraveled - distTraveledA) * alpha;
 
       // Use target lane if progress past half
-      interpLane = alpha > 0.5 ? b.lane : laneA;
+      const rawLane = alpha > 0.5 ? b.lane : laneA;
+      interpLane = typeof rawLane === 'number' && !isNaN(rawLane) ? Math.round(rawLane) : 0;
       prevLane = b.prevLane >= 0 ? b.prevLane : prevLaneA;
       lastChange = b.lastChange >= 0 ? b.lastChange : lastChangeA;
       isOvertaking = b.isOvertaking;

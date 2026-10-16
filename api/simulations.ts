@@ -124,6 +124,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             simulation.createdBy = session.userId;
             simulation.creatorName = session.fullName;
 
+            // Ensure heavy trajectory replay data is never saved in MongoDB
+            delete simulation.replay;
+
             console.log('Saving simulation:', simulation.id, 'for user:', session.userId);
             await collection.insertOne(simulation);
             res.status(201).json({ message: 'Simulation saved successfully', id: simulation.id });

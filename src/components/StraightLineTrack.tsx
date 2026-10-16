@@ -6,6 +6,7 @@ import TrafficHeatStrip from "./TrafficHeatStrip";
 import { UnitSystem, getUnitConversions } from "@/utils/unitConversion";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface StraightLineTrackProps {
   cars: Car[];
@@ -18,6 +19,8 @@ interface StraightLineTrackProps {
   carSize?: number;
   unitSystem?: UnitSystem;
   currentTime?: number;
+  hideHeader?: boolean;
+  className?: string;
 }
 
 const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
@@ -31,17 +34,28 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
   carSize = 24,
   unitSystem = 'metric',
   currentTime = 0,
+  hideHeader = false,
+  className = "",
 }) => {
   const conversions = getUnitConversions(unitSystem);
   const laneHeight = 80; // Height of each lane in pixels
   const trackPadding = 16; // Padding around the track
 
   const trackAreaRef = React.useRef<HTMLDivElement>(null);
-  const [trackContentWidth, setTrackContentWidth] = React.useState(1000);
+  const [trackContentWidth, setTrackContentWidth] = React.useState(1200);
 
   React.useEffect(() => {
     const el = trackAreaRef.current;
     if (!el) return;
+
+    const updateWidth = () => {
+      const w = el.getBoundingClientRect().width || el.offsetWidth || el.clientWidth;
+      if (w > 0) {
+        setTrackContentWidth(w);
+      }
+    };
+
+    updateWidth();
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -52,11 +66,12 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
     });
 
     observer.observe(el);
-    if (el.offsetWidth > 0) {
-      setTrackContentWidth(el.offsetWidth);
-    }
+    window.addEventListener('resize', updateWidth);
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateWidth);
+    };
   }, []);
 
   const totalTrackHeight = laneHeight * numLanes;
@@ -128,11 +143,13 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
 
         {/* Track visualization */}
         <div className="w-full">
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-4">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Traffic Simulation</h3>
-              <p className="text-sm text-gray-500">Real-time vehicle movement and interactions</p>
-            </div>
+          <div className={cn("bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-4", className)}>
+            {!hideHeader && (
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">Traffic Simulation</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Real-time vehicle movement and interactions</p>
+              </div>
+            )}
 
             {/* Track area: Modern Dark Asphalt Freeway */}
             <div
@@ -219,7 +236,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
               />
 
               {/* Cars (WebGL Accelerated) */}
-              <div className="absolute inset-0 overflow-visible">
+              <div className="absolute inset-0 overflow-visible [&_canvas]:!w-full [&_canvas]:!h-full">
                 <WebGLCarRenderer
                   cars={cars}
                   packs={packs}
@@ -250,7 +267,7 @@ const StraightLineTrack: React.FC<StraightLineTrackProps> = ({
             </div>
 
             {/* Legend */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-600">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-gray-600 dark:text-slate-400">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                 <span>Lane 1</span>

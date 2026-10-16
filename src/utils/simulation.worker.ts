@@ -9,6 +9,7 @@ import {
 import { serializeCarsToBuffer } from './carBuffer';
 import { computeMetricsSnapshot } from './metricsAggregator';
 import { TrajectoryRecorder } from './trajectoryRecorder';
+import { interpolateReplayFrame } from './replayInterpolation';
 
 // Simulation state handled inside the worker
 let cars: Car[] = [];
@@ -182,6 +183,98 @@ self.onmessage = (e) => {
 
         case 'STOP':
             isRunning = false;
+            break;
+
+        case 'STEP_TICK':
+            if (!params) break;
+            const targetForwardDt = data?.dt || 0.5;
+            const subDt = params.dt || 0.1;
+            const subSteps = Math.max(1, Math.round(targetForwardDt / subDt));
+            let stepBatchEvents: any[] = [];
+
+            for (let s = 0; s < subSteps; s++) {
+                currentTime += subDt;
+                const { cars: nextCars, events: stepEvents } = updateSimulation(
+                    cars,
+                    laneLength,
+                    params,
+                    currentTime,
+                    trafficRule,
+                    1,
+                    stoppedCars,
+                    showNotifications,
+                    subDt,
+                    rng
+                );
+                cars = nextCars;
+                if (stepEvents.length > 0) {
+                    stepBatchEvents.push(...stepEvents);
+                }
+                recorder.recordTick(currentTime, cars);
+            }
+
+            const stepPacks = identifyPacks(cars, laneLength, params.tDist);
+            const stepCarBuffer = serializeCarsToBuffer(cars);
+
+            self.postMessage(
+                {
+                    type: 'TICK',
+                    data: {
+                        time: currentTime,
+                        carBuffer: stepCarBuffer,
+                        cars: cars,
+                        packs: stepPacks,
+                        events: stepBatchEvents,
+                        metricsSnapshot: computeMetricsSnapshot(
+                            cars,
+                            currentTime,
+                            laneLength,
+                            stepPacks,
+                            params,
+                            trafficRule
+                        ),
+                    }
+                },
+                [stepCarBuffer.buffer]
+            );
+            break;
+
+        case 'STEP_BACK':
+            if (!params) break;
+            const targetBackDt = data?.dt || 0.5;
+            const replaySnapshot = recorder.getReplayData(currentTime);
+            if (!replaySnapshot || !replaySnapshot.frames || replaySnapshot.frames.length === 0) break;
+
+            const targetTime = Math.max(0, currentTime - targetBackDt);
+            const reconstructedCars = interpolateReplayFrame(replaySnapshot, targetTime, laneLength);
+            cars = reconstructedCars;
+            currentTime = targetTime;
+            recorder.truncateToTime(targetTime);
+
+            const backPacks = identifyPacks(cars, laneLength, params.tDist);
+            const backCarBuffer = serializeCarsToBuffer(cars);
+
+            self.postMessage(
+                {
+                    type: 'TICK',
+                    data: {
+                        time: currentTime,
+                        carBuffer: backCarBuffer,
+                        cars: cars,
+                        packs: backPacks,
+                        events: [],
+                        metricsSnapshot: computeMetricsSnapshot(
+                            cars,
+                            currentTime,
+                            laneLength,
+                            backPacks,
+                            params,
+                            trafficRule
+                        ),
+                    }
+                },
+                [backCarBuffer.buffer]
+            );
             break;
 
         case 'UPDATE_PARAMS':

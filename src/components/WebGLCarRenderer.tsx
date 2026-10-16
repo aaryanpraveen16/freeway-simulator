@@ -53,6 +53,64 @@ export const WebGLCarRenderer: React.FC<WebGLCarRendererProps> = ({
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
     const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
+    const [measuredDimensions, setMeasuredDimensions] = useState<{ width: number; height: number }>({
+        width: width || 1000,
+        height: height || 200,
+    });
+
+    // Automatically measure container to always fill 100% of available track width
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const updateDims = () => {
+            const rect = el.getBoundingClientRect();
+            const w = Math.round(rect.width);
+            const h = Math.round(rect.height);
+            if (w > 0) {
+                setMeasuredDimensions({
+                    width: w,
+                    height: h > 0 ? h : (height || 200),
+                });
+            }
+        };
+
+        updateDims();
+
+        const ro = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const w = Math.round(entry.contentRect.width);
+                const h = Math.round(entry.contentRect.height);
+                if (w > 0) {
+                    setMeasuredDimensions({
+                        width: w,
+                        height: h > 0 ? h : (height || 200),
+                    });
+                }
+            }
+        });
+
+        ro.observe(el);
+        window.addEventListener('resize', updateDims);
+
+        return () => {
+            ro.disconnect();
+            window.removeEventListener('resize', updateDims);
+        };
+    }, [height]);
+
+    useEffect(() => {
+        if (width && width > 0) {
+            setMeasuredDimensions((prev) => ({
+                width: width,
+                height: height || prev.height,
+            }));
+        }
+    }, [width, height]);
+
+    const activeWidth = measuredDimensions.width > 0 ? measuredDimensions.width : (trackLength || width || 1000);
+    const activeHeight = measuredDimensions.height > 0 ? measuredDimensions.height : (height || 200);
+
     // 1. Calculate positions in screen coordinates (matches CanvasCarRenderer logic)
     const carPositions = useMemo(() => {
         return cars.map((car) => {
@@ -75,17 +133,17 @@ export const WebGLCarRenderer: React.FC<WebGLCarRendererProps> = ({
 
             if (trackType === "circular") {
                 const angle = (car.position / laneLength) * 2 * Math.PI;
-                x = width / 2 + trackRadius * Math.cos(angle);
-                y = height / 2 + trackRadius * Math.sin(angle);
+                x = activeWidth / 2 + trackRadius * Math.cos(angle);
+                y = activeHeight / 2 + trackRadius * Math.sin(angle);
                 rotation = angle + Math.PI / 2;
             } else {
-                x = (car.position / laneLength) * (trackLength || width);
+                x = (car.position / laneLength) * activeWidth;
                 y = visualLane * laneHeight + laneCenterOffset + trackPadding;
                 rotation = 0;
             }
             return { id: car.id, x, y, rotation, car };
         });
-    }, [cars, laneLength, trackType, width, height, trackRadius, trackLength, laneHeight, laneCenterOffset, trackPadding, currentTime]);
+    }, [cars, laneLength, trackType, activeWidth, activeHeight, trackRadius, laneHeight, laneCenterOffset, trackPadding, currentTime]);
 
     const [isReady, setIsReady] = useState(false);
 
@@ -97,13 +155,15 @@ export const WebGLCarRenderer: React.FC<WebGLCarRendererProps> = ({
         async function initPixi() {
             if (!containerRef.current) return;
             const dpr = window.devicePixelRatio || 1;
+            const initW = containerRef.current.clientWidth || activeWidth;
+            const initH = containerRef.current.clientHeight || activeHeight;
 
             await app.init({
-                width: width || 800,
-                height: height || 200,
+                width: initW,
+                height: initH,
                 backgroundAlpha: 0,
                 resolution: dpr,
-                autoDensity: true,
+                autoDensity: false, // Prevents Pixi from hardcoding a fixed px style.width!
                 antialias: true,
                 preference: 'webgl',
             });
@@ -112,6 +172,11 @@ export const WebGLCarRenderer: React.FC<WebGLCarRendererProps> = ({
                 app.destroy(true, { children: true });
                 return;
             }
+
+            // Force canvas to take 100% of container width & height
+            app.canvas.style.width = "100%";
+            app.canvas.style.height = "100%";
+            app.canvas.style.display = "block";
 
             // Append Pixi canvas to DOM container
             containerRef.current.innerHTML = "";
@@ -140,10 +205,15 @@ export const WebGLCarRenderer: React.FC<WebGLCarRendererProps> = ({
 
     // 3. Resize Pixi renderer when width/height change
     useEffect(() => {
-        if (pixiAppRef.current && width > 0 && height > 0) {
-            pixiAppRef.current.renderer.resize(width, height);
+        if (pixiAppRef.current && activeWidth > 0 && activeHeight > 0) {
+            pixiAppRef.current.renderer.resize(activeWidth, activeHeight);
+            if (pixiAppRef.current.canvas) {
+                pixiAppRef.current.canvas.style.width = "100%";
+                pixiAppRef.current.canvas.style.height = "100%";
+                pixiAppRef.current.canvas.style.display = "block";
+            }
         }
-    }, [width, height]);
+    }, [activeWidth, activeHeight]);
 
     // 4. Draw vehicles and pack indicators via WebGL
     useEffect(() => {
@@ -377,7 +447,7 @@ export const WebGLCarRenderer: React.FC<WebGLCarRendererProps> = ({
                 onClick={handleClick}
             >
                 {/* Pixi.js Canvas is mounted here */}
-                <div ref={containerRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+                <div ref={containerRef} className="absolute inset-0 w-full h-full pointer-events-none [&_canvas]:!w-full [&_canvas]:!h-full" />
 
                 {/* Radix UI Tooltip */}
                 {hoveredCar && (
